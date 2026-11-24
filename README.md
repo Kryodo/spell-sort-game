@@ -1,24 +1,29 @@
-# Spell Sort — First Playable Prototype
+# Spell Sort — Alchemy Interaction Test
 
-This branch adds the first playable portrait puzzle screen to the existing Godot project.
+This branch adds a focused portrait test scene for the core alchemy interaction. It is intentionally separate from the playable sorting screen.
 
 ## Run
 
-Open the project in Godot 4.7 and run the project (F6 is not required; the main scene is configured in project.godot).
+Open the project in Godot 4.7 and run the project. The configured main scene is `res://scenes/alchemy_interaction_test.tscn`.
 
-## Prototype loop
+The original sorting prototype remains available at `res://scenes/main.tscn`.
 
-- Tap or click a vial to select it.
-- Tap an empty vial, or a vial whose top essence matches, to pour.
-- A pour transfers the complete contiguous top run that fits.
-- Sort the three essences into full, single-colour vials.
-- Undo reverses the previous successful pour.
-- Reset restores the opening puzzle. After solving it, the same button starts a new shuffled mix.
+## What this test compares
 
-The puzzle uses four vials, three essences and four layers per vial.
+- Two bottle sprites cropped from the first two cells of the 4 × 4 bottle sheet.
+- Two procedural bottle silhouettes with different editable shape profiles.
+- One shared liquid renderer for both bottle approaches.
+- Curved liquid bands that follow each bottle profile rather than rectangular blocks.
+- A gently moving liquid surface that reacts to bottle lift and tilt.
+- One-finger or mouse press-and-drag interaction.
+- Valid-target highlighting, invalid-drop return, animated lifting, directional tilt, a foreground pour stream, fill transfer and return-to-slot movement.
 
-## Art integration
+## Controls
 
-The portrait laboratory background is used directly from assets/environments/laboratory_background.png. The gameplay vials use a trimmed bottle sprite from the approved bottle sheet, with the essence layers drawn dynamically over the glass artwork. The first bottle cell in the 4 × 4 sheet is used consistently across the four puzzle slots in this prototype.
+1. Press and hold a non-empty bottle.
+2. Drag it over an empty vial or one with a matching top essence.
+3. Release to pour.
+4. Release over an invalid target or outside the bottles to return it to its original slot.
+5. Use RESET TEST to restore the opening arrangement.
 
-The source sheets in assets/ remain untouched. The ingredient, prop and gameplay-icon sheets remain untouched and can be integrated after their individual sprite bounds have been checked in the running project. Bottle pouring now includes a lift, directional tilt, animated essence stream, interpolated source and destination fill levels, and a return-to-rest motion. Undo and reset are temporarily locked while a pour animation is in progress. UI panels, labels and buttons are intentionally built in Godot.
+The source asset sheets are not modified. This test is for evaluating the bottle-rendering and interaction direction before integrating it into the main puzzle flow.
