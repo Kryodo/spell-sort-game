@@ -1,14 +1,12 @@
 extends Control
 
 const CAPACITY := 4
-const LIQUID_BOTTOM_RATIO := 0.982
+const LIQUID_BOTTOM_RATIO := 0.938
 const LIQUID_TOP_RATIO := 0.31
-const PROFILE_SAMPLES := 192
-const BOUNDS_SAMPLES := 201
-const LIQUID_COLUMNS := 72
-const LIQUID_BAND_OVERLAP_PIXELS := 2.0
-const LIQUID_WALL_INSET_PIXELS := 3.0
-const LIQUID_FLOOR_INSET_PIXELS := 1.8
+const LIQUID_BAND_STRIPS := 10
+const LIQUID_WALL_INSET_PIXELS := 4.5
+const LIQUID_FLOOR_INSET_PIXELS := 5.0
+const LIQUID_BAND_OVERLAP_PIXELS := 1.2
 
 var vial_index: int = 0
 var display_name: String = ""
@@ -30,7 +28,6 @@ var _slosh: float = 0.0
 var _slosh_velocity: float = 0.0
 var _wave_time: float = 0.0
 var _max_half_width: float = 0.44
-var _vertical_bounds: Array[Vector2] = []
 
 
 func _ready() -> void:
@@ -47,7 +44,6 @@ func setup(index: int, label: String, variant: int, palette: Dictionary, content
 	_contents = contents.duplicate()
 	_visual_contents = contents.duplicate()
 	_liquid_level = float(contents.size())
-	_build_vertical_bounds()
 	queue_redraw()
 
 
@@ -210,38 +206,6 @@ func _get_profile_at(y_norm: float) -> Vector2:
 	return profile.back()
 
 
-func _build_vertical_bounds() -> void:
-	_vertical_bounds.clear()
-	_max_half_width = 0.0
-	for point in _profile_points():
-		_max_half_width = maxf(_max_half_width, point.y)
-
-	for column_index in range(BOUNDS_SAMPLES):
-		var x_ratio: float = lerpf(-_max_half_width, _max_half_width, float(column_index) / float(BOUNDS_SAMPLES - 1))
-		var first_y: float = -1.0
-		var last_y: float = -1.0
-		for sample_index in range(PROFILE_SAMPLES + 1):
-			var y_norm: float = float(sample_index) / float(PROFILE_SAMPLES)
-			if _get_profile_at(y_norm).y >= absf(x_ratio) - 0.0005:
-				if first_y < 0.0:
-					first_y = y_norm
-				last_y = y_norm
-		_vertical_bounds.append(Vector2(first_y, last_y))
-
-
-func _get_vertical_bounds_at_x(x_ratio: float) -> Vector2:
-	if _vertical_bounds.is_empty():
-		return Vector2(-1.0, -1.0)
-	var scaled: float = clampf(absf(x_ratio) / _max_half_width, 0.0, 1.0) * float(_vertical_bounds.size() - 1)
-	var lower: int = clampi(int(floor(scaled)), 0, _vertical_bounds.size() - 1)
-	var upper: int = mini(lower + 1, _vertical_bounds.size() - 1)
-	var first: Vector2 = _vertical_bounds[lower]
-	var second: Vector2 = _vertical_bounds[upper]
-	if first.x < 0.0 or second.x < 0.0:
-		return Vector2(-1.0, -1.0)
-	return first.lerp(second, scaled - float(lower))
-
-
 func _get_vessel_rect() -> Rect2:
 	var width: float = size.x * 0.91
 	var height: float = size.y * 0.735
@@ -375,6 +339,7 @@ func _draw_open_mouth(rect: Rect2) -> void:
 	draw_polyline(front_rim, Color(1.0, 1.0, 1.0, 0.85), 2.0, true)
 
 
+
 func _draw_liquid(rect: Rect2) -> void:
 	if _visual_contents.is_empty() or _liquid_level <= 0.001:
 		return
@@ -382,137 +347,120 @@ func _draw_liquid(rect: Rect2) -> void:
 	var layer_height: float = (LIQUID_BOTTOM_RATIO - LIQUID_TOP_RATIO) / float(CAPACITY)
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
 
+	# Draw from the bottom upward so a small overlap is covered by the next essence.
 	for layer_index in range(visible_layers):
 		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
 		if amount <= 0.001:
 			continue
+
 		var bottom_ratio: float = LIQUID_BOTTOM_RATIO - float(layer_index) * layer_height
 		var top_ratio: float = bottom_ratio - layer_height * amount
 		var essence: String = String(_visual_contents[layer_index])
 		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-		_draw_liquid_band(rect, top_ratio, bottom_ratio, liquid_color, layer_index == visible_layers - 1, layer_index == 0)
+		_draw_liquid_band(
+			rect,
+			top_ratio,
+			bottom_ratio,
+			liquid_color,
+			layer_index == visible_layers - 1,
+			layer_index == 0
+		)
 
 
+func _get_min_profile_width(top_ratio: float, bottom_ratio: float) -> float:
+	var minimum_width: float = 1.0
+	for sample_index in range(13):
+		var sample_ratio: float = lerpf(top_ratio, bottom_ratio, float(sample_index) / 12.0)
+		minimum_width = minf(minimum_width, _get_profile_at(sample_ratio).y)
+	return minimum_width
 
 
-func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liquid_color: Color, is_surface: bool, is_bottom: bool) -> void:
-	var base_top: float = rect.position.y + rect.size.y * top_ratio
-	var base_bottom: float = rect.position.y + rect.size.y * bottom_ratio
-	var wall_inset_ratio: float = LIQUID_WALL_INSET_PIXELS / maxf(1.0, rect.size.x)
-	var vertical_inset_ratio: float = LIQUID_FLOOR_INSET_PIXELS / maxf(1.0, rect.size.y)
-
-	# Adjacent essence regions overlap slightly. Each region is still drawn as one
-	# continuous mesh, avoiding the antialiased cracks caused by many tiny quads.
+func _draw_liquid_band(
+	rect: Rect2,
+	top_ratio: float,
+	bottom_ratio: float,
+	liquid_color: Color,
+	is_surface: bool,
+	is_bottom: bool
+) -> void:
+	var top_y: float = rect.position.y + rect.size.y * top_ratio
+	var bottom_y: float = rect.position.y + rect.size.y * bottom_ratio
 	if not is_bottom:
-		base_bottom += LIQUID_BAND_OVERLAP_PIXELS
+		bottom_y += LIQUID_BAND_OVERLAP_PIXELS
 
-	var x_extent: float = maxf(0.0, _max_half_width - wall_inset_ratio * 1.5)
-	var top_edge := PackedVector2Array()
-	var bottom_edge := PackedVector2Array()
-	var edge_ratios: Array[float] = []
-	var started_region: bool = false
-
-	for sample_index in range(LIQUID_COLUMNS + 1):
-		var x_ratio: float = lerpf(-x_extent, x_extent, float(sample_index) / float(LIQUID_COLUMNS))
-		var bounds := _get_vertical_bounds_at_x(absf(x_ratio) + wall_inset_ratio)
-		if bounds.x < 0.0 or bounds.y < 0.0:
-			if started_region:
-				break
-			continue
-
-		var x: float = rect.get_center().x + rect.size.x * x_ratio
-		var inside_top: float = rect.position.y + rect.size.y * (bounds.x + vertical_inset_ratio)
-		var inside_bottom: float = rect.position.y + rect.size.y * (bounds.y - vertical_inset_ratio)
-		if inside_bottom - inside_top < 1.0:
-			if started_region:
-				break
-			continue
-
-		var top_y: float = maxf(base_top, inside_top)
-		var bottom_y: float = minf(base_bottom, inside_bottom)
-
-		if is_surface:
-			if bottom_y - inside_top < 1.5:
-				if started_region:
-					break
-				continue
-			var slope: float = -tan(_tilt) * x_ratio * 0.12 * rect.size.y
-			var wave: float = sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
-			top_y = clampf(base_top + slope + wave, inside_top, bottom_y - 1.5)
-
-		if bottom_y - top_y < 1.0:
-			if started_region:
-				break
-			continue
-
-		started_region = true
-		top_edge.append(Vector2(x, top_y))
-		bottom_edge.append(Vector2(x, bottom_y))
-		edge_ratios.append(absf(x_ratio) / maxf(0.001, _max_half_width))
-
-	if top_edge.size() < 3 or bottom_edge.size() != top_edge.size():
+	var strip_height: float = (bottom_y - top_y) / float(LIQUID_BAND_STRIPS)
+	if strip_height <= 0.5:
 		return
 
-	var liquid_polygon := PackedVector2Array()
-	for point in top_edge:
-		liquid_polygon.append(point)
-	for index in range(bottom_edge.size() - 1, -1, -1):
-		liquid_polygon.append(bottom_edge[index])
+	for strip_index in range(LIQUID_BAND_STRIPS):
+		var strip_top: float = top_y + strip_height * float(strip_index)
+		var strip_bottom: float = minf(bottom_y, top_y + strip_height * float(strip_index + 1) + 0.8)
+		var strip_top_ratio: float = (strip_top - rect.position.y) / rect.size.y
+		var strip_bottom_ratio: float = (strip_bottom - rect.position.y) / rect.size.y
+		var half_width_ratio: float = _get_min_profile_width(strip_top_ratio, strip_bottom_ratio)
+		var half_width: float = rect.size.x * half_width_ratio - LIQUID_WALL_INSET_PIXELS
+		if half_width <= 2.0:
+			continue
 
-	var indices: PackedInt32Array = Geometry2D.triangulate_polygon(liquid_polygon)
-	if indices.is_empty():
-		return
+		# The strip is a simple rectangle fully inside the narrowest point of this
+		# part of the glass profile. This intentionally favours reliable coverage
+		# over perfect contour matching.
+		var strip_rect := Rect2(
+			rect.get_center().x - half_width,
+			strip_top,
+			half_width * 2.0,
+			strip_bottom - strip_top
+		)
+		var depth_factor: float = 0.07 + 0.08 * sin(PI * (float(strip_index) + 0.5) / float(LIQUID_BAND_STRIPS))
+		var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.15), depth_factor)
+		draw_rect(strip_rect, fill_color, true, -1.0, false)
 
-	# Per-vertex shading gives the liquid rounded depth without splitting it into
-	# separately antialiased strips.
-	var vertex_colors := PackedColorArray()
-	for index in range(top_edge.size()):
-		var edge_ratio: float = clampf(edge_ratios[index], 0.0, 1.0)
-		var shaded: Color = liquid_color.lerp(liquid_color.darkened(0.36), edge_ratio * 0.48)
-		vertex_colors.append(shaded.lightened(0.035))
-	for index in range(bottom_edge.size() - 1, -1, -1):
-		var edge_ratio: float = clampf(edge_ratios[index], 0.0, 1.0)
-		var shaded: Color = liquid_color.lerp(liquid_color.darkened(0.36), edge_ratio * 0.48)
-		vertex_colors.append(shaded.darkened(0.045))
-
-	draw_polygon(liquid_polygon, vertex_colors)
+		# Darker narrow side facets add a little depth while keeping the centre vivid.
+		var side_width: float = minf(2.2, half_width * 0.08)
+		draw_rect(
+			Rect2(strip_rect.position.x, strip_rect.position.y, side_width, strip_rect.size.y),
+			liquid_color.darkened(0.18),
+			true,
+			-1.0,
+			false
+		)
+		draw_rect(
+			Rect2(strip_rect.end.x - side_width, strip_rect.position.y, side_width, strip_rect.size.y),
+			liquid_color.darkened(0.24),
+			true,
+			-1.0,
+			false
+		)
 
 	if is_surface:
-		_draw_liquid_surface(rect, base_top, liquid_color)
+		_draw_liquid_surface(rect, top_y, liquid_color)
 
 
-func _draw_liquid_surface(rect: Rect2, base_top: float, _liquid_color: Color) -> void:
-	var surface_ratio: float = clampf((base_top - rect.position.y) / maxf(1.0, rect.size.y), 0.0, 1.0)
-	var wall_inset_ratio: float = LIQUID_WALL_INSET_PIXELS / maxf(1.0, rect.size.x)
-	var surface_half_width: float = maxf(0.0, _get_profile_at(surface_ratio).y - wall_inset_ratio)
+func _draw_liquid_surface(rect: Rect2, surface_y: float, liquid_color: Color) -> void:
+	var surface_ratio: float = clampf((surface_y - rect.position.y) / maxf(1.0, rect.size.y), 0.0, 1.0)
+	var half_width: float = rect.size.x * _get_profile_at(surface_ratio).y - LIQUID_WALL_INSET_PIXELS
+	if half_width <= 3.0:
+		return
+
 	var surface_line := PackedVector2Array()
+	for point_index in range(25):
+		var x_ratio: float = lerpf(-1.0, 1.0, float(point_index) / 24.0)
+		var x: float = rect.get_center().x + half_width * x_ratio
+		var wave: float = sin(_wave_time * 2.1 + x_ratio * 2.8) * (0.8 + absf(_slosh) * 2.0)
+		var tilt: float = -tan(_tilt) * x_ratio * half_width * 0.10
+		surface_line.append(Vector2(x, surface_y + wave + tilt))
 
-	for point_index in range(33):
-		var x_ratio: float = lerpf(-surface_half_width, surface_half_width, float(point_index) / 32.0)
-		var x: float = rect.get_center().x + rect.size.x * x_ratio
-		var bounds := _get_vertical_bounds_at_x(absf(x_ratio) + wall_inset_ratio)
-		if bounds.x < 0.0 or bounds.y < 0.0:
-			continue
-
-		var inside_top: float = rect.position.y + rect.size.y * (bounds.x + 0.004)
-		var inside_bottom: float = rect.position.y + rect.size.y * (bounds.y - 0.006)
-		if inside_bottom <= inside_top:
-			continue
-		var y: float = base_top - tan(_tilt) * x_ratio * rect.size.y * 0.12
-		y += sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
-		y = clampf(y, inside_top, inside_bottom)
-		surface_line.append(Vector2(x, y))
-
-	if surface_line.size() >= 2:
-		var surface_glint: Color = _liquid_color.lightened(0.34)
-		draw_polyline(surface_line, Color(surface_glint.r, surface_glint.g, surface_glint.b, 0.48), 1.8, true)
-
-		var shimmer := PackedVector2Array()
-		for index in range(9, 24):
-			if index < surface_line.size():
-				shimmer.append(surface_line[index] + Vector2(0.0, 2.5))
-		if shimmer.size() >= 2:
-			draw_polyline(shimmer, Color(1.0, 1.0, 1.0, 0.19), 1.0, true)
+	draw_polyline(
+		surface_line,
+		Color(
+			liquid_color.lightened(0.38).r,
+			liquid_color.lightened(0.38).g,
+			liquid_color.lightened(0.38).b,
+			0.56
+		),
+		1.8,
+		true
+	)
 
 func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
 	if points.size() != 4:
