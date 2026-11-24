@@ -22,6 +22,8 @@ var _liquid_level: float = 0.0
 var _selected: bool = false
 var _targeted: bool = false
 var _dragging: bool = false
+var _drag_motion: bool = false
+var _surface_activity: float = 0.0
 var _lift: float = 0.0
 var _tilt: float = 0.0
 var _draw_scale: float = 1.0
@@ -66,12 +68,18 @@ func set_preview(contents: Array, level: float) -> void:
 	queue_redraw()
 
 
+
 func set_feedback(selected: bool, targeted: bool, dragging: bool) -> void:
 	_selected = selected
 	_targeted = targeted
 	_dragging = dragging
+	if not dragging:
+		_drag_motion = false
 	queue_redraw()
 
+
+func set_drag_motion(active: bool) -> void:
+	_drag_motion = active and _dragging
 
 func set_pose(pose: Vector2) -> void:
 	var tilt_change: float = pose.y - _tilt
@@ -94,14 +102,16 @@ func get_draw_scale() -> float:
 	return _draw_scale
 
 
+
 func reset_motion() -> void:
 	_lift = 0.0
 	_tilt = 0.0
 	_draw_scale = 1.0
 	_slosh = 0.0
 	_slosh_velocity = 0.0
+	_drag_motion = false
+	_surface_activity = 0.0
 	queue_redraw()
-
 
 func trigger_slosh(strength: float = 0.12) -> void:
 	_slosh_velocity += strength
@@ -157,15 +167,23 @@ func is_pointer_over_mouth(pointer_local: Vector2) -> bool:
 	return dx * dx + dy * dy <= 1.0
 
 
+
 func _process(delta: float) -> void:
-	_wave_time += delta * 2.4
+	var target_activity: float = 0.0
+	if _dragging:
+		target_activity = 1.0 if _drag_motion else 0.34
+	elif _selected:
+		target_activity = 0.20
+
+	_surface_activity = move_toward(_surface_activity, target_activity, delta * 4.8)
+	_wave_time += delta * lerpf(1.25, 2.65, _surface_activity)
+
 	_slosh_velocity += (-_slosh * 15.0 - _slosh_velocity * 5.2) * delta
 	_slosh += _slosh_velocity * delta
 	_slosh = clampf(_slosh, -1.0, 1.0)
-	if absf(_slosh) > 0.001 or absf(_slosh_velocity) > 0.001 or _selected or _targeted or _liquid_level > 0.001:
-		# Filled vials keep redrawing so the liquid surface has subtle life at rest too.
-		queue_redraw()
 
+	if absf(_slosh) > 0.001 or absf(_slosh_velocity) > 0.001 or _selected or _targeted or _liquid_level > 0.001:
+		queue_redraw()
 
 func _profile_points() -> Array[Vector2]:
 	var points: Array[Vector2] = []
@@ -388,6 +406,7 @@ func _get_min_profile_width(top_ratio: float, bottom_ratio: float) -> float:
 
 
 
+
 func _draw_liquid_band(
 	rect: Rect2,
 	top_ratio: float,
@@ -401,20 +420,28 @@ func _draw_liquid_band(
 	if not is_bottom:
 		bottom_y += LIQUID_BAND_OVERLAP_PIXELS
 
+	var surface_depth: float = 0.0
 	if is_surface:
-		# The moving surface is the top edge of the liquid volume itself.
-		# No independent line is drawn over it.
-		var surface_depth: float = minf(12.0, (bottom_y - top_y) * 0.34)
-		_draw_wavy_surface_fill(rect, top_y, top_y + surface_depth, liquid_color)
-		top_y += surface_depth - 0.6
+		surface_depth = minf(12.0, maxf(0.0, bottom_y - top_y) * 0.34)
 
-	var strip_height: float = (bottom_y - top_y) / float(LIQUID_BAND_STRIPS)
+	var body_top: float = top_y + surface_depth - 0.6 if is_surface else top_y
+	var strip_height: float = (bottom_y - body_top) / float(LIQUID_BAND_STRIPS)
 	if strip_height <= 0.5:
 		return
 
+	if is_surface:
+		var first_strip_bottom: float = body_top + strip_height + 1.5
+		_draw_wavy_surface_fill(
+			rect,
+			top_y,
+			body_top + 0.8,
+			first_strip_bottom,
+			liquid_color
+		)
+
 	for strip_index in range(LIQUID_BAND_STRIPS):
-		var strip_top: float = top_y + strip_height * float(strip_index)
-		var strip_bottom: float = minf(bottom_y, top_y + strip_height * float(strip_index + 1) + 1.5)
+		var strip_top: float = body_top + strip_height * float(strip_index)
+		var strip_bottom: float = minf(bottom_y, body_top + strip_height * float(strip_index + 1) + 1.5)
 		var strip_top_ratio: float = (strip_top - rect.position.y) / rect.size.y
 		var strip_bottom_ratio: float = (strip_bottom - rect.position.y) / rect.size.y
 		var half_width_ratio: float = _get_min_profile_width(strip_top_ratio, strip_bottom_ratio)
@@ -449,40 +476,66 @@ func _draw_liquid_band(
 		)
 
 
-func _draw_wavy_surface_fill(rect: Rect2, surface_y: float, fill_bottom: float, liquid_color: Color) -> void:
+func _draw_wavy_surface_fill(
+	rect: Rect2,
+	surface_y: float,
+	fill_bottom: float,
+	first_strip_bottom: float,
+	liquid_color: Color
+) -> void:
 	if fill_bottom <= surface_y + 1.0:
 		return
 
-	var surface_ratio: float = (surface_y - rect.position.y) / maxf(1.0, rect.size.y)
-	var bottom_ratio: float = (fill_bottom - rect.position.y) / maxf(1.0, rect.size.y)
-	var half_width_ratio: float = _get_min_profile_width(surface_ratio - 0.008, bottom_ratio + 0.008)
-	var half_width: float = rect.size.x * half_width_ratio - LIQUID_WALL_INSET_PIXELS
+	var height: float = maxf(1.0, rect.size.y)
+	var maximum_wave: float = 0.35 + _surface_activity * 2.25 + absf(_slosh) * 1.35
+	var secondary_wave: float = 0.08 + _surface_activity * 0.62 + absf(_slosh) * 0.55
+	var wave_frequency: float = lerpf(1.8, 3.2, _surface_activity)
+
+	var surface_ratio: float = surface_y / height
+	var lower_guard_ratio: float = (first_strip_bottom - rect.position.y) / height
+	var upper_guard_ratio: float = (surface_y - maximum_wave - rect.position.y) / height
+	var width_ratio: float = _get_min_profile_width(upper_guard_ratio, lower_guard_ratio)
+	var half_width: float = rect.size.x * width_ratio - LIQUID_WALL_INSET_PIXELS
 	if half_width <= 2.0:
 		return
 
-	var column_width: float = (half_width * 2.0) / float(LIQUID_SURFACE_COLUMNS)
-	var safe_bottom: float = fill_bottom
-	var maximum_wave: float = 1.4 + absf(_slosh) * 3.6
+	var top_edge := PackedVector2Array()
+	var bottom_edge := PackedVector2Array()
+	var surface_count: int = LIQUID_SURFACE_COLUMNS
 
-	for column_index in range(LIQUID_SURFACE_COLUMNS):
-		var x_ratio: float = (float(column_index) + 0.5) / float(LIQUID_SURFACE_COLUMNS) * 2.0 - 1.0
-		var wave_primary: float = sin(_wave_time * 1.75 + x_ratio * 3.4) * maximum_wave
-		var wave_secondary: float = sin(_wave_time * 2.45 - x_ratio * 7.2) * absf(_slosh) * 1.15
-		var tilt_offset: float = clampf(-tan(_tilt) * x_ratio * half_width * 0.045, -4.5, 4.5)
-		var moving_surface_y: float = surface_y + wave_primary + wave_secondary + tilt_offset
-		moving_surface_y = clampf(moving_surface_y, surface_y - 6.0, safe_bottom - 2.0)
+	for point_index in range(surface_count + 1):
+		var normalized_x: float = float(point_index) / float(surface_count) * 2.0 - 1.0
+		var x: float = rect.get_center().x + normalized_x * half_width
+		var edge_envelope: float = sin((normalized_x + 1.0) * PI * 0.5)
+		edge_envelope = pow(maxf(0.0, edge_envelope), 0.55)
 
-		var x: float = rect.get_center().x - half_width + float(column_index) * column_width
-		var fill_rect := Rect2(
-			x - LIQUID_SURFACE_OVERLAP_PIXELS * 0.5,
-			moving_surface_y,
-			column_width + LIQUID_SURFACE_OVERLAP_PIXELS,
-			safe_bottom - moving_surface_y
-		)
+		var wave_one: float = sin(_wave_time * wave_frequency + normalized_x * 3.1) * maximum_wave
+		var wave_two: float = sin(_wave_time * (wave_frequency * 1.37) - normalized_x * 6.3) * secondary_wave
+		var tilt_offset: float = clampf(-tan(_tilt) * normalized_x * half_width * 0.035, -3.0, 3.0)
+		var wave_offset: float = (wave_one + wave_two) * edge_envelope + tilt_offset
+		var moving_surface_y: float = clampf(surface_y + wave_offset, surface_y - maximum_wave - 0.6, fill_bottom - 1.5)
 
-		var edge_factor: float = absf(x_ratio)
-		var shaded_color: Color = liquid_color.lerp(liquid_color.darkened(0.22), edge_factor * 0.25)
-		draw_rect(fill_rect, shaded_color, true, -1.0, false)
+		top_edge.append(Vector2(x, moving_surface_y))
+		bottom_edge.append(Vector2(x, fill_bottom))
+
+	var surface_polygon := PackedVector2Array()
+	for point in top_edge:
+		surface_polygon.append(point)
+	for index in range(bottom_edge.size() - 1, -1, -1):
+		surface_polygon.append(bottom_edge[index])
+
+	var surface_color: Color = liquid_color.lerp(liquid_color.lightened(0.18), 0.16)
+	draw_colored_polygon(surface_polygon, surface_color)
+
+	# A very soft antialiased glint follows the exact filled boundary. It is not
+	# an independent flat line: its points are the polygon's animated top edge.
+	var edge_color := Color(
+		minf(1.0, surface_color.r * 1.18),
+		minf(1.0, surface_color.g * 1.18),
+		minf(1.0, surface_color.b * 1.18),
+		0.24 + _surface_activity * 0.06
+	)
+	draw_polyline(top_edge, edge_color, 1.35, true)
 
 func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
 	if points.size() != 4:
