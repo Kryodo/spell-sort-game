@@ -475,7 +475,7 @@ func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liqui
 		var shaded: Color = liquid_color.lerp(liquid_color.darkened(0.36), edge_ratio * 0.48)
 		vertex_colors.append(shaded.darkened(0.045))
 
-	draw_polygon(liquid_polygon, vertex_colors, PackedVector2Array(), null, indices, false)
+	draw_polygon(liquid_polygon, vertex_colors)
 
 	if is_surface:
 		_draw_liquid_surface(rect, base_top, liquid_color)
