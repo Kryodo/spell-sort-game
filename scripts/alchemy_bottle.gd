@@ -3,6 +3,8 @@ extends Control
 const MODE_GENERATED := 0
 const MODE_PROCEDURAL := 1
 const CAPACITY := 4
+const LIQUID_BOTTOM_RATIO := 0.87
+const LIQUID_TOP_RATIO := 0.29
 
 var vial_index: int = 0
 var display_name: String = ""
@@ -285,16 +287,14 @@ func _draw_liquid(rect: Rect2) -> void:
 	if _visual_contents.is_empty() or _liquid_level <= 0.001:
 		return
 
-	const BOTTOM_RATIO := 0.87
-	const TOP_RATIO := 0.29
-	var layer_height: float = (BOTTOM_RATIO - TOP_RATIO) / float(CAPACITY)
+	var layer_height: float = (LIQUID_BOTTOM_RATIO - LIQUID_TOP_RATIO) / float(CAPACITY)
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
 
 	for layer_index in range(visible_layers):
 		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
 		if amount <= 0.001:
 			continue
-		var bottom_ratio: float = BOTTOM_RATIO - float(layer_index) * layer_height
+		var bottom_ratio: float = LIQUID_BOTTOM_RATIO - float(layer_index) * layer_height
 		var top_ratio: float = bottom_ratio - layer_height * amount
 		var essence: String = String(_visual_contents[layer_index])
 		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
