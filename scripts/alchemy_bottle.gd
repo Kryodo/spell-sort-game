@@ -385,16 +385,16 @@ func _draw_liquid(rect: Rect2) -> void:
 			bottom_ratio += 0.0018
 		var essence: String = String(_visual_contents[layer_index])
 		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-		_draw_liquid_band(rect, top_ratio, bottom_ratio, liquid_color, layer_index == visible_layers - 1)
+		_draw_liquid_band(rect, top_ratio, bottom_ratio, liquid_color, layer_index == visible_layers - 1, layer_index == 0)
 
 
 
-func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liquid_color: Color, is_surface: bool) -> void:
+func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liquid_color: Color, is_surface: bool, is_bottom: bool) -> void:
 	var base_top: float = rect.position.y + rect.size.y * top_ratio
 	var base_bottom: float = rect.position.y + rect.size.y * bottom_ratio
 	var x_extent: float = _max_half_width * 0.995
 	var overlap_ratio: float = LIQUID_BAND_OVERLAP_PIXELS / maxf(1.0, rect.size.y)
-	if not is_surface:
+	if not is_bottom:
 		base_bottom += overlap_ratio * rect.size.y
 
 	for column_index in range(LIQUID_COLUMNS):
