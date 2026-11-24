@@ -38,6 +38,7 @@ var _pour_target_start: float = 0.0
 var _pour_amount: int = 0
 var pour_stream_glow: Line2D
 var pour_stream_core: Line2D
+var pour_stream_spark: Line2D
 
 var move_count_label: Label
 var message_label: Label
@@ -90,6 +91,13 @@ func _build_pour_effects() -> void:
 	pour_stream_core.z_index = 101
 	pour_stream_core.visible = false
 	add_child(pour_stream_core)
+
+	pour_stream_spark = Line2D.new()
+	pour_stream_spark.width = 4.5
+	pour_stream_spark.antialiased = true
+	pour_stream_spark.z_index = 102
+	pour_stream_spark.visible = false
+	add_child(pour_stream_spark)
 
 
 func _build_interface() -> void:
@@ -520,6 +528,7 @@ func _start_pour(source_index: int, target_index: int) -> void:
 	_pour_stream_active = true
 	pour_stream_glow.visible = true
 	pour_stream_core.visible = true
+	pour_stream_spark.visible = true
 	_update_pour_stream()
 	var pour_tween := create_tween()
 	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.72).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -527,6 +536,7 @@ func _start_pour(source_index: int, target_index: int) -> void:
 	_pour_stream_active = false
 	pour_stream_glow.visible = false
 	pour_stream_core.visible = false
+	pour_stream_spark.visible = false
 
 	var return_tween := create_tween()
 	return_tween.tween_method(
@@ -588,6 +598,13 @@ func _update_pour_stream() -> void:
 	pour_stream_glow.default_color = Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha * 0.30)
 	pour_stream_core.points = stream_points
 	pour_stream_core.default_color = Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha)
+	var spark_t: float = fposmod(_stream_phase, 1.0)
+	var spark_points := PackedVector2Array()
+	for spark_offset in [-0.035, 0.0, 0.035]:
+		var sample_t: float = clampf(spark_t + spark_offset, 0.0, 1.0)
+		spark_points.append(start.bezier_interpolate(control_one, control_two, finish, sample_t))
+	pour_stream_spark.points = spark_points
+	pour_stream_spark.default_color = Color(1.0, 1.0, 1.0, stream_alpha * 0.90)
 
 
 func _pour(source_index: int, target_index: int) -> void:
