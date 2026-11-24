@@ -1,10 +1,7 @@
 extends Control
 
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
-const BOTTLE_SHEET_PATH := "res://assets/bottles/bottles_sheet.png"
 const BACKGROUND_PATH := "res://assets/environments/laboratory_background.png"
-const BOTTLE_COLUMNS := 4
-const BOTTLE_ROWS := 4
 const CAPACITY := 4
 
 const PALETTE: Dictionary = {
@@ -23,8 +20,6 @@ const INITIAL_CONTENTS: Array = [
 var bottle_controls: Array = []
 var bottle_contents: Array = []
 var slot_positions: Array[Vector2] = []
-var generated_images: Array = []
-var generated_textures: Array = []
 
 var status_label: Label
 var move_label: Label
@@ -50,15 +45,15 @@ var _pour_stream_active: bool = false
 var _stream_phase: float = 0.0
 var _move_count: int = 0
 
-var _stream_glow: Line2D
-var _stream_core: Line2D
-var _stream_spark: Line2D
+var _stream_shape: Polygon2D
+var _stream_highlight: Line2D
+var _stream_drops: Array[Polygon2D] = []
+var _splash_ring: Line2D
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_build_interface()
-	_load_bottle_variants()
 	_build_bottles()
 	_build_stream_layers()
 	_reset_test()
@@ -79,12 +74,12 @@ func _build_interface() -> void:
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shade)
 
-	var title := _make_label("ALCHEMY INTERACTION TEST", 29, Color(0.97, 0.85, 0.65, 1.0))
+	var title := _make_label("ALCHEMY CORE INTERACTION", 28, Color(0.97, 0.85, 0.65, 1.0))
 	title.position = Vector2(28.0, 35.0)
 	title.size = Vector2(664.0, 42.0)
 	add_child(title)
 
-	var subtitle := _make_label("BOTTLE ARTWORK  vs  PROCEDURAL GLASS", 13, Color(0.82, 0.88, 0.85, 0.96))
+	var subtitle := _make_label("OPEN GLASS VIALS  ·  LIQUID GEOMETRY  ·  DRAG TO POUR", 12, Color(0.82, 0.88, 0.85, 0.96))
 	subtitle.position = Vector2(31.0, 83.0)
 	subtitle.size = Vector2(658.0, 26.0)
 	add_child(subtitle)
@@ -97,7 +92,7 @@ func _build_interface() -> void:
 	add_child(instruction_panel)
 
 	var instruction := _make_label(
-		"HOLD A BOTTLE, LIFT IT AND DRAG OVER A MATCHING OR EMPTY VIAL. RELEASE TO POUR.",
+		"HOLD A VIAL, LIFT IT AND DRAG ITS OPENING OVER ANOTHER VIAL. RELEASE TO POUR.",
 		15,
 		Color(0.95, 0.93, 0.84, 1.0)
 	)
@@ -107,13 +102,13 @@ func _build_interface() -> void:
 	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	instruction_panel.add_child(instruction)
 
-	var note := _make_label("LIQUID SHAPE, GLASS FIT, LIFT AND POUR ARE ALL LIVE TESTS", 11, Color(0.72, 0.82, 0.81, 0.96))
+	var note := _make_label("FOUR PROCEDURAL GLASS PROFILES · ONE SHARED LIQUID SYSTEM", 11, Color(0.72, 0.82, 0.81, 0.96))
 	note.position = Vector2(20.0, 69.0)
 	note.size = Vector2(624.0, 22.0)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	instruction_panel.add_child(note)
 
-	var stage_label := _make_label("TRY MOVING ESSENCE BETWEEN DIFFERENT BOTTLE TYPES", 12, Color(0.93, 0.84, 0.68, 0.95))
+	var stage_label := _make_label("AIM FOR THE OPEN MOUTH — NOT THE BODY OF THE VIAL", 12, Color(0.93, 0.84, 0.68, 0.95))
 	stage_label.position = Vector2(28.0, 303.0)
 	stage_label.size = Vector2(664.0, 26.0)
 	stage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -126,7 +121,7 @@ func _build_interface() -> void:
 	)
 	add_child(status_panel)
 
-	status_label = _make_label("Grab a bottle and try a pour.", 17, Color(0.96, 0.94, 0.86, 1.0))
+	status_label = _make_label("Pick up a vial and pour into an open mouth.", 16, Color(0.96, 0.94, 0.86, 1.0))
 	status_label.position = Vector2(21.0, 23.0)
 	status_label.size = Vector2(620.0, 44.0)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -137,7 +132,7 @@ func _build_interface() -> void:
 	move_label.size = Vector2(180.0, 24.0)
 	status_panel.add_child(move_label)
 
-	var hint := _make_label("Generated shells use the sheet's alpha silhouette. Procedural shells use editable shape profiles. Both share the same liquid renderer.", 12, Color(0.72, 0.80, 0.80, 0.95))
+	var hint := _make_label("Round, tall, square and bulbous shapes share one continuous, profile-fitted liquid volume.", 12, Color(0.72, 0.80, 0.80, 0.95))
 	hint.position = Vector2(21.0, 115.0)
 	hint.size = Vector2(420.0, 79.0)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -156,55 +151,18 @@ func _build_interface() -> void:
 	status_panel.add_child(reset_button)
 
 
-func _load_bottle_variants() -> void:
-	generated_images.clear()
-	generated_textures.clear()
-	var sheet := Image.load_from_file(BOTTLE_SHEET_PATH)
-	if sheet.is_empty():
-		push_warning("Bottle sheet could not be read. The test will still run with procedural bottles.")
-		return
-
-	var cell_width: int = int(sheet.get_width() / BOTTLE_COLUMNS)
-	var cell_height: int = int(sheet.get_height() / BOTTLE_ROWS)
-	if cell_width <= 0 or cell_height <= 0:
-		push_warning("Bottle sheet dimensions are invalid.")
-		return
-
-	for cell_index in range(2):
-		var column: int = cell_index % BOTTLE_COLUMNS
-		var row: int = int(cell_index / BOTTLE_COLUMNS)
-		var cell := sheet.get_region(Rect2i(column * cell_width, row * cell_height, cell_width, cell_height))
-		var used_bounds := cell.get_used_rect()
-		if used_bounds.size.x <= 0 or used_bounds.size.y <= 0:
-			generated_images.append(null)
-			generated_textures.append(null)
-			continue
-		var cropped := cell.get_region(used_bounds)
-		generated_images.append(cropped)
-		generated_textures.append(ImageTexture.create_from_image(cropped))
-
-
 func _build_bottles() -> void:
-	var viewport_size := get_viewport_rect().size
 	var bottle_size := Vector2(140.0, 430.0)
-	var gap: float = 17.0
+	var gap: float = 14.0
 	var total_width: float = bottle_size.x * 4.0 + gap * 3.0
-	var start_x: float = (viewport_size.x - total_width) * 0.5
+	var start_x: float = (720.0 - total_width) * 0.5
 	var row_y: float = 390.0
+	var labels: Array[String] = ["ROUND", "TALL", "SQUARE", "BULB"]
 
-	var labels: Array[String] = ["SHEET A", "SHEET B", "ROUND", "TALL"]
-	var modes: Array[int] = [
-		BottleScript.MODE_GENERATED,
-		BottleScript.MODE_GENERATED,
-		BottleScript.MODE_PROCEDURAL,
-		BottleScript.MODE_PROCEDURAL
-	]
-	var variants: Array[int] = [0, 1, 0, 1]
-
-	for i in range(4):
-		var x: float = start_x + float(i) * (bottle_size.x + gap)
+	for index in range(4):
+		var slot_position := Vector2(start_x + float(index) * (bottle_size.x + gap), row_y)
 		var slot := Panel.new()
-		slot.position = Vector2(x + 4.0, row_y + 8.0)
+		slot.position = slot_position + Vector2(4.0, 8.0)
 		slot.size = bottle_size - Vector2(8.0, 12.0)
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var slot_style := StyleBoxFlat.new()
@@ -216,39 +174,55 @@ func _build_bottles() -> void:
 		add_child(slot)
 
 		var vial = BottleScript.new()
-		vial.position = Vector2(x, row_y)
+		vial.position = slot_position
 		vial.size = bottle_size
-		vial.setup(
-			i,
-			labels[i],
-			modes[i],
-			variants[i],
-			generated_textures[mini(i, 1)] if modes[i] == BottleScript.MODE_GENERATED and generated_textures.size() > 0 else null,
-			generated_images[mini(i, 1)] if modes[i] == BottleScript.MODE_GENERATED and generated_images.size() > 0 else null,
-			PALETTE,
-			INITIAL_CONTENTS[i]
-		)
+		vial.setup(index, labels[index], index, PALETTE, INITIAL_CONTENTS[index])
 		add_child(vial)
 		bottle_controls.append(vial)
-		slot_positions.append(Vector2(x, row_y))
-		bottle_contents.append(INITIAL_CONTENTS[i].duplicate())
+		slot_positions.append(slot_position)
+		bottle_contents.append(INITIAL_CONTENTS[index].duplicate())
 
 
 func _build_stream_layers() -> void:
-	_stream_glow = _make_stream_line(12.0, Color(0.2, 0.9, 0.8, 0.25), 100)
-	_stream_core = _make_stream_line(3.5, Color(0.6, 1.0, 0.95, 0.95), 101)
-	_stream_spark = _make_stream_line(5.0, Color(1.0, 1.0, 1.0, 0.9), 102)
+	_stream_shape = Polygon2D.new()
+	_stream_shape.color = Color.WHITE
+	_stream_shape.z_index = 120
+	_stream_shape.visible = false
+	add_child(_stream_shape)
+
+	_stream_highlight = Line2D.new()
+	_stream_highlight.width = 1.15
+	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.62)
+	_stream_highlight.z_index = 121
+	_stream_highlight.visible = false
+	add_child(_stream_highlight)
+
+	for index in range(3):
+		var drop := Polygon2D.new()
+		drop.polygon = _make_drop_shape()
+		drop.color = Color(1.0, 1.0, 1.0, 0.82)
+		drop.z_index = 122
+		drop.visible = false
+		add_child(drop)
+		_stream_drops.append(drop)
+
+	_splash_ring = Line2D.new()
+	_splash_ring.width = 2.0
+	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.55)
+	_splash_ring.z_index = 123
+	_splash_ring.visible = false
+	add_child(_splash_ring)
 
 
-func _make_stream_line(width: float, tint: Color, order: int) -> Line2D:
-	var line := Line2D.new()
-	line.width = width
-	line.default_color = tint
-	line.antialiased = true
-	line.z_index = order
-	line.visible = false
-	add_child(line)
-	return line
+func _make_drop_shape() -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.append(Vector2(0.0, -4.5))
+	points.append(Vector2(2.5, -0.5))
+	points.append(Vector2(2.0, 3.0))
+	points.append(Vector2(0.0, 4.2))
+	points.append(Vector2(-2.0, 3.0))
+	points.append(Vector2(-2.5, -0.5))
+	return points
 
 
 func _make_label(text_value: String, font_size: int, tint: Color) -> Label:
@@ -316,31 +290,34 @@ func _gui_input(event: InputEvent) -> void:
 func _begin_drag(pointer: Vector2) -> void:
 	if _drag_index >= 0:
 		return
-	for i in range(bottle_controls.size()):
-		var vial = bottle_controls[i]
+
+	for index in range(bottle_controls.size()):
+		var vial = bottle_controls[index]
 		if Rect2(vial.position, vial.size).has_point(pointer):
-			if bottle_contents[i].is_empty():
+			if bottle_contents[index].is_empty():
 				_set_status("That vial is empty. Pick up one containing an essence.")
 				return
-			_drag_index = i
-			_drag_origin = slot_positions[i]
+
+			_drag_index = index
+			_drag_origin = slot_positions[index]
 			_grab_offset = pointer - vial.position
 			_drag_start_pointer = pointer
 			vial.z_index = 50
 			vial.set_feedback(true, false, true)
-			vial.set_pose(Vector2(27.0, 0.0))
-			_set_status("Bottle lifted. Drag it over a matching or empty vial.")
+			vial.set_pose(Vector2(28.0, 0.0))
+			_set_status("Vial lifted. Guide its opening over a receiving vial.")
 			return
 
 
 func _update_drag(pointer: Vector2) -> void:
 	if _drag_index < 0:
 		return
+
 	var source = bottle_controls[_drag_index]
 	source.position = pointer - _grab_offset
 	var horizontal_motion: float = pointer.x - _drag_start_pointer.x
-	var tilt: float = clampf(horizontal_motion * 0.0015, -0.28, 0.28)
-	source.set_pose(Vector2(27.0, tilt))
+	var drag_tilt: float = clampf(horizontal_motion * 0.0010, -0.20, 0.20)
+	source.set_pose(Vector2(28.0, drag_tilt))
 
 	var next_hover: int = _find_target_at(pointer, _drag_index)
 	if next_hover != _hover_index:
@@ -351,24 +328,25 @@ func _update_drag(pointer: Vector2) -> void:
 			bottle_controls[_hover_index].set_feedback(false, true, false)
 
 	if _hover_index >= 0:
-		_set_status("Valid destination. Release to pour.")
+		_set_status("Open mouth aligned. Release to pour.")
 	else:
-		_set_status("Move over a matching essence or an empty vial.")
+		_set_status("Aim for the opening of an empty or matching vial.")
 
 
 func _find_target_at(pointer: Vector2, source_index: int) -> int:
-	for i in range(bottle_controls.size()):
-		if i == source_index:
+	for index in range(bottle_controls.size()):
+		if index == source_index:
 			continue
-		var vial = bottle_controls[i]
-		if Rect2(slot_positions[i], vial.size).has_point(pointer) and _can_pour(source_index, i):
-			return i
+		var target = bottle_controls[index]
+		if target.is_pointer_over_mouth(pointer - target.position) and _can_pour(source_index, index):
+			return index
 	return -1
 
 
 func _finish_drag(pointer: Vector2) -> void:
 	if _drag_index < 0:
 		return
+
 	_update_drag(pointer)
 	var source_index: int = _drag_index
 	var target_index: int = _hover_index
@@ -393,10 +371,11 @@ func _get_pour_amount(source_index: int, target_index: int) -> int:
 	var target: Array = bottle_contents[target_index]
 	if source.is_empty() or target.size() >= CAPACITY:
 		return 0
+
 	var essence: String = String(source.back())
 	var run_length: int = 0
-	for i in range(source.size() - 1, -1, -1):
-		if String(source[i]) == essence:
+	for index in range(source.size() - 1, -1, -1):
+		if String(source[index]) == essence:
 			run_length += 1
 		else:
 			break
@@ -407,20 +386,23 @@ func _return_to_slot(source_index: int) -> void:
 	_is_animating = true
 	reset_button.disabled = true
 	var source = bottle_controls[source_index]
+
 	if _hover_index >= 0:
 		bottle_controls[_hover_index].set_feedback(false, false, false)
 	_hover_index = -1
-	var tween := create_tween().set_parallel(true)
-	tween.tween_property(source, "position", _drag_origin, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_method(Callable(source, "set_pose"), source.get_pose(), Vector2.ZERO, 0.20).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	await tween.finished
+
+	var return_tween := create_tween().set_parallel(true)
+	return_tween.tween_property(source, "position", _drag_origin, 0.23).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	return_tween.tween_method(Callable(source, "set_pose"), source.get_pose(), Vector2.ZERO, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	await return_tween.finished
+
 	source.z_index = 0
 	source.set_feedback(false, false, false)
 	source.set_pose(Vector2.ZERO)
 	_drag_index = -1
 	_is_animating = false
 	reset_button.disabled = false
-	_set_status("Bottle returned. Try another destination.")
+	_set_status("Vial returned. Try another destination.")
 
 
 func _perform_pour(source_index: int, target_index: int) -> void:
@@ -435,64 +417,78 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 
 	var essence: String = String(_pour_source_preview.back())
 	_pour_color = PALETTE[essence]
-	for _i in range(_pour_amount):
+	for _index in range(_pour_amount):
 		_pour_target_preview.append(essence)
+
 	_pour_source_start = float(_pour_source_preview.size())
 	_pour_target_start = float(bottle_contents[target_index].size())
 
 	var source = bottle_controls[source_index]
 	var target = bottle_controls[target_index]
-	var source_origin: Vector2 = _drag_origin
-	var direction: float = 1.0 if slot_positions[target_index].x > source_origin.x else -1.0
-	var staging_offset := Vector2(-64.0 * direction, -110.0)
-	var staging_position: Vector2 = slot_positions[target_index] + staging_offset
-	var tilt_angle: float = deg_to_rad(28.0 * direction)
+	var direction: float = 1.0 if target.position.x > _drag_origin.x else -1.0
+	var pour_angle: float = deg_to_rad(102.0) * direction
+	var pour_pose := Vector2(24.0, pour_angle)
+
+	var target_mouth: Vector2 = target.get_mouth_position_in_parent()
+	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 12.0, -22.0)
+	var source_staging_position: Vector2 = desired_source_mouth - source.get_mouth_local_for_pose(pour_pose)
 
 	if _hover_index >= 0:
 		bottle_controls[_hover_index].set_feedback(false, true, false)
 	_hover_index = -1
 	_drag_index = -1
+
 	source.set_preview(_pour_source_preview, _pour_source_start)
 	target.set_preview(_pour_target_preview, _pour_target_start)
-	_set_status("Pouring %s essence..." % essence.capitalize())
+	_set_status("Aligning the open mouths...")
 
 	var approach := create_tween().set_parallel(true)
-	approach.tween_property(source, "position", staging_position, 0.20).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	approach.tween_method(Callable(source, "set_pose"), source.get_pose(), Vector2(24.0, tilt_angle), 0.20).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	approach.tween_property(source, "position", source_staging_position, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	approach.tween_method(Callable(source, "set_pose"), source.get_pose(), pour_pose, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await approach.finished
 
+	source.trigger_slosh(0.24)
+	target.trigger_slosh(0.12)
 	_pour_stream_active = true
-	_stream_glow.visible = true
-	_stream_core.visible = true
-	_stream_spark.visible = true
+	_stream_shape.visible = true
+	_stream_highlight.visible = true
+	_splash_ring.visible = true
+	for drop in _stream_drops:
+		drop.visible = true
 	_update_stream()
 
+	_set_status("Pouring %s essence..." % essence.capitalize())
 	var pour_tween := create_tween()
-	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.92).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.95).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await pour_tween.finished
 
 	_pour_stream_active = false
-	_stream_glow.visible = false
-	_stream_core.visible = false
-	_stream_spark.visible = false
+	_stream_shape.visible = false
+	_stream_highlight.visible = false
+	_splash_ring.visible = false
+	for drop in _stream_drops:
+		drop.visible = false
 
 	var return_tween := create_tween().set_parallel(true)
-	return_tween.tween_property(source, "position", source_origin, 0.23).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	return_tween.tween_method(Callable(source, "set_pose"), Vector2(24.0, tilt_angle), Vector2.ZERO, 0.23).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	return_tween.tween_property(source, "position", _drag_origin, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	return_tween.tween_method(Callable(source, "set_pose"), pour_pose, Vector2.ZERO, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	await return_tween.finished
 
-	for _i in range(_pour_amount):
+	for _index in range(_pour_amount):
 		bottle_contents[source_index].pop_back()
 		bottle_contents[target_index].append(essence)
+
 	source.set_contents(bottle_contents[source_index])
 	target.set_contents(bottle_contents[target_index])
+	source.set_pose(Vector2.ZERO)
+	target.trigger_slosh(0.20)
 	source.z_index = 0
 	source.set_feedback(false, false, false)
 	target.set_feedback(false, false, false)
 
 	_move_count += 1
 	move_label.text = "MOVES %02d" % _move_count
-	_set_status("Essence transferred. Try another bottle or reset the test.")
+	_set_status("Essence transferred. The liquid settles.")
 	_pour_source = -1
 	_pour_target = -1
 	_pour_progress = 0.0
@@ -511,55 +507,97 @@ func _set_pour_progress(progress: float) -> void:
 
 func _process(delta: float) -> void:
 	if _pour_stream_active:
-		_stream_phase = fposmod(_stream_phase + delta * 2.3, 1.0)
+		_stream_phase = fposmod(_stream_phase + delta * 1.9, 1.0)
 		_update_stream()
 
 
 func _update_stream() -> void:
 	if not _pour_stream_active or _pour_source < 0 or _pour_target < 0:
 		return
+
 	var source = bottle_controls[_pour_source]
 	var target = bottle_controls[_pour_target]
-	var inverse: Transform2D = get_global_transform_with_canvas().affine_inverse()
-	var start: Vector2 = inverse * source.get_global_spout_position()
-	var finish: Vector2 = inverse * target.get_global_spout_position()
-	var span: float = finish.x - start.x
-	var control_one := start + Vector2(span * 0.28, 35.0)
-	var control_two := finish - Vector2(span * 0.28, -35.0)
-	var points := PackedVector2Array()
-	for i in range(25):
-		var t: float = float(i) / 24.0
-		points.append(start.bezier_interpolate(control_one, control_two, finish, t))
-	var alpha: float = 0.55 + 0.35 * sin(PI * _pour_progress)
-	_stream_glow.points = points
-	_stream_glow.default_color = Color(_pour_color.r, _pour_color.g, _pour_color.b, alpha * 0.28)
-	_stream_core.points = points
-	_stream_core.default_color = Color(_pour_color.r, _pour_color.g, _pour_color.b, alpha)
-	var spark_t: float = fposmod(_stream_phase, 1.0)
-	var spark_points := PackedVector2Array()
-	for offset in [-0.035, 0.0, 0.035]:
-		var sample_t: float = clampf(spark_t + offset, 0.0, 1.0)
-		spark_points.append(start.bezier_interpolate(control_one, control_two, finish, sample_t))
-	_stream_spark.points = spark_points
-	_stream_spark.default_color = Color(1.0, 1.0, 1.0, alpha * 0.90)
+	var start: Vector2 = source.get_mouth_position_in_parent(source.get_pose())
+	var finish: Vector2 = target.get_mouth_position_in_parent()
+	var span: Vector2 = finish - start
+	if span.length() < 1.0:
+		return
+
+	var control_one := start + Vector2(span.x * 0.22, 16.0)
+	var control_two := finish - Vector2(span.x * 0.22, -12.0)
+	var centers := PackedVector2Array()
+	var left_edge := PackedVector2Array()
+	var right_edge := PackedVector2Array()
+	var point_count: int = 27
+
+	for index in range(point_count):
+		var t: float = float(index) / float(point_count - 1)
+		var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
+		centers.append(point)
+		var before: Vector2 = start.bezier_interpolate(control_one, control_two, finish, maxf(0.0, t - 0.015))
+		var after: Vector2 = start.bezier_interpolate(control_one, control_two, finish, minf(1.0, t + 0.015))
+		var tangent: Vector2 = (after - before).normalized()
+		var normal := Vector2(-tangent.y, tangent.x)
+		var pulse_width: float = sin(PI * t)
+		var irregularity: float = 0.72 + 0.18 * sin(t * 19.0 + _stream_phase * TAU)
+		var half_width: float = (0.65 + pulse_width * 2.7) * irregularity
+		left_edge.append(point + normal * half_width)
+		right_edge.append(point - normal * half_width)
+
+	var ribbon := PackedVector2Array()
+	for point in left_edge:
+		ribbon.append(point)
+	for index in range(right_edge.size() - 1, -1, -1):
+		ribbon.append(right_edge[index])
+
+	_stream_shape.polygon = ribbon
+	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 0.94)
+	_stream_highlight.points = centers
+	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.40 + 0.22 * sin(PI * _pour_progress))
+
+	for index in range(_stream_drops.size()):
+		var travel: float = fposmod(_stream_phase + float(index) / float(_stream_drops.size()), 1.0)
+		var drop_position: Vector2 = start.bezier_interpolate(control_one, control_two, finish, travel)
+		var drop := _stream_drops[index]
+		drop.position = drop_position
+		drop.rotation = atan2(span.y, span.x) + PI * 0.5
+		drop.scale = Vector2(0.75 + 0.25 * sin(PI * travel), 0.90 + 0.4 * sin(PI * travel))
+
+	var ring_radius: float = 10.0 + 9.0 * _pour_progress
+	var ring_points := PackedVector2Array()
+	for index in range(25):
+		var angle: float = TAU * float(index) / 24.0
+		ring_points.append(finish + Vector2(cos(angle) * ring_radius, sin(angle) * ring_radius * 0.42))
+	_splash_ring.points = ring_points
+	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.12 + 0.38 * sin(PI * _pour_progress))
 
 
 func _reset_test() -> void:
 	if _is_animating:
 		return
-	for i in range(bottle_contents.size()):
-		bottle_contents[i] = INITIAL_CONTENTS[i].duplicate()
-		bottle_controls[i].position = slot_positions[i]
-		bottle_controls[i].z_index = 0
-		bottle_controls[i].set_pose(Vector2.ZERO)
-		bottle_controls[i].set_feedback(false, false, false)
-		bottle_controls[i].set_contents(bottle_contents[i])
+
+	for index in range(bottle_contents.size()):
+		bottle_contents[index] = INITIAL_CONTENTS[index].duplicate()
+		bottle_controls[index].position = slot_positions[index]
+		bottle_controls[index].z_index = 0
+		bottle_controls[index].set_pose(Vector2.ZERO)
+		bottle_controls[index].set_feedback(false, false, false)
+		bottle_controls[index].set_contents(bottle_contents[index])
+		bottle_controls[index].trigger_slosh(0.0)
+
 	_drag_index = -1
 	_hover_index = -1
 	_move_count = 0
 	move_label.text = "MOVES 00"
-	status_label.text = "Grab a bottle and try a pour."
+	status_label.text = "Pick up a vial and pour into an open mouth."
 	reset_button.disabled = false
+
+	_pour_stream_active = false
+	_stream_shape.visible = false
+	_stream_highlight.visible = false
+	_splash_ring.visible = false
+	for drop in _stream_drops:
+		drop.visible = false
 
 
 func _set_status(value: String) -> void:

@@ -1,32 +1,32 @@
 extends Control
 
-const MODE_GENERATED := 0
-const MODE_PROCEDURAL := 1
 const CAPACITY := 4
-const LIQUID_BOTTOM_RATIO := 0.87
-const LIQUID_TOP_RATIO := 0.29
+const LIQUID_BOTTOM_RATIO := 0.89
+const LIQUID_TOP_RATIO := 0.31
+const PROFILE_SAMPLES := 96
+const BOUNDS_SAMPLES := 81
+const LIQUID_COLUMNS := 48
 
 var vial_index: int = 0
 var display_name: String = ""
-var render_mode: int = MODE_PROCEDURAL
 var procedural_variant: int = 0
 
-var _bottle_texture: Texture2D
-var _source_image: Image
-var _alpha_profile: PackedVector2Array = PackedVector2Array()
 var _contents: Array = []
 var _visual_contents: Array = []
 var _palette: Dictionary = {}
-
 var _liquid_level: float = 0.0
+
 var _selected: bool = false
 var _targeted: bool = false
 var _dragging: bool = false
 var _lift: float = 0.0
 var _tilt: float = 0.0
+
 var _slosh: float = 0.0
 var _slosh_velocity: float = 0.0
 var _wave_time: float = 0.0
+var _max_half_width: float = 0.44
+var _vertical_bounds: Array[Vector2] = []
 
 
 func _ready() -> void:
@@ -35,27 +35,15 @@ func _ready() -> void:
 	set_process(true)
 
 
-func setup(
-	index: int,
-	label: String,
-	mode: int,
-	variant: int,
-	texture: Texture2D,
-	image: Image,
-	palette: Dictionary,
-	contents: Array
-) -> void:
+func setup(index: int, label: String, variant: int, palette: Dictionary, contents: Array) -> void:
 	vial_index = index
 	display_name = label
-	render_mode = mode
 	procedural_variant = variant
-	_bottle_texture = texture
-	_source_image = image
 	_palette = palette
 	_contents = contents.duplicate()
 	_visual_contents = contents.duplicate()
 	_liquid_level = float(contents.size())
-	_build_alpha_profile()
+	_build_vertical_bounds()
 	queue_redraw()
 
 
@@ -85,7 +73,7 @@ func set_feedback(selected: bool, targeted: bool, dragging: bool) -> void:
 
 func set_pose(pose: Vector2) -> void:
 	var tilt_change: float = pose.y - _tilt
-	_slosh_velocity += tilt_change * 2.8
+	_slosh_velocity += tilt_change * 1.65
 	_lift = pose.x
 	_tilt = pose.y
 	queue_redraw()
@@ -95,81 +83,147 @@ func get_pose() -> Vector2:
 	return Vector2(_lift, _tilt)
 
 
-func get_global_spout_position() -> Vector2:
-	var center_x: float = size.x * 0.5
-	var local_spout: Vector2
-	if render_mode == MODE_GENERATED and _bottle_texture != null:
-		var art_rect := _get_generated_rect(center_x)
-		local_spout = Vector2(center_x, art_rect.position.y + art_rect.size.y * 0.075)
-	else:
-		local_spout = Vector2(center_x, 42.0)
+func trigger_slosh(strength: float = 0.12) -> void:
+	_slosh_velocity += strength
+	queue_redraw()
 
-	var pivot := Vector2(center_x, size.y * 0.86)
-	var transformed := pivot + Vector2(0.0, -_lift) + (local_spout - pivot).rotated(_tilt)
-	return get_global_transform_with_canvas() * transformed
+
+func get_mouth_local() -> Vector2:
+	var rect := _get_vessel_rect()
+	return Vector2(size.x * 0.5, rect.position.y + 2.0)
+
+
+func get_mouth_local_for_pose(pose: Vector2) -> Vector2:
+	var mouth := get_mouth_local()
+	var pivot := Vector2(size.x * 0.5, size.y * 0.86)
+	return pivot + Vector2(0.0, -pose.x) + (mouth - pivot).rotated(pose.y)
+
+
+func get_mouth_position_in_parent(pose: Vector2 = Vector2.ZERO) -> Vector2:
+	return position + get_mouth_local_for_pose(pose)
+
+
+func get_mouth_hit_radius() -> Vector2:
+	var rect := _get_vessel_rect()
+	var neck_half_width: float = rect.size.x * _get_profile_at(0.03).y
+	return Vector2(maxf(26.0, neck_half_width * 1.85), 28.0)
+
+
+func is_pointer_over_mouth(pointer_local: Vector2) -> bool:
+	var mouth := get_mouth_local()
+	var radii := get_mouth_hit_radius()
+	var dx: float = (pointer_local.x - mouth.x) / radii.x
+	var dy: float = (pointer_local.y - mouth.y) / radii.y
+	return dx * dx + dy * dy <= 1.0
 
 
 func _process(delta: float) -> void:
-	_wave_time += delta * 2.7
-	_slosh_velocity += (-_slosh * 17.0 - _slosh_velocity * 5.8) * delta
+	_wave_time += delta * 2.4
+	_slosh_velocity += (-_slosh * 15.0 - _slosh_velocity * 5.2) * delta
 	_slosh += _slosh_velocity * delta
-	if absf(_slosh) > 0.001 or absf(_slosh_velocity) > 0.001:
+	_slosh = clampf(_slosh, -1.0, 1.0)
+	if absf(_slosh) > 0.001 or absf(_slosh_velocity) > 0.001 or _selected or _targeted:
 		queue_redraw()
 
 
-func _build_alpha_profile() -> void:
-	_alpha_profile = PackedVector2Array()
-	if _source_image == null or _source_image.is_empty():
-		return
+func _profile_points() -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	match procedural_variant:
+		1: # Tall, narrow-necked flask.
+			points = [
+				Vector2(0.00, 0.145), Vector2(0.08, 0.155), Vector2(0.16, 0.215),
+				Vector2(0.24, 0.285), Vector2(0.36, 0.305), Vector2(0.72, 0.305),
+				Vector2(0.86, 0.285), Vector2(0.96, 0.225), Vector2(1.00, 0.15)
+			]
+		2: # Squared shoulders with soft, rounded corners.
+			points = [
+				Vector2(0.00, 0.17), Vector2(0.10, 0.18), Vector2(0.19, 0.30),
+				Vector2(0.26, 0.405), Vector2(0.32, 0.425), Vector2(0.76, 0.425),
+				Vector2(0.88, 0.39), Vector2(0.96, 0.29), Vector2(1.00, 0.22)
+			]
+		3: # Bulbous-bottomed apothecary vessel.
+			points = [
+				Vector2(0.00, 0.14), Vector2(0.09, 0.16), Vector2(0.19, 0.27),
+				Vector2(0.30, 0.39), Vector2(0.48, 0.46), Vector2(0.70, 0.47),
+				Vector2(0.86, 0.40), Vector2(0.96, 0.28), Vector2(1.00, 0.18)
+			]
+		_: # Round, classic potion flask.
+			points = [
+				Vector2(0.00, 0.16), Vector2(0.09, 0.18), Vector2(0.19, 0.29),
+				Vector2(0.31, 0.405), Vector2(0.55, 0.435), Vector2(0.76, 0.39),
+				Vector2(0.90, 0.31), Vector2(0.97, 0.24), Vector2(1.00, 0.17)
+			]
+	return points
 
-	var width: int = _source_image.get_width()
-	var height: int = _source_image.get_height()
-	var previous := Vector2(0.5, 0.0)
 
-	for y in range(height):
-		var left: int = width
-		var right: int = -1
-		for x in range(width):
-			if _source_image.get_pixel(x, y).a > 0.055:
-				left = mini(left, x)
-				right = maxi(right, x)
+func _get_profile_at(y_norm: float) -> Vector2:
+	var profile := _profile_points()
+	var y: float = clampf(y_norm, 0.0, 1.0)
+	for index in range(profile.size() - 1):
+		var first: Vector2 = profile[index]
+		var second: Vector2 = profile[index + 1]
+		if y <= second.x:
+			var span: float = maxf(0.0001, second.x - first.x)
+			return Vector2(y, lerpf(first.y, second.y, clampf((y - first.x) / span, 0.0, 1.0)))
+	return profile.back()
 
-		if right >= left:
-			var center_fraction: float = (float(left + right) * 0.5) / float(width)
-			var half_width_fraction: float = (float(right - left + 1) * 0.5 / float(width)) * 0.78
-			previous = Vector2(center_fraction, half_width_fraction)
-		_alpha_profile.append(previous)
+
+func _build_vertical_bounds() -> void:
+	_vertical_bounds.clear()
+	_max_half_width = 0.0
+	for point in _profile_points():
+		_max_half_width = maxf(_max_half_width, point.y)
+
+	for column_index in range(BOUNDS_SAMPLES):
+		var x_ratio: float = lerpf(-_max_half_width, _max_half_width, float(column_index) / float(BOUNDS_SAMPLES - 1))
+		var first_y: float = -1.0
+		var last_y: float = -1.0
+		for sample_index in range(PROFILE_SAMPLES + 1):
+			var y_norm: float = float(sample_index) / float(PROFILE_SAMPLES)
+			if _get_profile_at(y_norm).y >= absf(x_ratio) - 0.0005:
+				if first_y < 0.0:
+					first_y = y_norm
+				last_y = y_norm
+		_vertical_bounds.append(Vector2(first_y, last_y))
+
+
+func _get_vertical_bounds_at_x(x_ratio: float) -> Vector2:
+	if _vertical_bounds.is_empty():
+		return Vector2(-1.0, -1.0)
+	var scaled: float = clampf(absf(x_ratio) / _max_half_width, 0.0, 1.0) * float(_vertical_bounds.size() - 1)
+	var lower: int = clampi(int(floor(scaled)), 0, _vertical_bounds.size() - 1)
+	var upper: int = mini(lower + 1, _vertical_bounds.size() - 1)
+	var first: Vector2 = _vertical_bounds[lower]
+	var second: Vector2 = _vertical_bounds[upper]
+	if first.x < 0.0 or second.x < 0.0:
+		return Vector2(-1.0, -1.0)
+	return first.lerp(second, scaled - float(lower))
+
+
+func _get_vessel_rect() -> Rect2:
+	var width: float = size.x * 0.91
+	var height: float = size.y * 0.735
+	return Rect2(Vector2((size.x - width) * 0.5, 72.0), Vector2(width, height))
 
 
 func _draw() -> void:
 	var center_x: float = size.x * 0.5
-	var shadow_y: float = size.y * 0.865
-	draw_circle(Vector2(center_x, shadow_y), size.x * 0.34, Color(0.012, 0.022, 0.027, 0.30))
-
 	var pivot := Vector2(center_x, size.y * 0.86)
+	draw_circle(Vector2(center_x, size.y * 0.87), size.x * 0.34, Color(0.012, 0.022, 0.027, 0.30))
+
 	var draw_origin := pivot + Vector2(0.0, -_lift) - pivot.rotated(_tilt)
 	draw_set_transform(draw_origin, _tilt, Vector2.ONE)
 
 	if _selected or _targeted or _dragging:
-		var pulse: float = 0.5 + 0.5 * sin(_wave_time * 1.7)
-		var glow_color := Color(0.96, 0.76, 0.43, 0.10 + pulse * 0.08) if _selected or _dragging else Color(0.46, 0.91, 0.76, 0.10 + pulse * 0.08)
-		draw_circle(Vector2(center_x, size.y * 0.47), size.x * 0.44, glow_color)
-		draw_arc(Vector2(center_x, size.y * 0.47), size.x * 0.43, 0.0, TAU, 48, Color(glow_color.r, glow_color.g, glow_color.b, 0.50), 2.0, true)
+		var pulse: float = 0.5 + 0.5 * sin(_wave_time * 1.5)
+		var glow := Color(0.96, 0.76, 0.43, 0.075 + pulse * 0.075) if _selected or _dragging else Color(0.46, 0.91, 0.76, 0.08 + pulse * 0.075)
+		draw_circle(Vector2(center_x, size.y * 0.46), size.x * 0.43, glow)
+		draw_arc(Vector2(center_x, size.y * 0.46), size.x * 0.43, 0.0, TAU, 48, Color(glow.r, glow.g, glow.b, 0.40), 2.0, true)
 
-	var vessel_rect: Rect2
-	if render_mode == MODE_GENERATED and _bottle_texture != null:
-		vessel_rect = _get_generated_rect(center_x)
-		_draw_generated_shell_back(vessel_rect)
-	else:
-		vessel_rect = _get_procedural_rect(center_x)
-		_draw_procedural_shell_back(vessel_rect)
-
+	var vessel_rect := _get_vessel_rect()
+	_draw_glass_back(vessel_rect)
 	_draw_liquid(vessel_rect)
-
-	if render_mode == MODE_GENERATED and _bottle_texture != null:
-		_draw_generated_shell_front(vessel_rect)
-	else:
-		_draw_procedural_shell_front(vessel_rect)
+	_draw_glass_front(vessel_rect)
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	draw_string(
@@ -183,104 +237,98 @@ func _draw() -> void:
 	)
 
 
-func _get_generated_rect(center_x: float) -> Rect2:
-	var image_size := Vector2(_source_image.get_size())
-	var available := Vector2(size.x * 0.88, size.y * 0.78)
-	var fit_scale: float = minf(available.x / image_size.x, available.y / image_size.y)
-	var rendered_size := image_size * fit_scale
-	return Rect2(
-		Vector2(center_x - rendered_size.x * 0.5, 14.0 + (available.y - rendered_size.y) * 0.5),
-		rendered_size
-	)
+func _draw_glass_back(rect: Rect2) -> void:
+	const STRIPS := 54
+	for strip_index in range(STRIPS):
+		var y0: float = float(strip_index) / float(STRIPS)
+		var y1: float = float(strip_index + 1) / float(STRIPS)
+		var profile0 := _get_profile_at(y0)
+		var profile1 := _get_profile_at(y1)
+		var left0 := Vector2(rect.position.x + rect.size.x * (0.5 - profile0.y), rect.position.y + rect.size.y * y0)
+		var right0 := Vector2(rect.position.x + rect.size.x * (0.5 + profile0.y), rect.position.y + rect.size.y * y0)
+		var right1 := Vector2(rect.position.x + rect.size.x * (0.5 + profile1.y), rect.position.y + rect.size.y * y1)
+		var left1 := Vector2(rect.position.x + rect.size.x * (0.5 - profile1.y), rect.position.y + rect.size.y * y1)
+		var quad := PackedVector2Array([left0, right0, right1, left1])
+		var side_alpha: float = 0.13 + (1.0 - absf(y0 - 0.5) * 1.3) * 0.035
+		var colours := PackedColorArray([
+			Color(0.80, 0.94, 0.98, side_alpha),
+			Color(0.54, 0.76, 0.84, 0.055),
+			Color(0.54, 0.76, 0.84, 0.055),
+			Color(0.80, 0.94, 0.98, side_alpha)
+		])
+		draw_polygon(quad, colours)
 
 
-func _get_procedural_rect(center_x: float) -> Rect2:
-	var width_scale: float = 0.76 if procedural_variant == 1 else 0.88
-	return Rect2(center_x - size.x * width_scale * 0.5, 74.0, size.x * width_scale, size.y * 0.70)
+func _draw_glass_front(rect: Rect2) -> void:
+	var left_edge := PackedVector2Array()
+	var right_edge := PackedVector2Array()
+	var left_reflection := PackedVector2Array()
+	var right_reflection := PackedVector2Array()
+	const EDGE_SAMPLES := 44
 
-
-func _draw_generated_shell_back(rect: Rect2) -> void:
-	draw_texture_rect(_bottle_texture, rect, false, Color(1.0, 1.0, 1.0, 0.28))
-
-
-func _draw_generated_shell_front(rect: Rect2) -> void:
-	draw_texture_rect(_bottle_texture, rect, false, Color(1.0, 1.0, 1.0, 0.40))
-
-
-func _draw_procedural_shell_back(rect: Rect2) -> void:
-	var silhouette := _get_procedural_silhouette(rect)
-	draw_colored_polygon(silhouette, Color(0.68, 0.87, 0.92, 0.17))
-	var closed := silhouette.duplicate()
-	closed.append(silhouette[0])
-	draw_polyline(closed, Color(0.82, 0.94, 0.96, 0.86), 2.2, true)
-	var neck_width: float = rect.size.x * 0.22
-	draw_rect(Rect2(rect.get_center().x - neck_width * 0.5, 43.0, neck_width, 47.0), Color(0.69, 0.87, 0.94, 0.20), true)
-	draw_rect(Rect2(rect.get_center().x - neck_width * 0.58, 35.0, neck_width * 1.16, 12.0), Color(0.77, 0.65, 0.45, 0.98), true)
-	draw_rect(Rect2(rect.get_center().x - neck_width * 0.58, 35.0, neck_width * 1.16, 3.0), Color(0.97, 0.85, 0.63, 0.90), true)
-
-
-func _draw_procedural_shell_front(rect: Rect2) -> void:
-	var left_highlight := PackedVector2Array()
-	var right_highlight := PackedVector2Array()
-	for i in range(10):
-		var y_norm: float = 0.25 + float(i) * 0.062
+	for index in range(EDGE_SAMPLES + 1):
+		var y_norm: float = float(index) / float(EDGE_SAMPLES)
 		var profile := _get_profile_at(y_norm)
-		var center_x: float = rect.position.x + rect.size.x * profile.x
-		var half_width: float = rect.size.x * profile.y
-		left_highlight.append(Vector2(center_x - half_width * 0.72, rect.position.y + rect.size.y * y_norm))
-		right_highlight.append(Vector2(center_x + half_width * 0.72, rect.position.y + rect.size.y * y_norm))
-	draw_polyline(left_highlight, Color(0.97, 1.0, 1.0, 0.50), 2.0, true)
-	draw_polyline(right_highlight, Color(0.55, 0.75, 0.80, 0.24), 1.5, true)
-	draw_arc(Vector2(rect.get_center().x, rect.position.y + 8.0), rect.size.x * 0.12, 0.0, TAU, 24, Color(0.95, 0.99, 1.0, 0.85), 2.0, true)
+		var y: float = rect.position.y + rect.size.y * y_norm
+		var left_x: float = rect.position.x + rect.size.x * (0.5 - profile.y)
+		var right_x: float = rect.position.x + rect.size.x * (0.5 + profile.y)
+		left_edge.append(Vector2(left_x, y))
+		right_edge.append(Vector2(right_x, y))
+		left_reflection.append(Vector2(left_x + rect.size.x * 0.055, y))
+		right_reflection.append(Vector2(right_x - rect.size.x * 0.055, y))
+
+	draw_polyline(left_edge, Color(0.83, 0.95, 0.98, 0.78), 2.8, true)
+	draw_polyline(right_edge, Color(0.42, 0.67, 0.76, 0.46), 2.2, true)
+	draw_polyline(left_reflection, Color(1.0, 1.0, 1.0, 0.36), 4.5, true)
+	draw_polyline(right_reflection, Color(0.67, 0.84, 0.91, 0.20), 3.0, true)
+
+	# Short bevel facets catch the light near the shoulders.
+	var facet_y: float = rect.position.y + rect.size.y * 0.23
+	var facet_left := PackedVector2Array([
+		Vector2(rect.position.x + rect.size.x * 0.18, facet_y - 5.0),
+		Vector2(rect.position.x + rect.size.x * 0.27, facet_y + 21.0),
+		Vector2(rect.position.x + rect.size.x * 0.34, facet_y + 28.0)
+	])
+	var facet_right := PackedVector2Array([
+		Vector2(rect.position.x + rect.size.x * 0.82, facet_y - 5.0),
+		Vector2(rect.position.x + rect.size.x * 0.73, facet_y + 21.0),
+		Vector2(rect.position.x + rect.size.x * 0.66, facet_y + 28.0)
+	])
+	draw_colored_polygon(facet_left, Color(0.94, 0.99, 1.0, 0.17))
+	draw_colored_polygon(facet_right, Color(0.52, 0.72, 0.79, 0.13))
+
+	# The thicker bottom gives the glass a visible, dimensional foot.
+	var bottom_center := Vector2(rect.get_center().x, rect.position.y + rect.size.y * 0.975)
+	var bottom_rx: float = rect.size.x * _get_profile_at(0.96).y * 0.93
+	var outer_base := _ellipse_points(bottom_center, bottom_rx, 7.0, 32)
+	draw_colored_polygon(outer_base, Color(0.68, 0.85, 0.91, 0.30))
+	var base_highlight := _ellipse_points(bottom_center + Vector2(0.0, -1.5), bottom_rx * 0.78, 2.1, 32)
+	draw_polyline(_closed_points(base_highlight), Color(0.97, 1.0, 1.0, 0.52), 1.6, true)
+
+	_draw_open_mouth(rect)
 
 
-func _get_procedural_silhouette(rect: Rect2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(25):
-		var y_norm: float = float(i) / 24.0
-		var profile := _get_profile_at(y_norm)
-		points.append(Vector2(rect.position.x + rect.size.x * profile.x + rect.size.x * profile.y, rect.position.y + rect.size.y * y_norm))
-	for i in range(24, -1, -1):
-		var y_norm: float = float(i) / 24.0
-		var profile := _get_profile_at(y_norm)
-		points.append(Vector2(rect.position.x + rect.size.x * profile.x - rect.size.x * profile.y, rect.position.y + rect.size.y * y_norm))
-	return points
+func _draw_open_mouth(rect: Rect2) -> void:
+	var mouth := Vector2(rect.get_center().x, rect.position.y + 1.0)
+	var neck_half_width: float = rect.size.x * _get_profile_at(0.025).y
+	var outer_rx: float = neck_half_width * 1.16
+	var outer_ry: float = 7.8
+	var inner_rx: float = outer_rx * 0.72
+	var inner_ry: float = outer_ry * 0.54
 
+	var outer_rim := _ellipse_points(mouth, outer_rx, outer_ry, 36)
+	draw_colored_polygon(outer_rim, Color(0.64, 0.83, 0.90, 0.72))
+	draw_polyline(_closed_points(outer_rim), Color(0.90, 0.98, 1.0, 0.95), 2.2, true)
 
-func _get_profile_at(y_norm: float) -> Vector2:
-	if render_mode == MODE_GENERATED and not _alpha_profile.is_empty():
-		var image_y: float = clampf(y_norm, 0.0, 1.0) * float(_alpha_profile.size() - 1)
-		var lower: int = clampi(int(floor(image_y)), 0, _alpha_profile.size() - 1)
-		var upper: int = mini(lower + 1, _alpha_profile.size() - 1)
-		return _alpha_profile[lower].lerp(_alpha_profile[upper], image_y - float(lower))
+	var inner_opening := _ellipse_points(mouth + Vector2(0.0, 0.5), inner_rx, inner_ry, 36)
+	draw_colored_polygon(inner_opening, Color(0.012, 0.025, 0.035, 0.92))
+	draw_polyline(_closed_points(inner_opening), Color(0.49, 0.70, 0.78, 0.72), 1.0, true)
 
-	var profile: Array = _get_procedural_profile()
-	for i in range(profile.size() - 1):
-		var first: Vector2 = profile[i]
-		var second: Vector2 = profile[i + 1]
-		if y_norm <= second.x:
-			var span: float = maxf(0.001, second.x - first.x)
-			return Vector2(0.5, lerpf(first.y, second.y, clampf((y_norm - first.x) / span, 0.0, 1.0)))
-	return Vector2(0.5, profile.back().y)
-
-
-func _get_procedural_profile() -> Array:
-	if procedural_variant == 1:
-		return [
-			Vector2(0.0, 0.15), Vector2(0.10, 0.15), Vector2(0.18, 0.22),
-			Vector2(0.25, 0.31), Vector2(0.72, 0.31), Vector2(0.88, 0.27),
-			Vector2(1.0, 0.20)
-		]
-	return [
-		Vector2(0.0, 0.13), Vector2(0.12, 0.14), Vector2(0.22, 0.29),
-		Vector2(0.34, 0.41), Vector2(0.57, 0.43), Vector2(0.78, 0.36),
-		Vector2(0.92, 0.27), Vector2(1.0, 0.20)
-	]
-
-
-func _get_profile_at_image_y(rect: Rect2, local_y: float) -> Vector2:
-	var y_norm: float = clampf((local_y - rect.position.y) / rect.size.y, 0.0, 1.0)
-	return _get_profile_at(y_norm)
+	var front_rim := PackedVector2Array()
+	for index in range(19):
+		var angle: float = lerpf(PI, TAU, float(index) / 18.0)
+		front_rim.append(mouth + Vector2(cos(angle) * outer_rx, sin(angle) * outer_ry))
+	draw_polyline(front_rim, Color(1.0, 1.0, 1.0, 0.85), 2.0, true)
 
 
 func _draw_liquid(rect: Rect2) -> void:
@@ -296,78 +344,98 @@ func _draw_liquid(rect: Rect2) -> void:
 			continue
 		var bottom_ratio: float = LIQUID_BOTTOM_RATIO - float(layer_index) * layer_height
 		var top_ratio: float = bottom_ratio - layer_height * amount
+		# A tiny overlap between adjacent essence bands prevents hairline gaps.
+		if layer_index > 0:
+			bottom_ratio += 0.0018
 		var essence: String = String(_visual_contents[layer_index])
 		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
 		_draw_liquid_band(rect, top_ratio, bottom_ratio, liquid_color, layer_index == visible_layers - 1)
 
 
-func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liquid_color: Color, is_top: bool) -> void:
-	var top_y: float = rect.position.y + rect.size.y * top_ratio
-	var bottom_y: float = rect.position.y + rect.size.y * bottom_ratio
-	var top_profile := _get_profile_at_image_y(rect, top_y)
-	var top_center_x: float = rect.position.x + rect.size.x * top_profile.x
-	var top_half_width: float = rect.size.x * top_profile.y * 0.78
-	if top_half_width < 2.0:
-		return
+func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liquid_color: Color, is_surface: bool) -> void:
+	var base_top: float = rect.position.y + rect.size.y * top_ratio
+	var base_bottom: float = rect.position.y + rect.size.y * bottom_ratio
+	var x_extent: float = _max_half_width * 0.94
 
-	var surface_slope: float = tan(-_tilt) + _slosh * 0.045
-	var surface_amplitude: float = 2.0 + absf(_slosh) * 8.0 if is_top else 0.8
+	for column_index in range(LIQUID_COLUMNS):
+		var x0_ratio: float = lerpf(-x_extent, x_extent, float(column_index) / float(LIQUID_COLUMNS))
+		var x1_ratio: float = lerpf(-x_extent, x_extent, float(column_index + 1) / float(LIQUID_COLUMNS))
+		var bounds0 := _get_vertical_bounds_at_x(x0_ratio)
+		var bounds1 := _get_vertical_bounds_at_x(x1_ratio)
+		if bounds0.x < 0.0 or bounds1.x < 0.0:
+			continue
+
+		var x0: float = rect.get_center().x + rect.size.x * x0_ratio
+		var x1: float = rect.get_center().x + rect.size.x * x1_ratio
+		var top0: float = maxf(base_top, rect.position.y + rect.size.y * (bounds0.x + 0.008))
+		var top1: float = maxf(base_top, rect.position.y + rect.size.y * (bounds1.x + 0.008))
+		var bottom0: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds0.y - 0.010))
+		var bottom1: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds1.y - 0.010))
+
+		if is_surface:
+			var slope0: float = -tan(_tilt) * x0_ratio * 0.12
+			var slope1: float = -tan(_tilt) * x1_ratio * 0.12
+			var wave0: float = sin(_wave_time * 2.1 + x0_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
+			var wave1: float = sin(_wave_time * 2.1 + x1_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
+			top0 += slope0 * rect.size.y + wave0
+			top1 += slope1 * rect.size.y + wave1
+			top0 = clampf(top0, rect.position.y + rect.size.y * (bounds0.x + 0.012), bottom0 - 2.0)
+			top1 = clampf(top1, rect.position.y + rect.size.y * (bounds1.x + 0.012), bottom1 - 2.0)
+
+		if bottom0 - top0 < 0.9 or bottom1 - top1 < 0.9 or x1 - x0 < 0.8:
+			continue
+
+		var quad := PackedVector2Array([
+			Vector2(x0, top0),
+			Vector2(x1, top1),
+			Vector2(x1, bottom1),
+			Vector2(x0, bottom0)
+		])
+		var edge_ratio: float = (absf((x0_ratio + x1_ratio) * 0.5) / _max_half_width)
+		var shaded_color: Color = liquid_color.lerp(liquid_color.darkened(0.34), clampf(edge_ratio * 0.65, 0.0, 0.42))
+		shaded_color = shaded_color.lerp(Color(0.10, 0.18, 0.21, 1.0), 0.08)
+		draw_colored_polygon(quad, Color(shaded_color.r, shaded_color.g, shaded_color.b, 0.97))
+
+	if is_surface:
+		_draw_liquid_surface(rect, base_top, x_extent, liquid_color)
+
+
+func _draw_liquid_surface(rect: Rect2, base_top: float, x_extent: float, liquid_color: Color) -> void:
+	var surface_line := PackedVector2Array()
+	for point_index in range(25):
+		var x_ratio: float = lerpf(-x_extent, x_extent, float(point_index) / 24.0)
+		var x: float = rect.get_center().x + rect.size.x * x_ratio
+		var bounds := _get_vertical_bounds_at_x(x_ratio)
+		if bounds.x < 0.0:
+			continue
+		var y: float = base_top - tan(_tilt) * x_ratio * rect.size.y * 0.12
+		y += sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
+		y = clampf(y, rect.position.y + rect.size.y * (bounds.x + 0.012), rect.position.y + rect.size.y * bounds.y - 3.0)
+		surface_line.append(Vector2(x, y))
+	if surface_line.size() >= 2:
+		draw_polyline(surface_line, Color(1.0, 1.0, 1.0, 0.46), 1.8, true)
+		var shimmer := PackedVector2Array()
+		for index in range(7, 18):
+			if index < surface_line.size():
+				shimmer.append(surface_line[index] + Vector2(0.0, 3.0))
+		if shimmer.size() >= 2:
+			draw_polyline(shimmer, Color(1.0, 1.0, 1.0, 0.18), 1.0, true)
+
+
+func _get_glass_mouth_position_for_pose(pose: Vector2) -> Vector2:
+	return get_mouth_local_for_pose(pose)
+
+
+func _ellipse_points(center: Vector2, radius_x: float, radius_y: float, segments: int) -> PackedVector2Array:
 	var points := PackedVector2Array()
-	var top_steps: int = 12
-
-	for i in range(top_steps + 1):
-		var x_fraction: float = float(i) / float(top_steps)
-		var x: float = top_center_x - top_half_width + (top_half_width * 2.0) * x_fraction
-		var wave: float = sin(_wave_time * 2.2 + x_fraction * TAU) * surface_amplitude
-		var y: float = top_y + surface_slope * (x - top_center_x) + wave
-		points.append(Vector2(x, y))
-
-	for i in range(1, 15):
-		var y_fraction: float = float(i) / 14.0
-		var y: float = lerpf(top_y, bottom_y, y_fraction)
-		var profile := _get_profile_at_image_y(rect, y)
-		var center_x: float = rect.position.x + rect.size.x * profile.x
-		var half_width: float = rect.size.x * profile.y * 0.78
-		points.append(Vector2(center_x + half_width, y))
-
-	var bottom_profile := _get_profile_at_image_y(rect, bottom_y)
-	var bottom_center_x: float = rect.position.x + rect.size.x * bottom_profile.x
-	var bottom_half_width: float = rect.size.x * bottom_profile.y * 0.78
-	points.append(Vector2(bottom_center_x - bottom_half_width, bottom_y))
-
-	for i in range(13, 0, -1):
-		var y_fraction: float = float(i) / 14.0
-		var y: float = lerpf(top_y, bottom_y, y_fraction)
-		var profile := _get_profile_at_image_y(rect, y)
-		var center_x: float = rect.position.x + rect.size.x * profile.x
-		var half_width: float = rect.size.x * profile.y * 0.78
-		points.append(Vector2(center_x - half_width, y))
-
-	var shaded := liquid_color.darkened(0.17)
-	var body_color := liquid_color.lerp(Color(0.10, 0.18, 0.21, 1.0), 0.18)
-	draw_colored_polygon(points, body_color)
-
-	# Soft side depth and a narrow highlight make the fill read as liquid, not tiles.
-	var left_side := PackedVector2Array([
-		points[0],
-		Vector2(points[0].x + 3.0, points[0].y + 5.0),
-		Vector2(points[points.size() - 1].x + 6.0, bottom_y - 3.0),
-		Vector2(points[points.size() - 1].x, bottom_y)
-	])
-	draw_colored_polygon(left_side, Color(shaded.r, shaded.g, shaded.b, 0.24))
-
-	if is_top:
-		var surface_points := PackedVector2Array()
-		for i in range(top_steps + 1):
-			surface_points.append(points[i])
-		draw_polyline(surface_points, Color(1.0, 1.0, 1.0, 0.44), 2.0, true)
-	else:
-		draw_line(points[0], points[top_steps], Color(1.0, 1.0, 1.0, 0.10), 1.0, true)
+	for index in range(segments):
+		var angle: float = TAU * float(index) / float(segments)
+		points.append(center + Vector2(cos(angle) * radius_x, sin(angle) * radius_y))
+	return points
 
 
-func _get_glass_spout_local() -> Vector2:
-	var center_x: float = size.x * 0.5
-	if render_mode == MODE_GENERATED and _bottle_texture != null:
-		var rect := _get_generated_rect(center_x)
-		return Vector2(center_x, rect.position.y + rect.size.y * 0.075)
-	return Vector2(center_x, 42.0)
+func _closed_points(points: PackedVector2Array) -> PackedVector2Array:
+	var closed := points.duplicate()
+	if not closed.is_empty():
+		closed.append(closed[0])
+	return closed

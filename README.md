@@ -1,29 +1,23 @@
 # Spell Sort — Alchemy Interaction Test
 
-This branch adds a focused portrait test scene for the core alchemy interaction. It is intentionally separate from the playable sorting screen.
+This branch contains the focused portrait test scene for the Alchemy Core Loop.
 
 ## Run
 
 Open the project in Godot 4.7 and run the project. The configured main scene is `res://scenes/alchemy_interaction_test.tscn`.
 
-The original sorting prototype remains available at `res://scenes/main.tscn`.
+The original playable sorting prototype remains available at `res://scenes/main.tscn`.
 
-## What this test compares
+## Current test
 
-- Two bottle sprites cropped from the first two cells of the 4 × 4 bottle sheet.
-- Two procedural bottle silhouettes with different editable shape profiles.
-- One shared liquid renderer for both bottle approaches.
-- Curved liquid bands that follow each bottle profile rather than rectangular blocks.
-- A gently moving liquid surface that reacts to bottle lift and tilt.
-- One-finger or mouse press-and-drag interaction.
-- Valid-target highlighting, invalid-drop return, animated lifting, directional tilt, a foreground pour stream, fill transfer and return-to-slot movement.
+- Four procedural, open-top glass vial profiles: round, tall, squared-shoulder and bulbous.
+- Dimensional glass construction using layered polygon geometry, thick rims, an open mouth, side reflections, shoulder facets and a heavier glass base.
+- A shared liquid renderer made from narrow, convex polygon strips that follow each vial's interior profile. Adjacent essence regions overlap slightly to avoid visible hairline gaps.
+- Animated liquid surfaces, tilt response and damped sloshing.
+- Press-and-drag interaction for mouse and touch.
+- Target detection around the receiving vial's open mouth rather than its body.
+- Invalid releases return to the original slot.
+- Valid releases align the source mouth above the target mouth, tilt the source and pour through a tapered, irregular liquid ribbon with moving droplets and a receiving splash ripple.
+- Both fill levels animate during transfer and the source returns to its original slot.
 
-## Controls
-
-1. Press and hold a non-empty bottle.
-2. Drag it over an empty vial or one with a matching top essence.
-3. Release to pour.
-4. Release over an invalid target or outside the bottles to return it to its original slot.
-5. Use RESET TEST to restore the opening arrangement.
-
-The source asset sheets are not modified. This test is for evaluating the bottle-rendering and interaction direction before integrating it into the main puzzle flow.
+The original source asset sheets are unchanged. This is a visual and interaction test, not yet the final puzzle experience.
