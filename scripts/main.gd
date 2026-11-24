@@ -17,7 +17,7 @@ const INITIAL_LAYOUT: Array = [
 
 var bottles: Array = []
 var move_history: Array[Dictionary] = []
-var vial_controls: Array[Control] = []
+var vial_controls: Array = []
 var selected_vial: int = -1
 var move_count: int = 0
 var round_complete: bool = false
