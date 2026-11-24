@@ -3,7 +3,7 @@ extends Control
 const CAPACITY := 4
 const LIQUID_BOTTOM_RATIO := 0.938
 const LIQUID_TOP_RATIO := 0.31
-const LIQUID_BAND_STRIPS := 10
+const LIQUID_BAND_STRIPS := 18
 const LIQUID_SURFACE_COLUMNS := 64
 const LIQUID_WALL_INSET_PIXELS := 4.5
 const LIQUID_FLOOR_INSET_PIXELS := 5.0
@@ -144,12 +144,13 @@ func get_drag_anchor_local(local_point: Vector2, pose: Vector2 = Vector2.ZERO, d
 	var applied_scale: float = _draw_scale if draw_scale < 0.0 else draw_scale
 	return pivot + (local_point - pivot).rotated(pose.y) * applied_scale
 
+
 func get_liquid_surface_position_in_parent() -> Vector2:
 	var rect := _get_vessel_rect()
 	var layer_height: float = (LIQUID_BOTTOM_RATIO - LIQUID_TOP_RATIO) / float(CAPACITY)
 	var surface_ratio: float = LIQUID_BOTTOM_RATIO - layer_height * clampf(_liquid_level, 0.0, float(CAPACITY))
 	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
-	surface_y += sin(_wave_time * 2.1) * (1.3 + absf(_slosh) * 3.2)
+	surface_y += _get_surface_wave_offset(0.0)
 	var local_surface := Vector2(rect.get_center().x, surface_y)
 	return position + get_point_local_for_pose(local_surface, Vector2(_lift, _tilt), _draw_scale)
 
@@ -407,6 +408,7 @@ func _get_min_profile_width(top_ratio: float, bottom_ratio: float) -> float:
 
 
 
+
 func _draw_liquid_band(
 	rect: Rect2,
 	top_ratio: float,
@@ -431,13 +433,10 @@ func _draw_liquid_band(
 
 	if is_surface:
 		var first_strip_bottom: float = body_top + strip_height + 1.5
-		_draw_wavy_surface_fill(
-			rect,
-			top_y,
-			body_top + 0.8,
-			first_strip_bottom,
-			liquid_color
-		)
+		_draw_wavy_surface_fill(rect, top_y, body_top + 0.8, first_strip_bottom, liquid_color)
+
+	var left_contour := PackedVector2Array()
+	var right_contour := PackedVector2Array()
 
 	for strip_index in range(LIQUID_BAND_STRIPS):
 		var strip_top: float = body_top + strip_height * float(strip_index)
@@ -455,6 +454,12 @@ func _draw_liquid_band(
 			half_width * 2.0,
 			strip_bottom - strip_top
 		)
+		if left_contour.is_empty():
+			left_contour.append(Vector2(strip_rect.position.x, strip_top))
+			right_contour.append(Vector2(strip_rect.end.x, strip_top))
+		left_contour.append(Vector2(strip_rect.position.x, strip_bottom))
+		right_contour.append(Vector2(strip_rect.end.x, strip_bottom))
+
 		var depth_factor: float = 0.07 + 0.08 * sin(PI * (float(strip_index) + 0.5) / float(LIQUID_BAND_STRIPS))
 		var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.15), depth_factor)
 		draw_rect(strip_rect, fill_color, true, -1.0, false)
@@ -475,6 +480,25 @@ func _draw_liquid_band(
 			false
 		)
 
+	if left_contour.size() >= 2:
+		var soft_edge: Color = liquid_color.darkened(0.20)
+		soft_edge.a = 0.20
+		draw_polyline(left_contour, soft_edge, 1.15, true)
+		draw_polyline(right_contour, soft_edge, 1.15, true)
+
+
+func _get_surface_wave_offset(normalized_x: float) -> float:
+	var maximum_wave: float = 0.35 + _surface_activity * 2.25 + absf(_slosh) * 1.35
+	var secondary_wave: float = 0.08 + _surface_activity * 0.62 + absf(_slosh) * 0.55
+	var wave_frequency: float = lerpf(1.8, 3.2, _surface_activity)
+	var edge_envelope: float = sin((normalized_x + 1.0) * PI * 0.5)
+	edge_envelope = pow(maxf(0.0, edge_envelope), 0.55)
+
+	var wave_one: float = sin(_wave_time * wave_frequency + normalized_x * 3.1) * maximum_wave
+	var wave_two: float = sin(_wave_time * (wave_frequency * 1.37) - normalized_x * 6.3) * secondary_wave
+	var tilt_offset: float = clampf(-tan(_tilt) * normalized_x * 10.0 * 0.035, -3.0, 3.0)
+	return (wave_one + wave_two) * edge_envelope + tilt_offset
+
 
 func _draw_wavy_surface_fill(
 	rect: Rect2,
@@ -488,33 +512,21 @@ func _draw_wavy_surface_fill(
 
 	var height: float = maxf(1.0, rect.size.y)
 	var maximum_wave: float = 0.35 + _surface_activity * 2.25 + absf(_slosh) * 1.35
-	var secondary_wave: float = 0.08 + _surface_activity * 0.62 + absf(_slosh) * 0.55
-	var wave_frequency: float = lerpf(1.8, 3.2, _surface_activity)
-
-	var surface_ratio: float = surface_y / height
-	var lower_guard_ratio: float = (first_strip_bottom - rect.position.y) / height
-	var upper_guard_ratio: float = (surface_y - maximum_wave - rect.position.y) / height
-	var width_ratio: float = _get_min_profile_width(upper_guard_ratio, lower_guard_ratio)
+	var width_ratio: float = _get_min_profile_width(
+		(surface_y - maximum_wave - 3.5 - rect.position.y) / height,
+		(first_strip_bottom - rect.position.y) / height
+	)
 	var half_width: float = rect.size.x * width_ratio - LIQUID_WALL_INSET_PIXELS
 	if half_width <= 2.0:
 		return
 
 	var top_edge := PackedVector2Array()
 	var bottom_edge := PackedVector2Array()
-	var surface_count: int = LIQUID_SURFACE_COLUMNS
-
-	for point_index in range(surface_count + 1):
-		var normalized_x: float = float(point_index) / float(surface_count) * 2.0 - 1.0
+	for point_index in range(LIQUID_SURFACE_COLUMNS + 1):
+		var normalized_x: float = float(point_index) / float(LIQUID_SURFACE_COLUMNS) * 2.0 - 1.0
 		var x: float = rect.get_center().x + normalized_x * half_width
-		var edge_envelope: float = sin((normalized_x + 1.0) * PI * 0.5)
-		edge_envelope = pow(maxf(0.0, edge_envelope), 0.55)
-
-		var wave_one: float = sin(_wave_time * wave_frequency + normalized_x * 3.1) * maximum_wave
-		var wave_two: float = sin(_wave_time * (wave_frequency * 1.37) - normalized_x * 6.3) * secondary_wave
-		var tilt_offset: float = clampf(-tan(_tilt) * normalized_x * half_width * 0.035, -3.0, 3.0)
-		var wave_offset: float = (wave_one + wave_two) * edge_envelope + tilt_offset
-		var moving_surface_y: float = clampf(surface_y + wave_offset, surface_y - maximum_wave - 0.6, fill_bottom - 1.5)
-
+		var moving_surface_y: float = surface_y + _get_surface_wave_offset(normalized_x)
+		moving_surface_y = clampf(moving_surface_y, surface_y - maximum_wave - 3.5, fill_bottom - 1.5)
 		top_edge.append(Vector2(x, moving_surface_y))
 		bottom_edge.append(Vector2(x, fill_bottom))
 
@@ -527,15 +539,9 @@ func _draw_wavy_surface_fill(
 	var surface_color: Color = liquid_color.lerp(liquid_color.lightened(0.18), 0.16)
 	draw_colored_polygon(surface_polygon, surface_color)
 
-	# A very soft antialiased glint follows the exact filled boundary. It is not
-	# an independent flat line: its points are the polygon's animated top edge.
-	var edge_color := Color(
-		minf(1.0, surface_color.r * 1.18),
-		minf(1.0, surface_color.g * 1.18),
-		minf(1.0, surface_color.b * 1.18),
-		0.24 + _surface_activity * 0.06
-	)
-	draw_polyline(top_edge, edge_color, 1.35, true)
+	var highlight_color: Color = surface_color.lightened(0.35)
+	highlight_color.a = 0.15 + _surface_activity * 0.07 + absf(_slosh) * 0.035
+	draw_polyline(top_edge, highlight_color, 1.25, true)
 
 func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
 	if points.size() != 4:
