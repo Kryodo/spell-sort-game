@@ -584,8 +584,9 @@ func _update_pour_stream() -> void:
 		return
 	var source_vial = vial_controls[_pour_source]
 	var target_vial = vial_controls[_pour_target]
-	var start: Vector2 = to_local(source_vial.get_global_spout_position())
-	var finish: Vector2 = to_local(target_vial.get_global_spout_position())
+	var root_inverse: Transform2D = get_global_transform().affine_inverse()
+	var start: Vector2 = root_inverse * source_vial.get_global_spout_position()
+	var finish: Vector2 = root_inverse * target_vial.get_global_spout_position()
 	var span: float = finish.x - start.x
 	var control_one := start + Vector2(span * 0.30, 34.0)
 	var control_two := finish - Vector2(span * 0.30, -34.0)

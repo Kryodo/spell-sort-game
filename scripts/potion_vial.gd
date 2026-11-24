@@ -68,7 +68,7 @@ func get_global_spout_position() -> Vector2:
 		local_spout = Vector2(center_x, art_rect.position.y + art_rect.size.y * 0.12)
 	var pivot := Vector2(center_x, 276.0)
 	var transformed := pivot + Vector2(0.0, -_animation_lift) + (local_spout - pivot).rotated(_animation_tilt)
-	return to_global(transformed)
+	return get_global_transform() * transformed
 
 
 func _process(delta: float) -> void:
