@@ -169,11 +169,11 @@ func is_pointer_over_mouth(pointer_local: Vector2) -> bool:
 
 
 func _process(delta: float) -> void:
-	var target_activity: float = 0.0
+	var target_activity: float = 0.18
 	if _dragging:
-		target_activity = 1.0 if _drag_motion else 0.34
+		target_activity = 0.82 if _drag_motion else 0.42
 	elif _selected:
-		target_activity = 0.20
+		target_activity = 0.28
 
 	_surface_activity = move_toward(_surface_activity, target_activity, delta * 4.8)
 	_wave_time += delta * lerpf(1.25, 2.65, _surface_activity)
@@ -487,8 +487,8 @@ func _draw_liquid_band(
 
 
 func _get_surface_wave_offset(normalized_x: float) -> float:
-	var maximum_wave: float = 0.35 + _surface_activity * 2.25 + absf(_slosh) * 1.35
-	var secondary_wave: float = 0.08 + _surface_activity * 0.62 + absf(_slosh) * 0.55
+	var maximum_wave: float = 0.90 + _surface_activity * 1.75 + absf(_slosh) * 1.20
+	var secondary_wave: float = 0.18 + _surface_activity * 0.48 + absf(_slosh) * 0.50
 	var wave_frequency: float = lerpf(1.8, 3.2, _surface_activity)
 	var edge_envelope: float = sin((normalized_x + 1.0) * PI * 0.5)
 	edge_envelope = pow(maxf(0.0, edge_envelope), 0.55)
