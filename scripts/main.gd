@@ -2,6 +2,7 @@ extends Control
 
 const PotionVialScript = preload("res://scripts/potion_vial.gd")
 const CAPACITY: int = 4
+const BOTTLE_SHEET_PATH: String = "res://assets/bottles/bottles_sheet.png"
 const ESSENCE_NAMES: Array[String] = ["tide", "moon", "ember"]
 const PALETTE: Dictionary = {
 	"tide": Color(0.30, 0.77, 0.75, 1.0),
@@ -21,6 +22,20 @@ var vial_controls: Array = []
 var selected_vial: int = -1
 var move_count: int = 0
 var round_complete: bool = false
+var bottle_texture: Texture2D
+var is_animating: bool = false
+
+var _pour_source: int = -1
+var _pour_target: int = -1
+var _pour_progress: float = 0.0
+var _stream_phase: float = 0.0
+var _pour_stream_active: bool = false
+var _pour_essence_color: Color = Color.WHITE
+var _pour_source_contents: Array = []
+var _pour_target_contents: Array = []
+var _pour_source_start: float = 0.0
+var _pour_target_start: float = 0.0
+var _pour_amount: int = 0
 
 var move_count_label: Label
 var message_label: Label
@@ -30,8 +45,33 @@ var vial_row: HBoxContainer
 
 
 func _ready() -> void:
+	bottle_texture = _load_bottle_texture()
 	_build_interface()
 	_load_initial_puzzle()
+
+
+func _load_bottle_texture() -> Texture2D:
+	var sheet := Image.load_from_file(BOTTLE_SHEET_PATH)
+	if sheet.is_empty():
+		push_warning("Bottle sheet could not be loaded. Using the procedural vial fallback.")
+		return null
+
+	# The source sheet contains 16 bottle designs in a 4 x 4 contact sheet.
+	# Crop the first design to its non-transparent bounds for clean scaling.
+	var cell_width: int = sheet.get_width() / 4
+	var cell_height: int = sheet.get_height() / 4
+	if cell_width <= 0 or cell_height <= 0:
+		push_warning("Bottle sheet dimensions are invalid. Using the procedural vial fallback.")
+		return null
+
+	var bottle_image := sheet.get_region(Rect2i(0, 0, cell_width, cell_height))
+	var used_bounds := bottle_image.get_used_rect()
+	if used_bounds.size.x <= 0 or used_bounds.size.y <= 0:
+		push_warning("The first bottle cell is empty. Using the procedural vial fallback.")
+		return null
+
+	bottle_image = bottle_image.get_region(used_bounds)
+	return ImageTexture.create_from_image(bottle_image)
 
 
 func _build_interface() -> void:
@@ -354,7 +394,7 @@ func _is_full_and_uniform(bottle: Array) -> bool:
 
 
 func _on_vial_tapped(index: int) -> void:
-	if round_complete:
+	if round_complete or is_animating:
 		return
 
 	if selected_vial == -1:
@@ -373,17 +413,7 @@ func _on_vial_tapped(index: int) -> void:
 		return
 
 	if _can_pour(selected_vial, index):
-		_save_history()
-		_pour(selected_vial, index)
-		move_count += 1
-		selected_vial = -1
-
-		if _is_puzzle_solved():
-			round_complete = true
-			_set_status("Formula restored. All three essences are pure.")
-		else:
-			_set_status("A successful pour. Keep separating the essences.")
-		_refresh_interface()
+		_start_pour(selected_vial, index)
 		return
 
 	if bottles[index].is_empty():
@@ -405,6 +435,138 @@ func _can_pour(source_index: int, target_index: int) -> bool:
 		return true
 
 	return String(target.back()) == String(source.back())
+
+
+func _get_pour_amount(source_index: int, target_index: int) -> int:
+	var source: Array = bottles[source_index]
+	var target: Array = bottles[target_index]
+	if source.is_empty() or target.size() >= CAPACITY:
+		return 0
+	var essence_name: String = String(source.back())
+	var matching_run: int = 0
+	for layer_index in range(source.size() - 1, -1, -1):
+		if String(source[layer_index]) == essence_name:
+			matching_run += 1
+		else:
+			break
+	return mini(matching_run, CAPACITY - target.size())
+
+
+func _start_pour(source_index: int, target_index: int) -> void:
+	if is_animating:
+		return
+	var amount: int = _get_pour_amount(source_index, target_index)
+	if amount <= 0:
+		return
+
+	is_animating = true
+	_save_history()
+	selected_vial = -1
+	_pour_source = source_index
+	_pour_target = target_index
+	_pour_progress = 0.0
+	_pour_amount = amount
+	_pour_source_contents = bottles[source_index].duplicate()
+	_pour_target_contents = bottles[target_index].duplicate()
+
+	var essence_name: String = String(_pour_source_contents.back())
+	_pour_essence_color = PALETTE.get(essence_name, Color.WHITE)
+	for _layer_index in range(amount):
+		_pour_target_contents.append(essence_name)
+
+	_pour_source_start = float(_pour_source_contents.size())
+	_pour_target_start = float(bottles[target_index].size())
+	_refresh_interface()
+
+	var source_vial = vial_controls[source_index]
+	var target_vial = vial_controls[target_index]
+	source_vial.set_visual_contents(_pour_source_contents, _pour_source_start)
+	target_vial.set_visual_contents(_pour_target_contents, _pour_target_start)
+	source_vial.set_visual_state(true, false)
+	target_vial.set_visual_state(false, true)
+
+	_set_status("Pouring %s essence..." % essence_name.capitalize())
+	var tilt_direction: float = 1.0 if target_vial.global_position.x > source_vial.global_position.x else -1.0
+	var tilt_angle: float = deg_to_rad(tilt_direction * 17.0)
+
+	var lift_tween := create_tween()
+	lift_tween.tween_method(
+		Callable(source_vial, "set_animation_pose"),
+		Vector2.ZERO,
+		Vector2(19.0, tilt_angle),
+		0.22
+	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	await lift_tween.finished
+
+	_pour_stream_active = true
+	var pour_tween := create_tween()
+	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.72).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await pour_tween.finished
+	_pour_stream_active = false
+
+	var return_tween := create_tween()
+	return_tween.tween_method(
+		Callable(source_vial, "set_animation_pose"),
+		Vector2(19.0, tilt_angle),
+		Vector2.ZERO,
+		0.22
+	).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	await return_tween.finished
+
+	source_vial.set_visual_state(false, false)
+	target_vial.set_visual_state(false, false)
+	_pour(source_index, target_index)
+	move_count += 1
+	is_animating = false
+	_pour_source = -1
+	_pour_target = -1
+	_pour_progress = 0.0
+
+	if _is_puzzle_solved():
+		round_complete = true
+		_set_status("Formula restored. All three essences are pure.")
+	else:
+		_set_status("A successful pour. Keep separating the essences.")
+	_refresh_interface()
+
+
+func _set_pour_progress(progress: float) -> void:
+	_pour_progress = progress
+	var source_level: float = lerpf(_pour_source_start, _pour_source_start - float(_pour_amount), progress)
+	var target_level: float = lerpf(_pour_target_start, _pour_target_start + float(_pour_amount), progress)
+	vial_controls[_pour_source].set_visual_contents(_pour_source_contents, source_level)
+	vial_controls[_pour_target].set_visual_contents(_pour_target_contents, target_level)
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	if _pour_stream_active:
+		_stream_phase = fposmod(_stream_phase + delta * 2.8, 1.0)
+		queue_redraw()
+
+
+func _draw() -> void:
+	if not _pour_stream_active or _pour_source < 0 or _pour_target < 0:
+		return
+	var source_vial = vial_controls[_pour_source]
+	var target_vial = vial_controls[_pour_target]
+	var start: Vector2 = to_local(source_vial.get_global_spout_position())
+	var finish: Vector2 = to_local(target_vial.get_global_spout_position())
+	var span: float = finish.x - start.x
+	var control_one := start + Vector2(span * 0.30, 34.0)
+	var control_two := finish - Vector2(span * 0.30, -34.0)
+	var stream_points := PackedVector2Array()
+	for point_index in range(25):
+		var t: float = float(point_index) / 24.0
+		stream_points.append(start.bezier_interpolate(control_one, control_two, finish, t))
+	var stream_alpha: float = 0.55 + 0.35 * sin(PI * _pour_progress)
+	draw_polyline(stream_points, Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha * 0.32), 9.0, true)
+	draw_polyline(stream_points, Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha), 3.0, true)
+	draw_polyline(stream_points, Color(1.0, 1.0, 1.0, stream_alpha * 0.52), 1.0, true)
+	for drop_index in range(3):
+		var drop_t: float = fposmod(_stream_phase + float(drop_index) / 3.0, 1.0)
+		var drop_position: Vector2 = start.bezier_interpolate(control_one, control_two, finish, drop_t)
+		draw_circle(drop_position, 2.2 if drop_index == 0 else 1.5, Color(1.0, 1.0, 1.0, 0.78))
 
 
 func _pour(source_index: int, target_index: int) -> void:
@@ -443,7 +605,7 @@ func _save_history() -> void:
 
 
 func _on_undo_pressed() -> void:
-	if move_history.is_empty() or round_complete:
+	if is_animating or move_history.is_empty() or round_complete:
 		return
 
 	var previous_state: Dictionary = move_history.pop_back()
@@ -455,6 +617,8 @@ func _on_undo_pressed() -> void:
 
 
 func _on_restart_pressed() -> void:
+	if is_animating:
+		return
 	if round_complete:
 		_load_random_puzzle()
 	else:
@@ -472,12 +636,14 @@ func _refresh_interface() -> void:
 			index,
 			bottles[index],
 			PALETTE,
-			selected_vial == index
+			selected_vial == index,
+			bottle_texture
 		)
 
 	if is_instance_valid(move_count_label):
 		move_count_label.text = "MOVES %02d" % move_count
 	if is_instance_valid(undo_button):
-		undo_button.disabled = move_history.is_empty() or round_complete
+		undo_button.disabled = move_history.is_empty() or round_complete or is_animating
 	if is_instance_valid(restart_button):
 		restart_button.text = "NEW MIX" if round_complete else "RESET"
+		restart_button.disabled = is_animating

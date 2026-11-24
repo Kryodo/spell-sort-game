@@ -19,6 +19,6 @@ The puzzle uses four vials, three essences and four layers per vial.
 
 ## Art integration
 
-The portrait laboratory background is used directly from assets/environments/laboratory_background.png. The current vials are temporary procedural controls drawn in Godot so the liquid and sorting rules can be tested independently.
+The portrait laboratory background is used directly from assets/environments/laboratory_background.png. The gameplay vials use a trimmed bottle sprite from the approved bottle sheet, with the essence layers drawn dynamically over the glass artwork. The first bottle cell in the 4 × 4 sheet is used consistently across the four puzzle slots in this prototype.
 
-The source sheets in assets/ remain untouched. The bottle, ingredient, prop and gameplay-icon sheets can be atlas-sliced and integrated after their individual sprite bounds have been checked in the running project. UI panels, labels and buttons are intentionally built in Godot.
+The source sheets in assets/ remain untouched. The ingredient, prop and gameplay-icon sheets remain untouched and can be integrated after their individual sprite bounds have been checked in the running project. Bottle pouring now includes a lift, directional tilt, animated essence stream, interpolated source and destination fill levels, and a return-to-rest motion. Undo and reset are temporarily locked while a pour animation is in progress. UI panels, labels and buttons are intentionally built in Godot.
