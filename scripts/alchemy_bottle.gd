@@ -1,11 +1,12 @@
 extends Control
 
 const CAPACITY := 4
-const LIQUID_BOTTOM_RATIO := 0.89
+const LIQUID_BOTTOM_RATIO := 0.968
 const LIQUID_TOP_RATIO := 0.31
-const PROFILE_SAMPLES := 96
-const BOUNDS_SAMPLES := 81
-const LIQUID_COLUMNS := 48
+const PROFILE_SAMPLES := 128
+const BOUNDS_SAMPLES := 101
+const LIQUID_COLUMNS := 64
+const LIQUID_BAND_OVERLAP_PIXELS := 1.2
 
 var vial_index: int = 0
 var display_name: String = ""
@@ -112,16 +113,29 @@ func get_mouth_local() -> Vector2:
 	return Vector2(size.x * 0.5, rect.position.y + 2.0)
 
 
+
 func get_mouth_local_for_pose(pose: Vector2, draw_scale: float = -1.0) -> Vector2:
-	var mouth := get_mouth_local()
-	var pivot := Vector2(size.x * 0.5, size.y * 0.86)
-	var applied_scale: float = _draw_scale if draw_scale < 0.0 else draw_scale
-	return pivot + Vector2(0.0, -pose.x) + (mouth - pivot).rotated(pose.y) * applied_scale
+	return get_point_local_for_pose(get_mouth_local(), pose, draw_scale)
 
 
 func get_mouth_position_in_parent(pose: Vector2 = Vector2.ZERO) -> Vector2:
 	return position + get_mouth_local_for_pose(pose)
 
+
+func get_point_local_for_pose(local_point: Vector2, pose: Vector2 = Vector2.ZERO, draw_scale: float = -1.0) -> Vector2:
+	var pivot := Vector2(size.x * 0.5, size.y * 0.86)
+	var applied_scale: float = _draw_scale if draw_scale < 0.0 else draw_scale
+	return pivot + Vector2(0.0, -pose.x) + (local_point - pivot).rotated(pose.y) * applied_scale
+
+
+func get_liquid_surface_position_in_parent() -> Vector2:
+	var rect := _get_vessel_rect()
+	var layer_height: float = (LIQUID_BOTTOM_RATIO - LIQUID_TOP_RATIO) / float(CAPACITY)
+	var surface_ratio: float = LIQUID_BOTTOM_RATIO - layer_height * clampf(_liquid_level, 0.0, float(CAPACITY))
+	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
+	surface_y += sin(_wave_time * 2.1) * (1.3 + absf(_slosh) * 3.2)
+	var local_surface := Vector2(rect.get_center().x, surface_y)
+	return position + get_point_local_for_pose(local_surface, Vector2(_lift, _tilt), _draw_scale)
 
 func get_mouth_hit_radius() -> Vector2:
 	var rect := _get_vessel_rect()
@@ -159,7 +173,7 @@ func _profile_points() -> Array[Vector2]:
 			points = [
 				Vector2(0.00, 0.17), Vector2(0.10, 0.18), Vector2(0.19, 0.30),
 				Vector2(0.26, 0.405), Vector2(0.32, 0.425), Vector2(0.76, 0.425),
-				Vector2(0.88, 0.39), Vector2(0.96, 0.29), Vector2(1.00, 0.22)
+				Vector2(0.88, 0.39), Vector2(0.96, 0.305), Vector2(1.00, 0.245)
 			]
 		3: # Bulbous-bottomed apothecary vessel.
 			points = [
@@ -171,7 +185,7 @@ func _profile_points() -> Array[Vector2]:
 			points = [
 				Vector2(0.00, 0.16), Vector2(0.09, 0.18), Vector2(0.19, 0.29),
 				Vector2(0.31, 0.405), Vector2(0.55, 0.435), Vector2(0.76, 0.39),
-				Vector2(0.90, 0.31), Vector2(0.97, 0.24), Vector2(1.00, 0.17)
+				Vector2(0.90, 0.31), Vector2(0.97, 0.255), Vector2(1.00, 0.195)
 			]
 	return points
 
@@ -374,10 +388,14 @@ func _draw_liquid(rect: Rect2) -> void:
 		_draw_liquid_band(rect, top_ratio, bottom_ratio, liquid_color, layer_index == visible_layers - 1)
 
 
+
 func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liquid_color: Color, is_surface: bool) -> void:
 	var base_top: float = rect.position.y + rect.size.y * top_ratio
 	var base_bottom: float = rect.position.y + rect.size.y * bottom_ratio
-	var x_extent: float = _max_half_width * 0.94
+	var x_extent: float = _max_half_width * 0.995
+	var overlap_ratio: float = LIQUID_BAND_OVERLAP_PIXELS / maxf(1.0, rect.size.y)
+	if not is_surface:
+		base_bottom += overlap_ratio * rect.size.y
 
 	for column_index in range(LIQUID_COLUMNS):
 		var x0_ratio: float = lerpf(-x_extent, x_extent, float(column_index) / float(LIQUID_COLUMNS))
@@ -389,10 +407,10 @@ func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liqui
 
 		var x0: float = rect.get_center().x + rect.size.x * x0_ratio
 		var x1: float = rect.get_center().x + rect.size.x * x1_ratio
-		var top0: float = maxf(base_top, rect.position.y + rect.size.y * (bounds0.x + 0.008))
-		var top1: float = maxf(base_top, rect.position.y + rect.size.y * (bounds1.x + 0.008))
-		var bottom0: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds0.y - 0.010))
-		var bottom1: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds1.y - 0.010))
+		var top0: float = maxf(base_top, rect.position.y + rect.size.y * (bounds0.x + 0.004))
+		var top1: float = maxf(base_top, rect.position.y + rect.size.y * (bounds1.x + 0.004))
+		var bottom0: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds0.y - 0.004))
+		var bottom1: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds1.y - 0.004))
 
 		if is_surface:
 			var slope0: float = -tan(_tilt) * x0_ratio * 0.12
@@ -401,10 +419,10 @@ func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liqui
 			var wave1: float = sin(_wave_time * 2.1 + x1_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
 			top0 += slope0 * rect.size.y + wave0
 			top1 += slope1 * rect.size.y + wave1
-			top0 = clampf(top0, rect.position.y + rect.size.y * (bounds0.x + 0.012), bottom0 - 2.0)
-			top1 = clampf(top1, rect.position.y + rect.size.y * (bounds1.x + 0.012), bottom1 - 2.0)
+			top0 = clampf(top0, rect.position.y + rect.size.y * (bounds0.x + 0.010), bottom0 - 1.5)
+			top1 = clampf(top1, rect.position.y + rect.size.y * (bounds1.x + 0.010), bottom1 - 1.5)
 
-		if bottom0 - top0 < 0.9 or bottom1 - top1 < 0.9 or x1 - x0 < 0.8:
+		if bottom0 - top0 < 0.65 or bottom1 - top1 < 0.65 or x1 - x0 < 0.5:
 			continue
 
 		var quad := PackedVector2Array([
@@ -413,38 +431,68 @@ func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liqui
 			Vector2(x1, bottom1),
 			Vector2(x0, bottom0)
 		])
-		if not _is_safe_convex_quad(quad):
-			continue
-		var edge_ratio: float = (absf((x0_ratio + x1_ratio) * 0.5) / _max_half_width)
+		var edge_ratio: float = absf((x0_ratio + x1_ratio) * 0.5) / maxf(0.001, _max_half_width)
 		var shaded_color: Color = liquid_color.lerp(liquid_color.darkened(0.34), clampf(edge_ratio * 0.65, 0.0, 0.42))
 		shaded_color = shaded_color.lerp(Color(0.10, 0.18, 0.21, 1.0), 0.08)
-		draw_colored_polygon(quad, Color(shaded_color.r, shaded_color.g, shaded_color.b, 0.97))
+		_draw_liquid_quad(quad, Color(shaded_color.r, shaded_color.g, shaded_color.b, 0.98))
 
 	if is_surface:
-		_draw_liquid_surface(rect, base_top, x_extent, liquid_color)
+		_draw_liquid_surface(rect, base_top, liquid_color)
 
 
-func _draw_liquid_surface(rect: Rect2, base_top: float, x_extent: float, liquid_color: Color) -> void:
+func _draw_liquid_quad(points: PackedVector2Array, liquid_color: Color) -> void:
+	if points.size() != 4:
+		return
+	var indices: PackedInt32Array = Geometry2D.triangulate_polygon(points)
+	if indices.size() >= 3:
+		for index in range(0, indices.size(), 3):
+			var triangle := PackedVector2Array([
+				points[indices[index]],
+				points[indices[index + 1]],
+				points[indices[index + 2]]
+			])
+			_draw_liquid_triangle(triangle, liquid_color)
+	else:
+		# Defensive fallback for nearly-collinear cells at the vessel silhouette.
+		_draw_liquid_triangle(PackedVector2Array([points[0], points[1], points[2]]), liquid_color)
+		_draw_liquid_triangle(PackedVector2Array([points[0], points[2], points[3]]), liquid_color)
+
+
+func _draw_liquid_triangle(points: PackedVector2Array, liquid_color: Color) -> void:
+	if points.size() != 3:
+		return
+	var area_twice: float = absf((points[1] - points[0]).cross(points[2] - points[0]))
+	if area_twice < 0.06:
+		return
+	draw_colored_polygon(points, liquid_color)
+
+
+func _draw_liquid_surface(rect: Rect2, base_top: float, liquid_color: Color) -> void:
+	var surface_ratio: float = clampf((base_top - rect.position.y) / maxf(1.0, rect.size.y), 0.0, 1.0)
+	# The exposed line follows the vessel width at the actual liquid level,
+	# instead of spanning the widest part of the entire bottle.
+	var surface_half_width: float = minf(_get_profile_at(surface_ratio).y * 0.985, _max_half_width * 0.995)
 	var surface_line := PackedVector2Array()
-	for point_index in range(25):
-		var x_ratio: float = lerpf(-x_extent, x_extent, float(point_index) / 24.0)
+
+	for point_index in range(33):
+		var x_ratio: float = lerpf(-surface_half_width, surface_half_width, float(point_index) / 32.0)
 		var x: float = rect.get_center().x + rect.size.x * x_ratio
 		var bounds := _get_vertical_bounds_at_x(x_ratio)
 		if bounds.x < 0.0:
 			continue
 		var y: float = base_top - tan(_tilt) * x_ratio * rect.size.y * 0.12
 		y += sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
-		y = clampf(y, rect.position.y + rect.size.y * (bounds.x + 0.012), rect.position.y + rect.size.y * bounds.y - 3.0)
+		y = clampf(y, rect.position.y + rect.size.y * (bounds.x + 0.010), rect.position.y + rect.size.y * bounds.y - 2.0)
 		surface_line.append(Vector2(x, y))
-	if surface_line.size() >= 2:
-		draw_polyline(surface_line, Color(1.0, 1.0, 1.0, 0.46), 1.8, true)
-		var shimmer := PackedVector2Array()
-		for index in range(7, 18):
-			if index < surface_line.size():
-				shimmer.append(surface_line[index] + Vector2(0.0, 3.0))
-		if shimmer.size() >= 2:
-			draw_polyline(shimmer, Color(1.0, 1.0, 1.0, 0.18), 1.0, true)
 
+	if surface_line.size() >= 2:
+		draw_polyline(surface_line, Color(1.0, 1.0, 1.0, 0.48), 1.8, true)
+		var shimmer := PackedVector2Array()
+		for index in range(9, 24):
+			if index < surface_line.size():
+				shimmer.append(surface_line[index] + Vector2(0.0, 2.5))
+		if shimmer.size() >= 2:
+			draw_polyline(shimmer, Color(1.0, 1.0, 1.0, 0.19), 1.0, true)
 
 func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
 	if points.size() != 4:
