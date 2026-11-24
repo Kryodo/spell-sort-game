@@ -128,6 +128,12 @@ func get_point_local_for_pose(local_point: Vector2, pose: Vector2 = Vector2.ZERO
 	return pivot + Vector2(0.0, -pose.x) + (local_point - pivot).rotated(pose.y) * applied_scale
 
 
+func get_drag_anchor_local(local_point: Vector2, pose: Vector2 = Vector2.ZERO, draw_scale: float = -1.0) -> Vector2:
+	# Keep the touch point attached to the finger while retaining the visual lift offset.
+	var pivot := Vector2(size.x * 0.5, size.y * 0.86)
+	var applied_scale: float = _draw_scale if draw_scale < 0.0 else draw_scale
+	return pivot + (local_point - pivot).rotated(pose.y) * applied_scale
+
 func get_liquid_surface_position_in_parent() -> Vector2:
 	var rect := _get_vessel_rect()
 	var layer_height: float = (LIQUID_BOTTOM_RATIO - LIQUID_TOP_RATIO) / float(CAPACITY)
@@ -380,9 +386,6 @@ func _draw_liquid(rect: Rect2) -> void:
 			continue
 		var bottom_ratio: float = LIQUID_BOTTOM_RATIO - float(layer_index) * layer_height
 		var top_ratio: float = bottom_ratio - layer_height * amount
-		# A tiny overlap between adjacent essence bands prevents hairline gaps.
-		if layer_index > 0:
-			bottom_ratio += 0.0018
 		var essence: String = String(_visual_contents[layer_index])
 		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
 		_draw_liquid_band(rect, top_ratio, bottom_ratio, liquid_color, layer_index == visible_layers - 1, layer_index == 0)
