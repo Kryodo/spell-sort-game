@@ -1,12 +1,14 @@
 extends Control
 
 const CAPACITY := 4
-const LIQUID_BOTTOM_RATIO := 0.968
+const LIQUID_BOTTOM_RATIO := 0.982
 const LIQUID_TOP_RATIO := 0.31
-const PROFILE_SAMPLES := 128
-const BOUNDS_SAMPLES := 101
-const LIQUID_COLUMNS := 64
-const LIQUID_BAND_OVERLAP_PIXELS := 1.2
+const PROFILE_SAMPLES := 192
+const BOUNDS_SAMPLES := 201
+const LIQUID_COLUMNS := 72
+const LIQUID_BAND_OVERLAP_PIXELS := 2.0
+const LIQUID_WALL_INSET_PIXELS := 3.0
+const LIQUID_FLOOR_INSET_PIXELS := 1.8
 
 var vial_index: int = 0
 var display_name: String = ""
@@ -392,104 +394,108 @@ func _draw_liquid(rect: Rect2) -> void:
 
 
 
+
 func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liquid_color: Color, is_surface: bool, is_bottom: bool) -> void:
 	var base_top: float = rect.position.y + rect.size.y * top_ratio
 	var base_bottom: float = rect.position.y + rect.size.y * bottom_ratio
-	var x_extent: float = _max_half_width * 0.995
-	var overlap_ratio: float = LIQUID_BAND_OVERLAP_PIXELS / maxf(1.0, rect.size.y)
-	if not is_bottom:
-		base_bottom += overlap_ratio * rect.size.y
+	var wall_inset_ratio: float = LIQUID_WALL_INSET_PIXELS / maxf(1.0, rect.size.x)
+	var vertical_inset_ratio: float = LIQUID_FLOOR_INSET_PIXELS / maxf(1.0, rect.size.y)
 
-	for column_index in range(LIQUID_COLUMNS):
-		var x0_ratio: float = lerpf(-x_extent, x_extent, float(column_index) / float(LIQUID_COLUMNS))
-		var x1_ratio: float = lerpf(-x_extent, x_extent, float(column_index + 1) / float(LIQUID_COLUMNS))
-		var bounds0 := _get_vertical_bounds_at_x(x0_ratio)
-		var bounds1 := _get_vertical_bounds_at_x(x1_ratio)
-		if bounds0.x < 0.0 or bounds1.x < 0.0:
+	# Adjacent essence regions overlap slightly. Each region is still drawn as one
+	# continuous mesh, avoiding the antialiased cracks caused by many tiny quads.
+	if not is_bottom:
+		base_bottom += LIQUID_BAND_OVERLAP_PIXELS
+
+	var x_extent: float = maxf(0.0, _max_half_width - wall_inset_ratio * 1.5)
+	var top_edge := PackedVector2Array()
+	var bottom_edge := PackedVector2Array()
+	var edge_ratios: Array[float] = []
+	var started_region: bool = false
+
+	for sample_index in range(LIQUID_COLUMNS + 1):
+		var x_ratio: float = lerpf(-x_extent, x_extent, float(sample_index) / float(LIQUID_COLUMNS))
+		var bounds := _get_vertical_bounds_at_x(absf(x_ratio) + wall_inset_ratio)
+		if bounds.x < 0.0 or bounds.y < 0.0:
+			if started_region:
+				break
 			continue
 
-		var x0: float = rect.get_center().x + rect.size.x * x0_ratio
-		var x1: float = rect.get_center().x + rect.size.x * x1_ratio
-		var top0: float = maxf(base_top, rect.position.y + rect.size.y * (bounds0.x + 0.004))
-		var top1: float = maxf(base_top, rect.position.y + rect.size.y * (bounds1.x + 0.004))
-		var bottom0: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds0.y - 0.004))
-		var bottom1: float = minf(base_bottom, rect.position.y + rect.size.y * (bounds1.y - 0.004))
+		var x: float = rect.get_center().x + rect.size.x * x_ratio
+		var inside_top: float = rect.position.y + rect.size.y * (bounds.x + vertical_inset_ratio)
+		var inside_bottom: float = rect.position.y + rect.size.y * (bounds.y - vertical_inset_ratio)
+		var top_y: float = maxf(base_top, inside_top)
+		var bottom_y: float = minf(base_bottom, inside_bottom)
 
 		if is_surface:
-			var slope0: float = -tan(_tilt) * x0_ratio * 0.12
-			var slope1: float = -tan(_tilt) * x1_ratio * 0.12
-			var wave0: float = sin(_wave_time * 2.1 + x0_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
-			var wave1: float = sin(_wave_time * 2.1 + x1_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
-			top0 += slope0 * rect.size.y + wave0
-			top1 += slope1 * rect.size.y + wave1
-			top0 = clampf(top0, rect.position.y + rect.size.y * (bounds0.x + 0.010), bottom0 - 1.5)
-			top1 = clampf(top1, rect.position.y + rect.size.y * (bounds1.x + 0.010), bottom1 - 1.5)
+			var slope: float = -tan(_tilt) * x_ratio * 0.12 * rect.size.y
+			var wave: float = sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
+			top_y = clampf(base_top + slope + wave, inside_top, bottom_y - 1.5)
 
-		if bottom0 - top0 < 0.65 or bottom1 - top1 < 0.65 or x1 - x0 < 0.5:
+		if bottom_y - top_y < 1.0:
+			if started_region:
+				break
 			continue
 
-		var quad := PackedVector2Array([
-			Vector2(x0, top0),
-			Vector2(x1, top1),
-			Vector2(x1, bottom1),
-			Vector2(x0, bottom0)
-		])
-		var edge_ratio: float = absf((x0_ratio + x1_ratio) * 0.5) / maxf(0.001, _max_half_width)
-		var shaded_color: Color = liquid_color.lerp(liquid_color.darkened(0.34), clampf(edge_ratio * 0.65, 0.0, 0.42))
-		shaded_color = shaded_color.lerp(Color(0.10, 0.18, 0.21, 1.0), 0.08)
-		_draw_liquid_quad(quad, Color(shaded_color.r, shaded_color.g, shaded_color.b, 0.98))
+		started_region = true
+		top_edge.append(Vector2(x, top_y))
+		bottom_edge.append(Vector2(x, bottom_y))
+		edge_ratios.append(absf(x_ratio) / maxf(0.001, _max_half_width))
+
+	if top_edge.size() < 3 or bottom_edge.size() != top_edge.size():
+		return
+
+	var liquid_polygon := PackedVector2Array()
+	for point in top_edge:
+		liquid_polygon.append(point)
+	for index in range(bottom_edge.size() - 1, -1, -1):
+		liquid_polygon.append(bottom_edge[index])
+
+	var indices: PackedInt32Array = Geometry2D.triangulate_polygon(liquid_polygon)
+	if indices.is_empty():
+		return
+
+	# Per-vertex shading gives the liquid rounded depth without splitting it into
+	# separately antialiased strips.
+	var vertex_colors := PackedColorArray()
+	for index in range(top_edge.size()):
+		var edge_ratio: float = clampf(edge_ratios[index], 0.0, 1.0)
+		var shaded: Color = liquid_color.lerp(liquid_color.darkened(0.36), edge_ratio * 0.48)
+		vertex_colors.append(shaded.lightened(0.035))
+	for index in range(bottom_edge.size() - 1, -1, -1):
+		var edge_ratio: float = clampf(edge_ratios[index], 0.0, 1.0)
+		var shaded: Color = liquid_color.lerp(liquid_color.darkened(0.36), edge_ratio * 0.48)
+		vertex_colors.append(shaded.darkened(0.045))
+
+	draw_polygon(liquid_polygon, vertex_colors, PackedVector2Array(), null, indices, false)
 
 	if is_surface:
 		_draw_liquid_surface(rect, base_top, liquid_color)
 
 
-func _draw_liquid_quad(points: PackedVector2Array, liquid_color: Color) -> void:
-	if points.size() != 4:
-		return
-	var indices: PackedInt32Array = Geometry2D.triangulate_polygon(points)
-	if indices.size() >= 3:
-		for index in range(0, indices.size(), 3):
-			var triangle := PackedVector2Array([
-				points[indices[index]],
-				points[indices[index + 1]],
-				points[indices[index + 2]]
-			])
-			_draw_liquid_triangle(triangle, liquid_color)
-	else:
-		# Defensive fallback for nearly-collinear cells at the vessel silhouette.
-		_draw_liquid_triangle(PackedVector2Array([points[0], points[1], points[2]]), liquid_color)
-		_draw_liquid_triangle(PackedVector2Array([points[0], points[2], points[3]]), liquid_color)
-
-
-func _draw_liquid_triangle(points: PackedVector2Array, liquid_color: Color) -> void:
-	if points.size() != 3:
-		return
-	var area_twice: float = absf((points[1] - points[0]).cross(points[2] - points[0]))
-	if area_twice < 0.06:
-		return
-	draw_colored_polygon(points, liquid_color)
-
-
-func _draw_liquid_surface(rect: Rect2, base_top: float, liquid_color: Color) -> void:
+func _draw_liquid_surface(rect: Rect2, base_top: float, _liquid_color: Color) -> void:
 	var surface_ratio: float = clampf((base_top - rect.position.y) / maxf(1.0, rect.size.y), 0.0, 1.0)
-	# The exposed line follows the vessel width at the actual liquid level,
-	# instead of spanning the widest part of the entire bottle.
-	var surface_half_width: float = minf(_get_profile_at(surface_ratio).y * 0.985, _max_half_width * 0.995)
+	var wall_inset_ratio: float = LIQUID_WALL_INSET_PIXELS / maxf(1.0, rect.size.x)
+	var surface_half_width: float = maxf(0.0, _get_profile_at(surface_ratio).y - wall_inset_ratio)
 	var surface_line := PackedVector2Array()
 
 	for point_index in range(33):
 		var x_ratio: float = lerpf(-surface_half_width, surface_half_width, float(point_index) / 32.0)
 		var x: float = rect.get_center().x + rect.size.x * x_ratio
-		var bounds := _get_vertical_bounds_at_x(x_ratio)
-		if bounds.x < 0.0:
+		var bounds := _get_vertical_bounds_at_x(absf(x_ratio) + wall_inset_ratio)
+		if bounds.x < 0.0 or bounds.y < 0.0:
 			continue
+
+		var inside_top: float = rect.position.y + rect.size.y * (bounds.x + 0.004)
+		var inside_bottom: float = rect.position.y + rect.size.y * (bounds.y - 0.006)
 		var y: float = base_top - tan(_tilt) * x_ratio * rect.size.y * 0.12
 		y += sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
-		y = clampf(y, rect.position.y + rect.size.y * (bounds.x + 0.010), rect.position.y + rect.size.y * bounds.y - 2.0)
+		y = clampf(y, inside_top, inside_bottom)
 		surface_line.append(Vector2(x, y))
 
 	if surface_line.size() >= 2:
-		draw_polyline(surface_line, Color(1.0, 1.0, 1.0, 0.48), 1.8, true)
+		var surface_glint: Color = _liquid_color.lightened(0.34)
+		draw_polyline(surface_line, Color(surface_glint.r, surface_glint.g, surface_glint.b, 0.48), 1.8, true)
+
 		var shimmer := PackedVector2Array()
 		for index in range(9, 24):
 			if index < surface_line.size():
