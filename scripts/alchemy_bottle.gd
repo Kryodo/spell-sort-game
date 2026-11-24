@@ -4,9 +4,11 @@ const CAPACITY := 4
 const LIQUID_BOTTOM_RATIO := 0.938
 const LIQUID_TOP_RATIO := 0.31
 const LIQUID_BAND_STRIPS := 10
+const LIQUID_SURFACE_COLUMNS := 64
 const LIQUID_WALL_INSET_PIXELS := 4.5
 const LIQUID_FLOOR_INSET_PIXELS := 5.0
 const LIQUID_BAND_OVERLAP_PIXELS := 1.2
+const LIQUID_SURFACE_OVERLAP_PIXELS := 0.8
 
 var vial_index: int = 0
 var display_name: String = ""
@@ -384,6 +386,7 @@ func _get_min_profile_width(top_ratio: float, bottom_ratio: float) -> float:
 	return minimum_width
 
 
+
 func _draw_liquid_band(
 	rect: Rect2,
 	top_ratio: float,
@@ -396,6 +399,13 @@ func _draw_liquid_band(
 	var bottom_y: float = rect.position.y + rect.size.y * bottom_ratio
 	if not is_bottom:
 		bottom_y += LIQUID_BAND_OVERLAP_PIXELS
+
+	if is_surface:
+		# The moving surface is the top edge of the liquid volume itself.
+		# No independent line is drawn over it.
+		var surface_depth: float = minf(12.0, (bottom_y - top_y) * 0.34)
+		_draw_wavy_surface_fill(rect, top_y, top_y + surface_depth, liquid_color)
+		top_y += surface_depth - 0.6
 
 	var strip_height: float = (bottom_y - top_y) / float(LIQUID_BAND_STRIPS)
 	if strip_height <= 0.5:
@@ -411,9 +421,6 @@ func _draw_liquid_band(
 		if half_width <= 2.0:
 			continue
 
-		# The strip is a simple rectangle fully inside the narrowest point of this
-		# part of the glass profile. This intentionally favours reliable coverage
-		# over perfect contour matching.
 		var strip_rect := Rect2(
 			rect.get_center().x - half_width,
 			strip_top,
@@ -424,7 +431,6 @@ func _draw_liquid_band(
 		var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.15), depth_factor)
 		draw_rect(strip_rect, fill_color, true, -1.0, false)
 
-		# Darker narrow side facets add a little depth while keeping the centre vivid.
 		var side_width: float = minf(2.2, half_width * 0.08)
 		draw_rect(
 			Rect2(strip_rect.position.x, strip_rect.position.y, side_width, strip_rect.size.y),
@@ -441,40 +447,41 @@ func _draw_liquid_band(
 			false
 		)
 
-	if is_surface:
-		_draw_liquid_surface(rect, top_y, liquid_color)
 
-
-func _draw_liquid_surface(rect: Rect2, surface_y: float, liquid_color: Color) -> void:
-	var surface_ratio: float = clampf((surface_y - rect.position.y) / maxf(1.0, rect.size.y), 0.0, 1.0)
-	var surface_margin: float = 4.0 / maxf(1.0, rect.size.y)
-	var surface_width_ratio: float = _get_min_profile_width(
-		surface_ratio - surface_margin,
-		surface_ratio + surface_margin
-	)
-	var half_width: float = rect.size.x * surface_width_ratio - LIQUID_WALL_INSET_PIXELS
-	if half_width <= 3.0:
+func _draw_wavy_surface_fill(rect: Rect2, surface_y: float, fill_bottom: float, liquid_color: Color) -> void:
+	if fill_bottom <= surface_y + 1.0:
 		return
 
-	var surface_line := PackedVector2Array()
-	for point_index in range(25):
-		var x_ratio: float = lerpf(-1.0, 1.0, float(point_index) / 24.0)
-		var x: float = rect.get_center().x + half_width * x_ratio
-		var wave: float = sin(_wave_time * 2.1 + x_ratio * 2.8) * (0.8 + absf(_slosh) * 2.0)
-		var tilt: float = -tan(_tilt) * x_ratio * half_width * 0.10
-		surface_line.append(Vector2(x, surface_y + wave + tilt))
+	var surface_ratio: float = (surface_y - rect.position.y) / maxf(1.0, rect.size.y)
+	var bottom_ratio: float = (fill_bottom - rect.position.y) / maxf(1.0, rect.size.y)
+	var half_width_ratio: float = _get_min_profile_width(surface_ratio - 0.008, bottom_ratio + 0.008)
+	var half_width: float = rect.size.x * half_width_ratio - LIQUID_WALL_INSET_PIXELS
+	if half_width <= 2.0:
+		return
 
-	draw_polyline(
-		surface_line,
-		Color(
-			liquid_color.lightened(0.38).r,
-			liquid_color.lightened(0.38).g,
-			liquid_color.lightened(0.38).b,
-			0.56
-		),
-		1.8,
-		true
-	)
+	var column_width: float = (half_width * 2.0) / float(LIQUID_SURFACE_COLUMNS)
+	var safe_bottom: float = fill_bottom
+	var maximum_wave: float = 1.4 + absf(_slosh) * 3.6
+
+	for column_index in range(LIQUID_SURFACE_COLUMNS):
+		var x_ratio: float = (float(column_index) + 0.5) / float(LIQUID_SURFACE_COLUMNS) * 2.0 - 1.0
+		var wave_primary: float = sin(_wave_time * 1.75 + x_ratio * 3.4) * maximum_wave
+		var wave_secondary: float = sin(_wave_time * 2.45 - x_ratio * 7.2) * absf(_slosh) * 1.15
+		var tilt_offset: float = clampf(-tan(_tilt) * x_ratio * half_width * 0.045, -4.5, 4.5)
+		var moving_surface_y: float = surface_y + wave_primary + wave_secondary + tilt_offset
+		moving_surface_y = clampf(moving_surface_y, surface_y - 6.0, safe_bottom - 2.0)
+
+		var x: float = rect.get_center().x - half_width + float(column_index) * column_width
+		var fill_rect := Rect2(
+			x - LIQUID_SURFACE_OVERLAP_PIXELS * 0.5,
+			moving_surface_y,
+			column_width + LIQUID_SURFACE_OVERLAP_PIXELS,
+			safe_bottom - moving_surface_y
+		)
+
+		var edge_factor: float = absf(x_ratio)
+		var shaded_color: Color = liquid_color.lerp(liquid_color.darkened(0.22), edge_factor * 0.25)
+		draw_rect(fill_rect, shaded_color, true, -1.0, false)
 
 func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
 	if points.size() != 4:
