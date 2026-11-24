@@ -8,7 +8,6 @@ const LIQUID_SURFACE_COLUMNS := 64
 const LIQUID_WALL_INSET_PIXELS := 4.5
 const LIQUID_FLOOR_INSET_PIXELS := 5.0
 const LIQUID_BAND_OVERLAP_PIXELS := 1.2
-const LIQUID_SURFACE_OVERLAP_PIXELS := 0.8
 
 var vial_index: int = 0
 var display_name: String = ""
