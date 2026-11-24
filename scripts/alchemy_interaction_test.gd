@@ -305,7 +305,7 @@ func _begin_drag(pointer: Vector2) -> void:
 			vial.z_index = 50
 			vial.set_feedback(true, false, true)
 			vial.set_pose(Vector2(28.0, 0.0))
-			var anchored_grab_point: Vector2 = vial.get_point_local_for_pose(_grab_offset, vial.get_pose())
+			var anchored_grab_point: Vector2 = vial.get_drag_anchor_local(_grab_offset, vial.get_pose())
 			vial.position = pointer - anchored_grab_point
 			_set_status("Vial lifted. Guide its opening over a receiving vial.")
 			return
@@ -327,7 +327,7 @@ func _update_drag(pointer: Vector2) -> void:
 	var drag_tilt: float = tilt_magnitude * tilt_direction
 
 	source.set_pose(Vector2(28.0, drag_tilt))
-	var anchored_grab_point: Vector2 = source.get_point_local_for_pose(_grab_offset, source.get_pose())
+	var anchored_grab_point: Vector2 = source.get_drag_anchor_local(_grab_offset, source.get_pose())
 	source.position = pointer - anchored_grab_point
 
 	var next_hover: int = _find_target_at(_drag_index)
