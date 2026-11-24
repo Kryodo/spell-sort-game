@@ -162,7 +162,8 @@ func _process(delta: float) -> void:
 	_slosh_velocity += (-_slosh * 15.0 - _slosh_velocity * 5.2) * delta
 	_slosh += _slosh_velocity * delta
 	_slosh = clampf(_slosh, -1.0, 1.0)
-	if absf(_slosh) > 0.001 or absf(_slosh_velocity) > 0.001 or _selected or _targeted:
+	if absf(_slosh) > 0.001 or absf(_slosh_velocity) > 0.001 or _selected or _targeted or _liquid_level > 0.001:
+		# Filled vials keep redrawing so the liquid surface has subtle life at rest too.
 		queue_redraw()
 
 
