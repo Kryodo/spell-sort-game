@@ -368,10 +368,19 @@ func _draw_liquid(rect: Rect2) -> void:
 
 
 func _get_min_profile_width(top_ratio: float, bottom_ratio: float) -> float:
-	var minimum_width: float = 1.0
-	for sample_index in range(13):
-		var sample_ratio: float = lerpf(top_ratio, bottom_ratio, float(sample_index) / 12.0)
-		minimum_width = minf(minimum_width, _get_profile_at(sample_ratio).y)
+	var low_ratio: float = clampf(minf(top_ratio, bottom_ratio), 0.0, 1.0)
+	var high_ratio: float = clampf(maxf(top_ratio, bottom_ratio), 0.0, 1.0)
+	var minimum_width: float = minf(
+		_get_profile_at(low_ratio).y,
+		_get_profile_at(high_ratio).y
+	)
+
+	# The vessel profile is piecewise linear, so its exact minimum over this
+	# interval can only occur at an interval end or an authored profile point.
+	for profile_point in _profile_points():
+		if profile_point.x > low_ratio and profile_point.x < high_ratio:
+			minimum_width = minf(minimum_width, profile_point.y)
+
 	return minimum_width
 
 
@@ -394,7 +403,7 @@ func _draw_liquid_band(
 
 	for strip_index in range(LIQUID_BAND_STRIPS):
 		var strip_top: float = top_y + strip_height * float(strip_index)
-		var strip_bottom: float = minf(bottom_y, top_y + strip_height * float(strip_index + 1) + 0.8)
+		var strip_bottom: float = minf(bottom_y, top_y + strip_height * float(strip_index + 1) + 1.5)
 		var strip_top_ratio: float = (strip_top - rect.position.y) / rect.size.y
 		var strip_bottom_ratio: float = (strip_bottom - rect.position.y) / rect.size.y
 		var half_width_ratio: float = _get_min_profile_width(strip_top_ratio, strip_bottom_ratio)
@@ -438,7 +447,12 @@ func _draw_liquid_band(
 
 func _draw_liquid_surface(rect: Rect2, surface_y: float, liquid_color: Color) -> void:
 	var surface_ratio: float = clampf((surface_y - rect.position.y) / maxf(1.0, rect.size.y), 0.0, 1.0)
-	var half_width: float = rect.size.x * _get_profile_at(surface_ratio).y - LIQUID_WALL_INSET_PIXELS
+	var surface_margin: float = 4.0 / maxf(1.0, rect.size.y)
+	var surface_width_ratio: float = _get_min_profile_width(
+		surface_ratio - surface_margin,
+		surface_ratio + surface_margin
+	)
+	var half_width: float = rect.size.x * surface_width_ratio - LIQUID_WALL_INSET_PIXELS
 	if half_width <= 3.0:
 		return
 
