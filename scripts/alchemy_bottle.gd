@@ -21,6 +21,7 @@ var _targeted: bool = false
 var _dragging: bool = false
 var _lift: float = 0.0
 var _tilt: float = 0.0
+var _draw_scale: float = 1.0
 
 var _slosh: float = 0.0
 var _slosh_velocity: float = 0.0
@@ -83,6 +84,24 @@ func get_pose() -> Vector2:
 	return Vector2(_lift, _tilt)
 
 
+func set_draw_scale(value: float) -> void:
+	_draw_scale = clampf(value, 0.60, 1.15)
+	queue_redraw()
+
+
+func get_draw_scale() -> float:
+	return _draw_scale
+
+
+func reset_motion() -> void:
+	_lift = 0.0
+	_tilt = 0.0
+	_draw_scale = 1.0
+	_slosh = 0.0
+	_slosh_velocity = 0.0
+	queue_redraw()
+
+
 func trigger_slosh(strength: float = 0.12) -> void:
 	_slosh_velocity += strength
 	queue_redraw()
@@ -93,10 +112,11 @@ func get_mouth_local() -> Vector2:
 	return Vector2(size.x * 0.5, rect.position.y + 2.0)
 
 
-func get_mouth_local_for_pose(pose: Vector2) -> Vector2:
+func get_mouth_local_for_pose(pose: Vector2, draw_scale: float = -1.0) -> Vector2:
 	var mouth := get_mouth_local()
 	var pivot := Vector2(size.x * 0.5, size.y * 0.86)
-	return pivot + Vector2(0.0, -pose.x) + (mouth - pivot).rotated(pose.y)
+	var applied_scale: float = _draw_scale if draw_scale < 0.0 else draw_scale
+	return pivot + Vector2(0.0, -pose.x) + (mouth - pivot).rotated(pose.y) * applied_scale
 
 
 func get_mouth_position_in_parent(pose: Vector2 = Vector2.ZERO) -> Vector2:
@@ -211,8 +231,8 @@ func _draw() -> void:
 	var pivot := Vector2(center_x, size.y * 0.86)
 	draw_circle(Vector2(center_x, size.y * 0.87), size.x * 0.34, Color(0.012, 0.022, 0.027, 0.30))
 
-	var draw_origin := pivot + Vector2(0.0, -_lift) - pivot.rotated(_tilt)
-	draw_set_transform(draw_origin, _tilt, Vector2.ONE)
+	var draw_origin := pivot + Vector2(0.0, -_lift) - pivot.rotated(_tilt) * _draw_scale
+	draw_set_transform(draw_origin, _tilt, Vector2(_draw_scale, _draw_scale))
 
 	if _selected or _targeted or _dragging:
 		var pulse: float = 0.5 + 0.5 * sin(_wave_time * 1.5)
@@ -249,6 +269,8 @@ func _draw_glass_back(rect: Rect2) -> void:
 		var right1 := Vector2(rect.position.x + rect.size.x * (0.5 + profile1.y), rect.position.y + rect.size.y * y1)
 		var left1 := Vector2(rect.position.x + rect.size.x * (0.5 - profile1.y), rect.position.y + rect.size.y * y1)
 		var quad := PackedVector2Array([left0, right0, right1, left1])
+		if not _is_safe_convex_quad(quad):
+			continue
 		var side_alpha: float = 0.13 + (1.0 - absf(y0 - 0.5) * 1.3) * 0.035
 		var colours := PackedColorArray([
 			Color(0.80, 0.94, 0.98, side_alpha),
@@ -326,7 +348,7 @@ func _draw_open_mouth(rect: Rect2) -> void:
 
 	var front_rim := PackedVector2Array()
 	for index in range(19):
-		var angle: float = lerpf(PI, TAU, float(index) / 18.0)
+		var angle: float = lerpf(0.0, PI, float(index) / 18.0)
 		front_rim.append(mouth + Vector2(cos(angle) * outer_rx, sin(angle) * outer_ry))
 	draw_polyline(front_rim, Color(1.0, 1.0, 1.0, 0.85), 2.0, true)
 
@@ -391,6 +413,8 @@ func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liqui
 			Vector2(x1, bottom1),
 			Vector2(x0, bottom0)
 		])
+		if not _is_safe_convex_quad(quad):
+			continue
 		var edge_ratio: float = (absf((x0_ratio + x1_ratio) * 0.5) / _max_half_width)
 		var shaded_color: Color = liquid_color.lerp(liquid_color.darkened(0.34), clampf(edge_ratio * 0.65, 0.0, 0.42))
 		shaded_color = shaded_color.lerp(Color(0.10, 0.18, 0.21, 1.0), 0.08)
@@ -422,8 +446,26 @@ func _draw_liquid_surface(rect: Rect2, base_top: float, x_extent: float, liquid_
 			draw_polyline(shimmer, Color(1.0, 1.0, 1.0, 0.18), 1.0, true)
 
 
-func _get_glass_mouth_position_for_pose(pose: Vector2) -> Vector2:
-	return get_mouth_local_for_pose(pose)
+func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
+	if points.size() != 4:
+		return false
+
+	var signed_area: float = 0.0
+	var cross_sign: int = 0
+	for index in range(4):
+		var current: Vector2 = points[index]
+		var next: Vector2 = points[(index + 1) % 4]
+		var after_next: Vector2 = points[(index + 2) % 4]
+		signed_area += current.x * next.y - next.x * current.y
+		var cross_value: float = (next - current).cross(after_next - next)
+		if absf(cross_value) < 0.0001:
+			return false
+		var this_sign: int = 1 if cross_value > 0.0 else -1
+		if cross_sign != 0 and this_sign != cross_sign:
+			return false
+		cross_sign = this_sign
+
+	return absf(signed_area) > 0.8
 
 
 func _ellipse_points(center: Vector2, radius_x: float, radius_y: float, segments: int) -> PackedVector2Array:

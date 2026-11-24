@@ -398,7 +398,7 @@ func _return_to_slot(source_index: int) -> void:
 
 	source.z_index = 0
 	source.set_feedback(false, false, false)
-	source.set_pose(Vector2.ZERO)
+	source.reset_motion()
 	_drag_index = -1
 	_is_animating = false
 	reset_button.disabled = false
@@ -428,10 +428,11 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var direction: float = 1.0 if target.position.x > _drag_origin.x else -1.0
 	var pour_angle: float = deg_to_rad(102.0) * direction
 	var pour_pose := Vector2(24.0, pour_angle)
+	const POUR_DRAW_SCALE := 0.82
 
 	var target_mouth: Vector2 = target.get_mouth_position_in_parent()
 	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 12.0, -22.0)
-	var source_staging_position: Vector2 = desired_source_mouth - source.get_mouth_local_for_pose(pour_pose)
+	var source_staging_position: Vector2 = desired_source_mouth - source.get_mouth_local_for_pose(pour_pose, POUR_DRAW_SCALE)
 
 	if _hover_index >= 0:
 		bottle_controls[_hover_index].set_feedback(false, true, false)
@@ -445,6 +446,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var approach := create_tween().set_parallel(true)
 	approach.tween_property(source, "position", source_staging_position, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	approach.tween_method(Callable(source, "set_pose"), source.get_pose(), pour_pose, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	approach.tween_method(Callable(source, "set_draw_scale"), source.get_draw_scale(), POUR_DRAW_SCALE, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await approach.finished
 
 	source.trigger_slosh(0.24)
@@ -472,6 +474,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var return_tween := create_tween().set_parallel(true)
 	return_tween.tween_property(source, "position", _drag_origin, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	return_tween.tween_method(Callable(source, "set_pose"), pour_pose, Vector2.ZERO, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	return_tween.tween_method(Callable(source, "set_draw_scale"), POUR_DRAW_SCALE, 1.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	await return_tween.finished
 
 	for _index in range(_pour_amount):
@@ -580,7 +583,7 @@ func _reset_test() -> void:
 		bottle_contents[index] = INITIAL_CONTENTS[index].duplicate()
 		bottle_controls[index].position = slot_positions[index]
 		bottle_controls[index].z_index = 0
-		bottle_controls[index].set_pose(Vector2.ZERO)
+		bottle_controls[index].reset_motion()
 		bottle_controls[index].set_feedback(false, false, false)
 		bottle_controls[index].set_contents(bottle_contents[index])
 		bottle_controls[index].trigger_slosh(0.0)
