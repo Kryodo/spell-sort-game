@@ -186,14 +186,14 @@ func _build_bottles() -> void:
 func _build_stream_layers() -> void:
 	_stream_shape = Polygon2D.new()
 	_stream_shape.color = Color.WHITE
-	_stream_shape.z_index = 120
+	_stream_shape.z_index = 25
 	_stream_shape.visible = false
 	add_child(_stream_shape)
 
 	_stream_highlight = Line2D.new()
 	_stream_highlight.width = 1.15
 	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.62)
-	_stream_highlight.z_index = 121
+	_stream_highlight.z_index = 26
 	_stream_highlight.visible = false
 	add_child(_stream_highlight)
 
@@ -201,7 +201,7 @@ func _build_stream_layers() -> void:
 		var drop := Polygon2D.new()
 		drop.polygon = _make_drop_shape()
 		drop.color = Color(1.0, 1.0, 1.0, 0.82)
-		drop.z_index = 122
+		drop.z_index = 27
 		drop.visible = false
 		add_child(drop)
 		_stream_drops.append(drop)
@@ -209,7 +209,7 @@ func _build_stream_layers() -> void:
 	_splash_ring = Line2D.new()
 	_splash_ring.width = 2.0
 	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.55)
-	_splash_ring.z_index = 123
+	_splash_ring.z_index = 28
 	_splash_ring.visible = false
 	add_child(_splash_ring)
 
@@ -309,17 +309,26 @@ func _begin_drag(pointer: Vector2) -> void:
 			return
 
 
+
 func _update_drag(pointer: Vector2) -> void:
 	if _drag_index < 0:
 		return
 
 	var source = bottle_controls[_drag_index]
-	source.position = pointer - _grab_offset
-	var horizontal_motion: float = pointer.x - _drag_start_pointer.x
-	var drag_tilt: float = clampf(horizontal_motion * 0.0010, -0.20, 0.20)
-	source.set_pose(Vector2(28.0, drag_tilt))
+	var movement: Vector2 = pointer - _drag_start_pointer
+	var movement_factor: float = clampf(movement.length() / 115.0, 0.0, 1.0)
+	var grip_factor: float = 1.0 - clampf(_grab_offset.y / maxf(1.0, source.size.y), 0.0, 1.0)
+	var tilt_magnitude: float = lerpf(deg_to_rad(12.0), deg_to_rad(74.0), grip_factor) * movement_factor
+	var tilt_direction: float = signf(movement.x)
+	if is_zero_approx(tilt_direction):
+		tilt_direction = _get_drag_tilt_direction(_drag_index)
+	var drag_tilt: float = tilt_magnitude * tilt_direction
 
-	var next_hover: int = _find_target_at(pointer, _drag_index)
+	source.set_pose(Vector2(28.0, drag_tilt))
+	var anchored_grab_point: Vector2 = source.get_point_local_for_pose(_grab_offset, source.get_pose())
+	source.position = pointer - anchored_grab_point
+
+	var next_hover: int = _find_target_at(_drag_index)
 	if next_hover != _hover_index:
 		if _hover_index >= 0:
 			bottle_controls[_hover_index].set_feedback(false, false, false)
@@ -328,20 +337,49 @@ func _update_drag(pointer: Vector2) -> void:
 			bottle_controls[_hover_index].set_feedback(false, true, false)
 
 	if _hover_index >= 0:
-		_set_status("Open mouth aligned. Release to pour.")
+		_set_status("Open mouths aligned. Release to pour.")
 	else:
-		_set_status("Aim for the opening of an empty or matching vial.")
+		_set_status("Guide the source vial's opening onto the receiving opening.")
 
 
-func _find_target_at(pointer: Vector2, source_index: int) -> int:
+func _get_drag_tilt_direction(source_index: int) -> float:
+	var source = bottle_controls[source_index]
+	var source_center_x: float = _drag_origin.x + source.size.x * 0.5
+	var closest_delta: float = 0.0
+	var closest_distance: float = INF
 	for index in range(bottle_controls.size()):
-		if index == source_index:
+		if index == source_index or not _can_pour(source_index, index):
 			continue
 		var target = bottle_controls[index]
-		if target.is_pointer_over_mouth(pointer - target.position) and _can_pour(source_index, index):
+		var delta_x: float = target.position.x + target.size.x * 0.5 - source_center_x
+		if absf(delta_x) < closest_distance:
+			closest_distance = absf(delta_x)
+			closest_delta = delta_x
+	if is_zero_approx(closest_delta):
+		return 1.0
+	return signf(closest_delta)
+
+
+func _find_target_at(source_index: int) -> int:
+	var source = bottle_controls[source_index]
+	var source_mouth: Vector2 = source.get_mouth_position_in_parent(source.get_pose())
+	var source_radius: Vector2 = source.get_mouth_hit_radius()
+
+	for index in range(bottle_controls.size()):
+		if index == source_index or not _can_pour(source_index, index):
+			continue
+		var target = bottle_controls[index]
+		var target_mouth: Vector2 = target.get_mouth_position_in_parent()
+		var target_radius: Vector2 = target.get_mouth_hit_radius()
+		var tolerance := Vector2(
+			maxf(20.0, (source_radius.x + target_radius.x) * 0.48),
+			maxf(18.0, (source_radius.y + target_radius.y) * 0.50)
+		)
+		var delta: Vector2 = source_mouth - target_mouth
+		var normalized_distance: float = pow(delta.x / tolerance.x, 2.0) + pow(delta.y / tolerance.y, 2.0)
+		if normalized_distance <= 1.0:
 			return index
 	return -1
-
 
 func _finish_drag(pointer: Vector2) -> void:
 	if _drag_index < 0:
@@ -425,19 +463,22 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 
 	var source = bottle_controls[source_index]
 	var target = bottle_controls[target_index]
-	var direction: float = 1.0 if target.position.x > _drag_origin.x else -1.0
-	var pour_angle: float = deg_to_rad(102.0) * direction
+	var direction: float = signf(target.position.x + target.size.x * 0.5 - (source.position.x + source.size.x * 0.5))
+	if is_zero_approx(direction):
+		direction = 1.0
+	var pour_angle: float = deg_to_rad(103.0) * direction
 	var pour_pose := Vector2(24.0, pour_angle)
 	const POUR_DRAW_SCALE := 0.82
 
 	var target_mouth: Vector2 = target.get_mouth_position_in_parent()
-	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 12.0, -22.0)
+	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 8.0, -6.0)
 	var source_staging_position: Vector2 = desired_source_mouth - source.get_mouth_local_for_pose(pour_pose, POUR_DRAW_SCALE)
 
 	if _hover_index >= 0:
 		bottle_controls[_hover_index].set_feedback(false, true, false)
 	_hover_index = -1
 	_drag_index = -1
+	source.set_feedback(false, false, false)
 
 	source.set_preview(_pour_source_preview, _pour_source_start)
 	target.set_preview(_pour_target_preview, _pour_target_start)
@@ -521,13 +562,15 @@ func _update_stream() -> void:
 	var source = bottle_controls[_pour_source]
 	var target = bottle_controls[_pour_target]
 	var start: Vector2 = source.get_mouth_position_in_parent(source.get_pose())
-	var finish: Vector2 = target.get_mouth_position_in_parent()
+	var finish: Vector2 = target.get_liquid_surface_position_in_parent()
 	var span: Vector2 = finish - start
 	if span.length() < 1.0:
 		return
 
-	var control_one := start + Vector2(span.x * 0.22, 16.0)
-	var control_two := finish - Vector2(span.x * 0.22, -12.0)
+	var horizontal_bend: float = clampf(span.x * 0.18, -42.0, 42.0)
+	var vertical_fall: float = maxf(28.0, span.y * 0.36)
+	var control_one := start + Vector2(horizontal_bend, vertical_fall * 0.28)
+	var control_two := finish - Vector2(horizontal_bend, -vertical_fall * 0.28)
 	var centers := PackedVector2Array()
 	var left_edge := PackedVector2Array()
 	var right_edge := PackedVector2Array()
@@ -543,7 +586,7 @@ func _update_stream() -> void:
 		var normal := Vector2(-tangent.y, tangent.x)
 		var pulse_width: float = sin(PI * t)
 		var irregularity: float = 0.72 + 0.18 * sin(t * 19.0 + _stream_phase * TAU)
-		var half_width: float = (0.65 + pulse_width * 2.7) * irregularity
+		var half_width: float = (0.95 + pulse_width * 2.6) * irregularity
 		left_edge.append(point + normal * half_width)
 		right_edge.append(point - normal * half_width)
 
