@@ -305,6 +305,8 @@ func _begin_drag(pointer: Vector2) -> void:
 			vial.z_index = 50
 			vial.set_feedback(true, false, true)
 			vial.set_pose(Vector2(28.0, 0.0))
+			var anchored_grab_point: Vector2 = vial.get_point_local_for_pose(_grab_offset, vial.get_pose())
+			vial.position = pointer - anchored_grab_point
 			_set_status("Vial lifted. Guide its opening over a receiving vial.")
 			return
 
@@ -463,7 +465,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 
 	var source = bottle_controls[source_index]
 	var target = bottle_controls[target_index]
-	var direction: float = signf(target.position.x + target.size.x * 0.5 - (source.position.x + source.size.x * 0.5))
+	var direction: float = signf(target.position.x + target.size.x * 0.5 - (_drag_origin.x + source.size.x * 0.5))
 	if is_zero_approx(direction):
 		direction = 1.0
 	var pour_angle: float = deg_to_rad(103.0) * direction
