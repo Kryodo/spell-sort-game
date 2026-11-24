@@ -30,6 +30,7 @@ var _hover_index: int = -1
 var _drag_origin: Vector2 = Vector2.ZERO
 var _grab_offset: Vector2 = Vector2.ZERO
 var _drag_start_pointer: Vector2 = Vector2.ZERO
+var _last_drag_pointer: Vector2 = Vector2.ZERO
 var _is_animating: bool = false
 
 var _pour_source: int = -1
@@ -302,6 +303,8 @@ func _begin_drag(pointer: Vector2) -> void:
 			_drag_origin = slot_positions[index]
 			_grab_offset = pointer - vial.position
 			_drag_start_pointer = pointer
+			_last_drag_pointer = pointer
+			vial.set_drag_motion(false)
 			vial.z_index = 50
 			vial.set_feedback(true, false, true)
 			vial.set_pose(Vector2(28.0, 0.0))
@@ -317,6 +320,9 @@ func _update_drag(pointer: Vector2) -> void:
 		return
 
 	var source = bottle_controls[_drag_index]
+	var pointer_delta: Vector2 = pointer - _last_drag_pointer
+	source.set_drag_motion(pointer_delta.length() > 0.65)
+	_last_drag_pointer = pointer
 	var movement: Vector2 = pointer - _drag_start_pointer
 	var movement_factor: float = clampf(movement.length() / 115.0, 0.0, 1.0)
 	var grip_factor: float = 1.0 - clampf(_grab_offset.y / maxf(1.0, source.size.y), 0.0, 1.0)
@@ -481,6 +487,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_hover_index = -1
 	_drag_index = -1
 	source.set_feedback(false, false, false)
+	source.set_drag_motion(false)
 
 	source.set_preview(_pour_source_preview, _pour_source_start)
 	target.set_preview(_pour_target_preview, _pour_target_start)
