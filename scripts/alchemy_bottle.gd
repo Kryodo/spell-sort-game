@@ -423,10 +423,19 @@ func _draw_liquid_band(rect: Rect2, top_ratio: float, bottom_ratio: float, liqui
 		var x: float = rect.get_center().x + rect.size.x * x_ratio
 		var inside_top: float = rect.position.y + rect.size.y * (bounds.x + vertical_inset_ratio)
 		var inside_bottom: float = rect.position.y + rect.size.y * (bounds.y - vertical_inset_ratio)
+		if inside_bottom - inside_top < 1.0:
+			if started_region:
+				break
+			continue
+
 		var top_y: float = maxf(base_top, inside_top)
 		var bottom_y: float = minf(base_bottom, inside_bottom)
 
 		if is_surface:
+			if bottom_y - inside_top < 1.5:
+				if started_region:
+					break
+				continue
 			var slope: float = -tan(_tilt) * x_ratio * 0.12 * rect.size.y
 			var wave: float = sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
 			top_y = clampf(base_top + slope + wave, inside_top, bottom_y - 1.5)
@@ -487,6 +496,8 @@ func _draw_liquid_surface(rect: Rect2, base_top: float, _liquid_color: Color) ->
 
 		var inside_top: float = rect.position.y + rect.size.y * (bounds.x + 0.004)
 		var inside_bottom: float = rect.position.y + rect.size.y * (bounds.y - 0.006)
+		if inside_bottom <= inside_top:
+			continue
 		var y: float = base_top - tan(_tilt) * x_ratio * rect.size.y * 0.12
 		y += sin(_wave_time * 2.1 + x_ratio * 8.0) * (1.3 + absf(_slosh) * 3.2)
 		y = clampf(y, inside_top, inside_bottom)
