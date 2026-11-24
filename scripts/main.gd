@@ -36,6 +36,8 @@ var _pour_target_contents: Array = []
 var _pour_source_start: float = 0.0
 var _pour_target_start: float = 0.0
 var _pour_amount: int = 0
+var pour_stream_glow: Line2D
+var pour_stream_core: Line2D
 
 var move_count_label: Label
 var message_label: Label
@@ -58,8 +60,8 @@ func _load_bottle_texture() -> Texture2D:
 
 	# The source sheet contains 16 bottle designs in a 4 x 4 contact sheet.
 	# Crop the first design to its non-transparent bounds for clean scaling.
-	var cell_width: int = sheet.get_width() / 4
-	var cell_height: int = sheet.get_height() / 4
+	var cell_width: int = int(sheet.get_width() / 4)
+	var cell_height: int = int(sheet.get_height() / 4)
 	if cell_width <= 0 or cell_height <= 0:
 		push_warning("Bottle sheet dimensions are invalid. Using the procedural vial fallback.")
 		return null
@@ -72,6 +74,22 @@ func _load_bottle_texture() -> Texture2D:
 
 	bottle_image = bottle_image.get_region(used_bounds)
 	return ImageTexture.create_from_image(bottle_image)
+
+
+func _build_pour_effects() -> void:
+	pour_stream_glow = Line2D.new()
+	pour_stream_glow.width = 11.0
+	pour_stream_glow.antialiased = true
+	pour_stream_glow.z_index = 100
+	pour_stream_glow.visible = false
+	add_child(pour_stream_glow)
+
+	pour_stream_core = Line2D.new()
+	pour_stream_core.width = 3.0
+	pour_stream_core.antialiased = true
+	pour_stream_core.z_index = 101
+	pour_stream_core.visible = false
+	add_child(pour_stream_core)
 
 
 func _build_interface() -> void:
@@ -123,6 +141,7 @@ func _build_interface() -> void:
 		vial_controls.append(vial)
 
 	column.add_child(_build_footer())
+	_build_pour_effects()
 
 
 func _build_header() -> Control:
@@ -499,10 +518,15 @@ func _start_pour(source_index: int, target_index: int) -> void:
 	await lift_tween.finished
 
 	_pour_stream_active = true
+	pour_stream_glow.visible = true
+	pour_stream_core.visible = true
+	_update_pour_stream()
 	var pour_tween := create_tween()
 	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.72).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await pour_tween.finished
 	_pour_stream_active = false
+	pour_stream_glow.visible = false
+	pour_stream_core.visible = false
 
 	var return_tween := create_tween()
 	return_tween.tween_method(
@@ -542,10 +566,10 @@ func _set_pour_progress(progress: float) -> void:
 func _process(delta: float) -> void:
 	if _pour_stream_active:
 		_stream_phase = fposmod(_stream_phase + delta * 2.8, 1.0)
-		queue_redraw()
+		_update_pour_stream()
 
 
-func _draw() -> void:
+func _update_pour_stream() -> void:
 	if not _pour_stream_active or _pour_source < 0 or _pour_target < 0:
 		return
 	var source_vial = vial_controls[_pour_source]
@@ -560,13 +584,10 @@ func _draw() -> void:
 		var t: float = float(point_index) / 24.0
 		stream_points.append(start.bezier_interpolate(control_one, control_two, finish, t))
 	var stream_alpha: float = 0.55 + 0.35 * sin(PI * _pour_progress)
-	draw_polyline(stream_points, Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha * 0.32), 9.0, true)
-	draw_polyline(stream_points, Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha), 3.0, true)
-	draw_polyline(stream_points, Color(1.0, 1.0, 1.0, stream_alpha * 0.52), 1.0, true)
-	for drop_index in range(3):
-		var drop_t: float = fposmod(_stream_phase + float(drop_index) / 3.0, 1.0)
-		var drop_position: Vector2 = start.bezier_interpolate(control_one, control_two, finish, drop_t)
-		draw_circle(drop_position, 2.2 if drop_index == 0 else 1.5, Color(1.0, 1.0, 1.0, 0.78))
+	pour_stream_glow.points = stream_points
+	pour_stream_glow.default_color = Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha * 0.30)
+	pour_stream_core.points = stream_points
+	pour_stream_core.default_color = Color(_pour_essence_color.r, _pour_essence_color.g, _pour_essence_color.b, stream_alpha)
 
 
 func _pour(source_index: int, target_index: int) -> void:
