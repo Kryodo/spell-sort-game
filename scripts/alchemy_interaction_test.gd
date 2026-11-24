@@ -101,14 +101,14 @@ func _build_interface() -> void:
 		15,
 		Color(0.95, 0.93, 0.84, 1.0)
 	)
-	instruction.position = Vector2(48.0, 161.0)
+	instruction.position = Vector2(20.0, 19.0)
 	instruction.size = Vector2(624.0, 44.0)
 	instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	instruction_panel.add_child(instruction)
 
 	var note := _make_label("LIQUID SHAPE, GLASS FIT, LIFT AND POUR ARE ALL LIVE TESTS", 11, Color(0.72, 0.82, 0.81, 0.96))
-	note.position = Vector2(48.0, 211.0)
+	note.position = Vector2(20.0, 69.0)
 	note.size = Vector2(624.0, 22.0)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	instruction_panel.add_child(note)
@@ -127,25 +127,25 @@ func _build_interface() -> void:
 	add_child(status_panel)
 
 	status_label = _make_label("Grab a bottle and try a pour.", 17, Color(0.96, 0.94, 0.86, 1.0))
-	status_label.position = Vector2(49.0, 970.0)
+	status_label.position = Vector2(21.0, 23.0)
 	status_label.size = Vector2(620.0, 44.0)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_panel.add_child(status_label)
 
 	move_label = _make_label("MOVES 00", 12, Color(0.91, 0.75, 0.51, 1.0))
-	move_label.position = Vector2(49.0, 1030.0)
+	move_label.position = Vector2(21.0, 83.0)
 	move_label.size = Vector2(180.0, 24.0)
 	status_panel.add_child(move_label)
 
 	var hint := _make_label("Generated shells use the sheet's alpha silhouette. Procedural shells use editable shape profiles. Both share the same liquid renderer.", 12, Color(0.72, 0.80, 0.80, 0.95))
-	hint.position = Vector2(49.0, 1062.0)
+	hint.position = Vector2(21.0, 115.0)
 	hint.size = Vector2(420.0, 79.0)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_panel.add_child(hint)
 
 	reset_button = Button.new()
 	reset_button.text = "RESET TEST"
-	reset_button.position = Vector2(505.0, 1088.0)
+	reset_button.position = Vector2(477.0, 141.0)
 	reset_button.size = Vector2(156.0, 56.0)
 	reset_button.focus_mode = Control.FOCUS_NONE
 	reset_button.add_theme_font_size_override("font_size", 13)
@@ -405,6 +405,7 @@ func _get_pour_amount(source_index: int, target_index: int) -> int:
 
 func _return_to_slot(source_index: int) -> void:
 	_is_animating = true
+	reset_button.disabled = true
 	var source = bottle_controls[source_index]
 	if _hover_index >= 0:
 		bottle_controls[_hover_index].set_feedback(false, false, false)
@@ -418,11 +419,13 @@ func _return_to_slot(source_index: int) -> void:
 	source.set_pose(Vector2.ZERO)
 	_drag_index = -1
 	_is_animating = false
+	reset_button.disabled = false
 	_set_status("Bottle returned. Try another destination.")
 
 
 func _perform_pour(source_index: int, target_index: int) -> void:
 	_is_animating = true
+	reset_button.disabled = true
 	_pour_source = source_index
 	_pour_target = target_index
 	_pour_amount = _get_pour_amount(source_index, target_index)
@@ -443,7 +446,6 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var direction: float = 1.0 if slot_positions[target_index].x > source_origin.x else -1.0
 	var staging_offset := Vector2(-64.0 * direction, -110.0)
 	var staging_position: Vector2 = slot_positions[target_index] + staging_offset
-	var target_slot: Vector2 = slot_positions[target_index]
 	var tilt_angle: float = deg_to_rad(28.0 * direction)
 
 	if _hover_index >= 0:
