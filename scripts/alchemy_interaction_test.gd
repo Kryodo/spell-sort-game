@@ -866,7 +866,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	target.set_contents(next_target)
 	source.reset_motion()
 	target.trigger_slosh(0.20)
-	source.z_index = 2
+	source.z_index = 2 + source_index
 	source.set_feedback(false, false, false)
 	target.set_feedback(false, false, false)
 
@@ -1069,7 +1069,7 @@ func _reset_test() -> void:
 	for index in range(bottle_controls.size()):
 		var vial = bottle_controls[index]
 		vial.position = slot_positions[index]
-		vial.z_index = 2
+		vial.z_index = 2 + index
 		vial.reset_motion()
 		vial.set_feedback(false, false, false)
 		vial.set_contents(bottle_contents[index])
