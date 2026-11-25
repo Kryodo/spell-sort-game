@@ -229,7 +229,7 @@ func _build_props() -> void:
 
 	var chapter_title := Label3D.new()
 	chapter_title.name = "VerdantChapterTitle"
-	chapter_title.text = "VERDANT\\nHOLLOW"
+	chapter_title.text = "VERDANT\nHOLLOW"
 	chapter_title.font_size = 46
 	chapter_title.pixel_size = 0.0025
 	chapter_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -568,8 +568,8 @@ func _rounded_box_mesh(dimensions: Vector3) -> ArrayMesh:
 		Vector3(0.0, 0.0, -half.z)
 	]
 	var u_axes: Array[Vector3] = [
-		Vector3.UP, Vector3.FORWARD,
-		Vector3.FORWARD, Vector3.RIGHT,
+		Vector3.UP, Vector3.BACK,
+		Vector3.BACK, Vector3.RIGHT,
 		Vector3.RIGHT, Vector3.UP
 	]
 	var v_axes: Array[Vector3] = [
