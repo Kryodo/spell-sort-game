@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="250" viewBox="0 0 430 250">
+<defs>
+ <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#81502f"/><stop offset=".28" stop-color="#70452b"/><stop offset=".75" stop-color="#493021"/><stop offset="1" stop-color="#2f211a"/></linearGradient>
+ <linearGradient id="top" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b47b49"/><stop offset=".55" stop-color="#86532f"/><stop offset="1" stop-color="#553621"/></linearGradient>
+ <linearGradient id="inset" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#354b41"/><stop offset="1" stop-color="#1d302b"/></linearGradient>
+ <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f4d59a"/><stop offset=".45" stop-color="#b77b41"/><stop offset="1" stop-color="#694526"/></linearGradient>
+</defs>
+<ellipse cx="215" cy="238" rx="205" ry="9" fill="#080706" opacity=".42"/>
+<!-- Rearward shadow makes the cabinet recede against the wall. -->
+<path d="M8 54 L420 54 L414 231 Q215 247 15 231Z" fill="#101714" opacity=".60"/>
+<!-- Top plane: a shallow trapezoid behind the main workbench. -->
+<path d="M4 29 Q215 12 426 29 L417 85 Q215 100 13 85Z" fill="#35251c"/>
+<path d="M6 23 Q215 7 424 23 L416 71 Q215 88 14 71Z" fill="url(#top)"/>
+<path d="M14 68 Q215 85 416 68 L412 91 Q215 108 18 91Z" fill="url(#wood)"/>
+<path d="M14 28 Q215 12 416 28" fill="none" stroke="#e4b77d" stroke-width="2" opacity=".6"/>
+<!-- Few objects resting on the rear counter, scaled and grounded. -->
+<g transform="translate(55 0)">
+ <path d="M-22 65 L-22 33 Q-2 27 18 33 L18 66Z" fill="#5a3740"/>
+ <path d="M-16 60 L-16 38 Q0 32 12 38 L12 61Z" fill="#91606a"/>
+ <path d="M-12 43 L8 43 M-12 54 L8 54" stroke="#d8b67c" stroke-width="1.5"/>
+ <path d="M30 66 L30 18 Q50 14 68 22 L68 67Z" fill="#304a47"/>
+ <path d="M36 62 L36 26 Q50 21 62 27 L62 62Z" fill="#52766a"/>
+ <path d="M42 30 L58 30 M42 54 L58 54" stroke="#ddc28d" stroke-width="1.5"/>
+</g>
+<g transform="translate(282 0)">
+ <path d="M-24 67 L-20 37 Q-18 31 -10 29 L-8 15 L8 15 L10 29 Q18 31 20 37 L24 67 Q0 75 -24 67Z" fill="#568b7d" stroke="#27473f" stroke-width="2"/>
+ <path d="M-8 16 L-7 5 L7 5 L8 16Z" fill="url(#brass)" stroke="#543a22" stroke-width="1.3"/>
+ <path d="M-17 50 Q0 57 17 50" fill="none" stroke="#c5f0dc" stroke-width="2" opacity=".7"/>
+ <path d="M36 68 L39 43 Q41 37 48 34 L50 21 L63 21 L65 34 Q72 37 74 43 L77 68 Q56 75 36 68Z" fill="#9270a8" stroke="#463653" stroke-width="2"/>
+ <path d="M50 22 L51 11 L62 11 L63 22Z" fill="url(#brass)" stroke="#543a22" stroke-width="1.2"/>
+</g>
+<!-- Deep front cabinet carcass. -->
+<path d="M16 83 Q215 99 414 83 L406 221 Q215 238 24 221Z" fill="url(#wood)" stroke="#2b211a" stroke-width="3"/>
+<path d="M31 96 Q215 111 399 96 L393 207 Q215 224 37 207Z" fill="#3d2a20"/>
+<!-- Broad central cupboard doors and low drawer, no ornamental central crest. -->
+<path d="M49 112 Q112 119 177 116 L175 197 Q112 202 48 195Z" fill="url(#inset)" stroke="#93623a" stroke-width="2"/>
+<path d="M188 117 Q215 119 242 117 L241 204 Q215 206 189 204Z" fill="#30251e" stroke="#93623a" stroke-width="2"/>
+<path d="M252 116 Q318 119 381 112 L382 195 Q318 202 254 197Z" fill="url(#inset)" stroke="#93623a" stroke-width="2"/>
+<path d="M61 126 Q112 131 164 128 L163 184 Q112 190 60 183Z" fill="#25372f" opacity=".8"/>
+<path d="M266 128 Q318 131 368 126 L369 183 Q318 190 267 184Z" fill="#25372f" opacity=".8"/>
+<g fill="url(#brass)" stroke="#50331f" stroke-width="1.5">
+ <circle cx="160" cy="157" r="4"/><circle cx="270" cy="157" r="4"/>
+ <path d="M205 148 L225 148 L226 155 L204 155Z"/>
+</g>
+<g fill="none" stroke="#c28d59" stroke-width="2" opacity=".32">
+ <path d="M67 136 Q112 140 156 136 M278 136 Q318 140 362 136"/>
+</g>
+<!-- Feet and bottom rail. -->
+<path d="M25 210 L57 213 L53 241 L34 246 L18 235Z M373 213 L405 210 L412 235 L396 246 L377 241Z" fill="#3b291e"/>
+<path d="M29 228 L58 229 M373 229 L403 228" stroke="#b17b47" stroke-width="2" opacity=".52"/>
+</svg>
