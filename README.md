@@ -12,7 +12,7 @@ The laboratory is one continuous room rather than three fixed camera stops.
 
 - Drag or swipe to pan around the room within bounded camera limits.
 - Tap objects to inspect or open their activities.
-- The workbench launches the original 2D sorting puzzle.
+- The workbench launches the original 2D sorting puzzle with a brief fade and close-up camera zoom, making the change of presentation intentional.
 - The world map / Verdant Hollow entrance opens the chapter environment.
 - The ingredient storage and research archive remain parts of the same room, not separate page scenes.
 
