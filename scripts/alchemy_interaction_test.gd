@@ -62,6 +62,7 @@ var _stream_shape: Polygon2D
 var _stream_highlight: Line2D
 var _stream_drops: Array[Polygon2D] = []
 var _splash_ring: Line2D
+var _transition_overlay: ColorRect
 
 
 func _ready() -> void:
@@ -70,6 +71,7 @@ func _ready() -> void:
 	_build_bottles()
 	_build_stream_layers()
 	_reset_test()
+	_build_transition_overlay()
 
 
 func _build_interface() -> void:
@@ -1014,7 +1016,31 @@ func _reset_test() -> void:
 func _return_to_lab() -> void:
 	if _is_animating:
 		return
-	get_tree().change_scene_to_file("res://scenes/lab_room_prototype.tscn")
+	await _transition_to_scene("res://scenes/lab_room_prototype.tscn")
+
+
+func _build_transition_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+	_transition_overlay = ColorRect.new()
+	_transition_overlay.color = Color.BLACK
+	_transition_overlay.modulate.a = 1.0
+	_transition_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_transition_overlay)
+	var fade_in := create_tween()
+	fade_in.tween_property(_transition_overlay, "modulate:a", 0.0, 0.34)
+
+
+func _transition_to_scene(scene_path: String) -> void:
+	if _transition_overlay == null:
+		get_tree().change_scene_to_file(scene_path)
+		return
+	var fade_out := create_tween()
+	fade_out.tween_property(_transition_overlay, "modulate:a", 1.0, 0.30)
+	await fade_out.finished
+	get_tree().change_scene_to_file(scene_path)
 
 
 func _set_status(value: String) -> void:
