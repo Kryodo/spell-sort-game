@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="210" viewBox="0 0 460 210">
+<defs>
+ <linearGradient id="page" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f2dfb4"/><stop offset="1" stop-color="#a88a60"/></linearGradient>
+ <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#81505a"/><stop offset=".5" stop-color="#543644"/><stop offset="1" stop-color="#2d2528"/></linearGradient>
+ <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff0bf"/><stop offset=".3" stop-color="#d7a25d"/><stop offset=".7" stop-color="#8b572c"/><stop offset="1" stop-color="#4f321f"/></linearGradient>
+ <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d3fff0" stop-opacity=".85"/><stop offset=".4" stop-color="#5ba991" stop-opacity=".78"/><stop offset="1" stop-color="#1c4a43" stop-opacity=".95"/></linearGradient>
+ <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f0dbff" stop-opacity=".8"/><stop offset=".5" stop-color="#9776bd" stop-opacity=".76"/><stop offset="1" stop-color="#483453" stop-opacity=".96"/></linearGradient>
+ <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffeab3" stop-opacity=".86"/><stop offset=".45" stop-color="#c9843c" stop-opacity=".82"/><stop offset="1" stop-color="#5a3320" stop-opacity=".97"/></linearGradient>
+</defs>
+<ellipse cx="220" cy="194" rx="211" ry="10" fill="#100d0b" opacity=".28"/>
+
+<!-- Open grimoire, thick leather cover and layered parchment pages. -->
+<g transform="translate(15 34)">
+ <path d="M0 57 Q52 38 111 54 L125 139 Q65 122 7 143Z" fill="#241b1a" opacity=".7"/>
+ <path d="M4 53 Q53 33 111 50 L121 133 Q65 116 9 137Z" fill="url(#cover)" stroke="#2e2020" stroke-width="3"/>
+ <path d="M10 52 Q55 37 107 53 L115 124 Q66 109 14 129Z" fill="url(#page)" stroke="#735c43" stroke-width="2"/>
+ <path d="M114 51 Q167 33 218 52 L215 137 Q162 116 121 133Z" fill="#261d1a" stroke="#2c201b" stroke-width="3"/>
+ <path d="M120 53 Q169 38 212 53 L207 128 Q163 109 121 128Z" fill="url(#page)" stroke="#806848" stroke-width="2"/>
+ <path d="M116 53 Q115 90 121 133" fill="none" stroke="#543829" stroke-width="4"/>
+ <path d="M20 69 Q60 57 99 69 M20 82 Q62 69 101 82 M22 95 Q65 82 103 95 M24 108 Q64 96 105 108" fill="none" stroke="#8b7758" stroke-width="1.2" opacity=".62"/>
+ <path d="M130 69 Q166 56 200 67 M129 82 Q166 69 199 80 M127 95 Q166 82 197 93 M126 108 Q163 97 195 107" fill="none" stroke="#8b7758" stroke-width="1.2" opacity=".62"/>
+ <path d="M62 87 L80 98 L62 110 L44 98Z" fill="#4c6f62" stroke="#a77a4b" stroke-width="1.8"/>
+ <path d="M62 91 L73 98 L62 106 L51 98Z" fill="#b7e6cd" opacity=".58"/>
+ <path d="M5 52 Q56 33 111 50 L121 133" fill="none" stroke="#dfb775" stroke-width="2" opacity=".65"/>
+</g>
+
+<!-- Potion trio on a small brass-edged wooden tray. -->
+<g transform="translate(275 20)">
+ <path d="M-10 148 Q72 163 166 148 L157 177 Q73 190 -2 177Z" fill="#39251b" stroke="#241a14" stroke-width="2.5"/>
+ <path d="M-3 149 Q75 161 159 149 L153 164 Q74 176 2 164Z" fill="#9a6037" stroke="#d9a25d" stroke-width="1.5"/>
+ <path d="M3 151 Q75 163 153 151" fill="none" stroke="#f3c783" stroke-width="1.7"/>
+ <g transform="translate(30 0)">
+  <path d="M-21 140 L-18 88 Q-17 78 -9 75 L-7 54 L7 54 L9 75 Q17 78 18 88 L21 140 Q0 149 -21 140Z" fill="url(#teal)" stroke="#274940" stroke-width="2"/>
+  <path d="M-7 55 L-7 42 L7 42 L7 55Z" fill="url(#brass)" stroke="#52381f" stroke-width="1.5"/>
+  <path d="M-13 91 Q0 98 13 91" fill="none" stroke="#c2f5e5" stroke-width="2" opacity=".7"/>
+  <path d="M-11 80 Q-7 75 -5 82 L-5 127" fill="none" stroke="#edfff6" stroke-width="2.5" opacity=".62" stroke-linecap="round"/>
+  <path d="M-10 111 Q0 107 10 111" fill="none" stroke="#e6cf93" stroke-width="1"/>
+ </g>
+ <g transform="translate(83 -8)">
+  <path d="M-20 148 L-18 100 Q-17 91 -9 88 L-7 65 L7 65 L9 88 Q17 91 18 100 L20 148 Q0 156 -20 148Z" fill="url(#violet)" stroke="#463450" stroke-width="2"/>
+  <path d="M-7 66 L-7 53 L7 53 L7 66Z" fill="url(#brass)" stroke="#52381f" stroke-width="1.5"/>
+  <path d="M-12 118 Q0 124 12 118" fill="none" stroke="#e3ceff" stroke-width="2" opacity=".7"/>
+  <path d="M-10 103 Q-6 97 -4 105 L-4 137" fill="none" stroke="#fff1ff" stroke-width="2.5" opacity=".62" stroke-linecap="round"/>
+  <path d="M-10 128 Q0 124 10 128" fill="none" stroke="#e6cf93" stroke-width="1"/>
+ </g>
+ <g transform="translate(137 6)">
+  <path d="M-18 134 L-16 92 Q-15 83 -8 80 L-6 60 L6 60 L8 80 Q15 83 16 92 L18 134 Q0 142 -18 134Z" fill="url(#amber)" stroke="#563520" stroke-width="2"/>
+  <path d="M-6 61 L-6 49 L6 49 L6 61Z" fill="url(#brass)" stroke="#52381f" stroke-width="1.4"/>
+  <path d="M-10 106 Q0 112 10 106" fill="none" stroke="#ffe6b0" stroke-width="2" opacity=".7"/>
+  <path d="M-9 95 Q-5 90 -3 97 L-3 126" fill="none" stroke="#fff2cf" stroke-width="2.2" opacity=".64" stroke-linecap="round"/>
+ </g>
+</g>
+
+<!-- A small brass mortar and pestle, with a few herbs. -->
+<g transform="translate(233 152)">
+ <ellipse cx="0" cy="25" rx="32" ry="8" fill="#181411" opacity=".4"/>
+ <path d="M-27 0 Q-22 32 0 34 Q22 32 27 0 Q0 10 -27 0Z" fill="url(#brass)" stroke="#4a2e1e" stroke-width="2"/>
+ <ellipse cx="0" cy="0" rx="27" ry="8" fill="#634226" stroke="#e2b36f" stroke-width="2"/>
+ <ellipse cx="0" cy="0" rx="18" ry="4.5" fill="#1d2822"/>
+ <path d="M10 -4 L26 -32" stroke="#b98a53" stroke-width="9" stroke-linecap="round"/>
+ <path d="M10 -5 L24 -30" stroke="#f3d08d" stroke-width="2" opacity=".7" stroke-linecap="round"/>
+</g>
+<g fill="none" stroke-linecap="round">
+ <path d="M221 151 Q208 130 200 120 M222 151 Q231 130 245 122" stroke="#527348" stroke-width="3"/>
+ <path d="M201 123 Q183 109 181 127 Q190 140 204 131Z M243 124 Q258 106 261 126 Q254 139 243 133Z" fill="#78945a" stroke="#354a32" stroke-width="1"/>
+</g>
+</svg>
