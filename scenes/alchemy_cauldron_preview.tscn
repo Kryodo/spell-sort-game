@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/environments/SpellSort_Workbench.png" id="1_background"]
+[ext_resource type="PackedScene" path="res://scenes/alchemy_cauldron.tscn" id="2_cauldron"]
+
+[node name="AlchemyCauldronPreview" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="WorkbenchBackground" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("1_background")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="AlchemyCauldron" parent="." instance=ExtResource("2_cauldron")]
+position = Vector2(265, 470)
+scale = Vector2(0.82, 0.82)
