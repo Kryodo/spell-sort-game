@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
+render_mode depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
 uniform vec4 base_color : source_color = vec4(0.5, 0.4, 0.3, 1.0);
 uniform float grain_scale = 8.0;
@@ -33,7 +33,6 @@ void fragment() {
     float brush = sin((UV.y * 31.0) + broad * 2.1) * 0.5 + 0.5;
     float pigment = (broad - 0.5) * 0.075 + (fine - 0.5) * 0.035 + (brush - 0.5) * 0.018;
     ALBEDO = max(base_color.rgb * (1.0 + pigment * grain_strength * 12.0), vec3(0.0));
-    ALPHA = base_color.a;
     METALLIC = metallic_amount;
     ROUGHNESS = roughness_amount;
     SPECULAR = 0.22;
