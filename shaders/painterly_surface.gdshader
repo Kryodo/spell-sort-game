@@ -6,7 +6,7 @@ uniform float grain_scale = 8.0;
 uniform float grain_strength = 0.055;
 uniform float metallic_amount = 0.0;
 uniform float roughness_amount = 0.88;
-uniform vec3 emission_color : source_color = vec3(0.0);
+uniform vec4 emission_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_strength = 0.0;
 
 float hash_value(vec2 p) {
@@ -37,5 +37,5 @@ void fragment() {
     METALLIC = metallic_amount;
     ROUGHNESS = roughness_amount;
     SPECULAR = 0.22;
-    EMISSION = emission_color * emission_strength;
+    EMISSION = emission_color.rgb * emission_strength;
 }
