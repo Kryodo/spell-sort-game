@@ -7,6 +7,7 @@ signal return_to_hub_requested
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 const BACKGROUND_PATH := "res://assets/environments/SpellSort_Workbench.png"
 const RACK_PATH := "res://assets/environments/SpellSort_Vial_Rack.svg"
+const RACK_FRONT_PATH := "res://assets/environments/SpellSort_Vial_Rack_Front.svg"
 const CAPACITY := 4
 const BOTTLE_SIZE := Vector2(116.0, 365.0)
 const BOTTLE_GAP := 18.0
@@ -81,6 +82,7 @@ func _ready() -> void:
 		_bottle_row_y = 520.0
 	_build_interface()
 	_build_bottles()
+	_build_rack_front_lips()
 	_build_stream_layers()
 	_reset_test()
 	if not in_world_presentation:
@@ -336,6 +338,23 @@ func _build_workbench() -> void:
 	rack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rack.z_index = 1
 	add_child(rack)
+
+
+func _build_rack_front_lips() -> void:
+	# These four foreground half-rims overlap the bottle feet just enough to
+	# make each vial look seated inside its brass holder. The complete rack
+	# remains behind the bottles. Dragged vials use z_index 50 and lift above
+	# this layer, so they naturally come free of the holders.
+	var front_lips := TextureRect.new()
+	front_lips.name = "VialRackForegroundLips"
+	front_lips.texture = load(RACK_FRONT_PATH)
+	front_lips.position = Vector2(50.0, 498.0)
+	front_lips.size = Vector2(620.0, 300.0)
+	front_lips.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	front_lips.stretch_mode = TextureRect.STRETCH_SCALE
+	front_lips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	front_lips.z_index = 10
+	add_child(front_lips)
 
 
 func _build_status_panel() -> void:
