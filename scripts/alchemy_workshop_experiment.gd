@@ -1,5 +1,7 @@
 extends Node2D
 
+@export var show_tabletop_guides: bool = false
+
 const CauldronScene = preload("res://scenes/alchemy_cauldron.tscn")
 const EffectsScript = preload("res://scripts/alchemy_workshop_effects.gd")
 
@@ -17,57 +19,48 @@ const PLANT_PATH := "res://assets/environments/Workshop_Floor_Plant.svg"
 # mapped into the 720 x 1280 preview viewport.
 const TABLE_REAR_LEFT := Vector2(150.0, 455.0)
 const TABLE_REAR_RIGHT := Vector2(570.0, 455.0)
-const TABLE_FRONT_RIGHT := Vector2(720.0, 755.0)
-const TABLE_FRONT_LEFT := Vector2(0.0, 755.0)
-
-var _wall_gradient: GradientTexture2D
-var _floor_gradient: GradientTexture2D
+const TABLE_FRONT_RIGHT := Vector2(720.0, 742.0)
+const TABLE_FRONT_LEFT := Vector2(0.0, 742.0)
 
 
 func _ready() -> void:
 	_wall_gradient = _make_vertical_gradient(
-		[Color("#142522"), Color("#1d302a"), Color("#263a31")],
-		[0.0, 0.58, 1.0],
+		PackedColorArray([Color("#142522"), Color("#1d302a"), Color("#263a31")]),
+		PackedFloat32Array([0.0, 0.58, 1.0]),
 		1280
 	)
 	_floor_gradient = _make_vertical_gradient(
-		[Color("#29332d"), Color("#222824"), Color("#151a1b")],
-		[0.0, 0.42, 1.0],
+		PackedColorArray([Color("#29332d"), Color("#222824"), Color("#151a1b")]),
+		PackedFloat32Array([0.0, 0.42, 1.0]),
 		900
 	)
 
-	# Back-to-front order follows the reference room: wall shelf, rear cabinet,
-	# left/right framing furniture, floor foliage, then the foreground bench.
+	# Back-to-front order follows the Qwen room: wall shelf, rear cabinet,
+	# side framing furniture, floor foliage, and then the foreground workbench.
 	_add_room_sprite(BACK_SHELF_PATH, Vector2(140.0, 28.0), 1)
 	_add_room_sprite(REAR_CABINET_PATH, Vector2(145.0, 270.0), 2)
 	_add_room_sprite(LEFT_CABINET_PATH, Vector2(-48.0, 208.0), 3, Vector2(0.92, 0.92))
 	_add_room_sprite(RIGHT_SHELF_PATH, Vector2(506.0, 58.0), 3, Vector2(0.94, 0.94))
 
+	# Foreground foliage sits in front of the legs, not on the tabletop.
 	var left_plant := _add_room_sprite(
-		PLANT_PATH, Vector2(-32.0, 1006.0), 4, Vector2(0.78, 0.78)
+		PLANT_PATH, Vector2(-58.0, 1055.0), 6, Vector2(0.88, 0.88)
 	)
 	left_plant.name = "LeftForegroundHerb"
 	var right_plant := _add_room_sprite(
-		PLANT_PATH, Vector2(584.0, 1004.0), 4, Vector2(0.72, 0.72)
+		PLANT_PATH, Vector2(620.0, 1050.0), 6, Vector2(0.80, 0.80)
 	)
 	right_plant.name = "RightForegroundHerb"
 	right_plant.flip_h = true
 
 	_add_room_sprite(BENCH_PATH, Vector2(0.0, 455.0), 5)
 
-	# Props are placed on the tabletop's projected surface, not at unrelated
-	# screen coordinates. Their scale and draw order follow surface depth.
-	_add_tabletop_prop(
-		CauldronScene,
-		0.19,
-		0.34,
-		0.58,
-		6,
-		"LivingCopperCauldron"
-	)
+	# Each prop is anchored to a normalized point on the projected tabletop.
+	# Godot calculates its screen position and depth scale from the same plane.
+	_add_tabletop_prop(CauldronScene, 0.22, 0.44, 0.64, 7, "LivingCopperCauldron")
 	_add_tabletop_prop(BOOK_PATH, 0.48, 0.76, 0.88, 7, "OpenGrimoire")
 	_add_tabletop_prop(POTIONS_PATH, 0.81, 0.52, 0.80, 7, "TabletopPotionSet")
-	_add_tabletop_prop(MORTAR_PATH, 0.59, 0.39, 0.78, 6, "BrassMortar")
+	_add_tabletop_prop(MORTAR_PATH, 0.59, 0.39, 0.78, 7, "BrassMortar")
 
 	var effects := EffectsScript.new() as Node2D
 	effects.name = "LivingWorkshopLight"
@@ -78,13 +71,13 @@ func _ready() -> void:
 
 
 func _make_vertical_gradient(
-	colors: Array[Color],
-	offsets: Array[float],
+	colors: PackedColorArray,
+	offsets: PackedFloat32Array,
 	texture_height: int
 ) -> GradientTexture2D:
 	var gradient := Gradient.new()
-	gradient.colors = PackedColorArray(colors)
-	gradient.offsets = PackedFloat32Array(offsets)
+	gradient.colors = colors
+	gradient.offsets = offsets
 
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
@@ -128,17 +121,18 @@ func _add_tabletop_prop(
 	base_layer: int,
 	node_name: String
 ) -> Node2D:
-	var depth_scale := lerpf(0.76, 1.0, clampf(v, 0.0, 1.0))
+	var depth := clampf(v, 0.0, 1.0)
+	var depth_scale := lerpf(0.76, 1.0, depth)
 	var final_scale := base_scale * depth_scale
-	var anchor := _project_tabletop(u, v)
+	var anchor := _project_tabletop(u, depth)
 
 	if resource_or_scene is PackedScene:
 		var prop_scene := (resource_or_scene as PackedScene).instantiate() as Node2D
 		prop_scene.name = node_name
 		prop_scene.scale = Vector2.ONE * final_scale
-		# The cauldron's artwork has its ground-contact shadow centred at (120, 208).
+		# The cauldron artwork's ground-contact shadow is centred at (120, 208).
 		prop_scene.position = anchor - Vector2(120.0, 208.0) * final_scale
-		prop_scene.z_index = base_layer + int(v * 3.0)
+		prop_scene.z_index = base_layer + int(depth * 3.0)
 		add_child(prop_scene)
 		return prop_scene
 
@@ -148,13 +142,12 @@ func _add_tabletop_prop(
 	sprite.centered = false
 	sprite.scale = Vector2.ONE * final_scale
 	var texture_size := sprite.texture.get_size()
-	# Every SVG uses a bottom-centre contact point, so its base sits on the
-	# projected tabletop instead of hovering above or sinking into it.
+	# The SVG's bottom-centre contact point lands exactly on the projected plane.
 	sprite.position = anchor - Vector2(
 		float(texture_size.x) * final_scale * 0.5,
 		float(texture_size.y) * final_scale
 	)
-	sprite.z_index = base_layer + int(v * 3.0)
+	sprite.z_index = base_layer + int(depth * 3.0)
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	add_child(sprite)
 	return sprite
@@ -169,6 +162,8 @@ func _draw() -> void:
 	_draw_room_architecture()
 	_draw_floor_tiles()
 	_draw_wall_light_and_shadow()
+	if show_tabletop_guides:
+		_draw_tabletop_guides()
 
 
 func _draw_room_architecture() -> void:
@@ -222,8 +217,7 @@ func _draw_room_architecture() -> void:
 		Color(0.06, 0.105, 0.10, 0.88)
 	)
 
-	# Broad, quiet wall-stone joints create scale without turning the wall into
-	# a grid of little hand-built polygons.
+	# Broad, quiet wall-stone joints create scale without visual noise.
 	var joint := Color(0.07, 0.13, 0.12, 0.30)
 	draw_polyline(PackedVector2Array([Vector2(52.0, 274.0), Vector2(668.0, 274.0)]), joint, 2.0, true)
 	draw_polyline(PackedVector2Array([Vector2(80.0, 402.0), Vector2(640.0, 402.0)]), joint, 2.0, true)
@@ -275,8 +269,8 @@ func _draw_floor_tiles() -> void:
 		var near_bottom := float(row + 1) / float(row_count)
 		var top_y := 480.0 + pow(near_top, 1.55) * 800.0
 		var bottom_y := 480.0 + pow(near_bottom, 1.55) * 800.0
-		var top_half := lerpf(300.0, 520.0, near_top)
-		var bottom_half := lerpf(350.0, 610.0, near_bottom)
+		var top_half := lerpf(340.0, 520.0, near_top)
+		var bottom_half := lerpf(390.0, 610.0, near_bottom)
 		for column in range(column_count):
 			var left_fraction := float(column) / float(column_count)
 			var right_fraction := float(column + 1) / float(column_count)
@@ -309,8 +303,26 @@ func _draw_wall_light_and_shadow() -> void:
 		var alpha := 0.006 + float(9 - layer) * 0.0012
 		draw_circle(Vector2(356.0, 258.0), radius, Color(0.54, 0.55, 0.33, alpha))
 
-	# Gentle floor bounce just below the bench, plus a broad contact shadow.
+	# Subtle warm bounce and grounding shadow beneath the foreground table.
 	for layer in range(8, 0, -1):
 		var radius := float(layer) * 34.0
 		var alpha := 0.005 + float(8 - layer) * 0.0012
 		draw_circle(Vector2(360.0, 1040.0), radius, Color(0.72, 0.43, 0.23, alpha))
+
+
+func _draw_tabletop_guides() -> void:
+	var corners := PackedVector2Array([
+		TABLE_REAR_LEFT, TABLE_REAR_RIGHT, TABLE_FRONT_RIGHT, TABLE_FRONT_LEFT, TABLE_REAR_LEFT
+	])
+	draw_polyline(corners, Color(0.2, 1.0, 0.75, 0.9), 2.0, true)
+	draw_line(TABLE_REAR_LEFT, TABLE_FRONT_RIGHT, Color(0.2, 1.0, 0.75, 0.45), 1.0, true)
+	draw_line(TABLE_REAR_RIGHT, TABLE_FRONT_LEFT, Color(0.2, 1.0, 0.75, 0.45), 1.0, true)
+
+	for anchor in [
+		_project_tabletop(0.22, 0.44),
+		_project_tabletop(0.48, 0.76),
+		_project_tabletop(0.81, 0.52),
+		_project_tabletop(0.59, 0.39)
+	]:
+		draw_circle(anchor, 7.0, Color(0.1, 0.95, 0.72, 0.88))
+		draw_circle(anchor, 3.0, Color(0.04, 0.18, 0.15, 1.0))
