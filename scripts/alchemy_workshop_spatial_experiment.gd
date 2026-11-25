@@ -98,8 +98,8 @@ func _build_rear_furniture() -> void:
 
 	_add_layer_asset(
 		RIGHT_SHELF_PATH,
-		Vector2(730.0, 88.0),
-		Vector2(-0.82, 0.82),
+		Vector2(730.0, 135.0),
+		Vector2(-0.70, 0.70),
 		4,
 		"RightSideShelf"
 	)
@@ -136,7 +136,7 @@ func _add_shelf_candle(shelf_anchor: Node2D) -> void:
 	# the cabinet's top plane; the flame is attached to the candle wick.
 	var candle := Node2D.new()
 	candle.name = "AnchoredShelfCandle"
-	candle.position = Vector2(80.0, 112.0)
+	candle.position = Vector2(80.0, 123.0)
 	candle.scale = Vector2(0.90, 0.90)
 	candle.z_index = 3
 	shelf_anchor.add_child(candle)
