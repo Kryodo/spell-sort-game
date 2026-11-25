@@ -30,7 +30,9 @@ Four upright vessels are arranged in one centred horizontal row on the tabletop.
 
 The row is intentionally simple and readable. Perspective comes from the illustrated workbench background and the shallow illustrated rack, not from transforming the individual vessels.
 
-The rack asset is `assets/environments/SpellSort_Vial_Rack.svg`. It is a transparent vector overlay with four shallow brass-lined holders and a low rear support rail. The rack is drawn below the bottle controls, so the live bottle artwork covers each socket and can be lifted, dragged and returned independently.
+The rack asset is `assets/environments/SpellSort_Vial_Rack.svg`.
+
+A matching foreground overlay, `assets/environments/SpellSort_Vial_Rack_Front.svg`, draws only the near/front half of each brass holder above the bottle feet. This small overlap makes the glass appear recessed into the sockets. The foreground lips use z-index 10; resting bottles are at z-index 2–5, while a bottle being dragged is raised to z-index 50 and lifts visibly clear of its holder. It is a transparent vector overlay with four shallow brass-lined holders and a low rear support rail. The rack is drawn below the bottle controls, so the live bottle artwork covers each socket and can be lifted, dragged and returned independently.
 
 ## Dimensional vial glass
 
