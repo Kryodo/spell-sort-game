@@ -15,6 +15,9 @@ var _puzzle_overlay: Control
 var _camera_home_position := Vector3.ZERO
 var _camera_home_target := Vector3.ZERO
 var _camera_home_size := 10.0
+var _camera_return_position := Vector3.ZERO
+var _camera_return_target := Vector3.ZERO
+var _camera_return_size := 10.0
 var _modal: Panel
 var _modal_title: Label
 var _modal_body: Label
@@ -742,6 +745,9 @@ func _open_workbench_puzzle() -> void:
 		return
 
 	_close_modal()
+	_camera_return_position = _camera.position
+	_camera_return_target = _camera_look_target
+	_camera_return_size = _camera.size
 	_hub_hud_root.visible = false
 	_puzzle_layer = CanvasLayer.new()
 	_puzzle_layer.layer = 20
@@ -768,9 +774,9 @@ func _close_workbench_puzzle() -> void:
 		return
 	var close_tween := create_tween().set_parallel(true)
 	close_tween.tween_property(_puzzle_overlay, "modulate:a", 0.0, 0.22)
-	close_tween.tween_property(_camera, "position", _camera_home_position, 0.50).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	close_tween.tween_property(_camera, "size", _camera_home_size, 0.50).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	close_tween.tween_method(Callable(self, "_set_camera_look_target"), _camera_look_target, _camera_home_target, 0.50)
+	close_tween.tween_property(_camera, "position", _camera_return_position, 0.50).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	close_tween.tween_property(_camera, "size", _camera_return_size, 0.50).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	close_tween.tween_method(Callable(self, "_set_camera_look_target"), _camera_look_target, _camera_return_target, 0.50)
 	await close_tween.finished
 	if is_instance_valid(_puzzle_layer):
 		_puzzle_layer.queue_free()
