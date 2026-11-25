@@ -55,7 +55,7 @@ func _build_world() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "RoomCamera"
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_camera.size = 10.4
+	_camera.size = 11.1
 	_camera.position = Vector3(1.75, 7.0, 11.4)
 	_camera.look_at(Vector3(0.0, 2.0, 0.0), Vector3.UP)
 	_camera.near = 0.05
