@@ -39,7 +39,7 @@ The 2D bottle renderer is in `scripts/alchemy_bottle.gd`; the puzzle presentatio
 
 ## Early painterly-stylized material and silhouette study
 
-The new `shaders/painterly_surface.gdshader` adds restrained procedural pigment variation, soft surface noise, roughness and controlled emission to the hub's procedural materials. The study also begins moving key props away from primitive silhouettes:
+The new `shaders/painterly_surface.gdshader` adds restrained procedural pigment variation, soft surface noise, roughness and controlled emission to both the hub and Verdant Hollow chapter materials. The study also begins moving key props away from primitive silhouettes:
 
 - The cauldron uses a rounded body, foot and softer handles.
 - Potion props use rounded bodies, shoulders and corks.
