@@ -81,3 +81,14 @@ The layered cauldron is now part of the main sorting gameplay screen, positioned
 - `scenes/alchemy_cauldron_preview.tscn` — isolated development preview using the same workbench background.
 
 The separate preview remains available through **Run Current Scene (F6)**. `fill_level`, `liquid_color` and `animate_liquid` are exported on the cauldron's liquid node for tuning. Brewing interaction and ingredient inputs are not implemented yet.
+
+
+## Hybrid alchemy workshop visual experiment
+
+A separate proof-of-concept room is available at:
+
+`scenes/alchemy_workshop_experiment.tscn`
+
+Open that scene and use **Run Current Scene (F6)** to review it. It experiments with Godot-native wall/floor drawing and animated light effects alongside layered SVG furnishings and the existing animated cauldron. The sorting prototype's main scene is unchanged.
+
+See `docs/alchemy-workshop-hybrid-experiment.md` for the construction split and current scope. Runtime validation still needs to be performed locally in Godot 4.7.

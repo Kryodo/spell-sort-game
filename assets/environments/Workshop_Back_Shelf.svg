@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="230" viewBox="0 0 440 230">
+<defs>
+ <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9c623b"/><stop offset=".36" stop-color="#70452b"/><stop offset="1" stop-color="#38271e"/></linearGradient>
+ <linearGradient id="top" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#c08450"/><stop offset=".5" stop-color="#9a6138"/><stop offset="1" stop-color="#5c3925"/></linearGradient>
+ <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f3d49b"/><stop offset=".4" stop-color="#b77b40"/><stop offset="1" stop-color="#684526"/></linearGradient>
+ <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#91a76b"/><stop offset="1" stop-color="#354f39"/></linearGradient>
+ <linearGradient id="crystal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c0eadc"/><stop offset=".45" stop-color="#6b9e98"/><stop offset="1" stop-color="#2a4d4d"/></linearGradient>
+</defs>
+<!-- Wall shadow and two quiet brackets. -->
+<path d="M16 139 L34 94 L53 94 L68 139 M372 139 L387 94 L407 94 L425 139" fill="none" stroke="#090f0e" stroke-width="18" opacity=".55"/>
+<path d="M25 135 L39 103 L49 103 L59 135 M381 135 L392 103 L402 103 L414 135" fill="none" stroke="#67432b" stroke-width="8"/>
+<path d="M31 136 L41 106 M389 136 L399 106" fill="none" stroke="#c08b54" stroke-width="2" opacity=".55"/>
+<!-- Books grouped at the back left, simple worn spines. -->
+<g>
+ <path d="M42 126 L42 63 Q72 57 98 65 L98 128Z" fill="#5c3a3e"/>
+ <path d="M49 122 L49 68 Q72 63 91 69 L91 123Z" fill="#80545a"/>
+ <path d="M54 77 Q72 72 87 77 M54 111 Q72 106 87 111" fill="none" stroke="#d5ae77" stroke-width="2" opacity=".65"/>
+ <path d="M101 127 L101 48 Q130 45 154 53 L154 128Z" fill="#263d3b"/>
+ <path d="M109 122 L109 54 Q130 50 147 58 L147 123Z" fill="#45665b"/>
+ <path d="M115 65 L142 65 M115 111 L142 111" stroke="#d4b27e" stroke-width="2" opacity=".66"/>
+ <path d="M157 128 L157 72 Q183 66 205 74 L205 129Z" fill="#885633"/>
+ <path d="M164 123 L164 78 Q184 72 198 79 L198 124Z" fill="#ae7848"/>
+ <path d="M170 91 L193 91 M170 111 L193 111" stroke="#e3be87" stroke-width="1.8" opacity=".62"/>
+</g>
+<!-- Small herb behind the middle of the shelf. -->
+<g transform="translate(250 0)">
+ <path d="M-22 129 Q-4 112 19 129 L15 145 Q-3 153 -20 145Z" fill="#80583a" stroke="#4a3323" stroke-width="2"/>
+ <path d="M-2 126 C-12 93 -23 82 -31 68 M0 125 C-1 87 5 67 15 49 M4 127 C15 96 29 84 39 74" fill="none" stroke="#405d3d" stroke-width="4" stroke-linecap="round"/>
+ <g fill="url(#leaf)" stroke="#324a33" stroke-width="1.5">
+  <path d="M-30 72 C-58 48 -53 77 -29 89 Q-17 88 -30 72Z"/>
+  <path d="M15 53 C-2 22 29 15 29 48 Q26 61 15 53Z"/>
+  <path d="M38 78 C66 53 69 82 42 94 Q30 92 38 78Z"/>
+  <path d="M-10 101 C-38 82 -38 110 -9 117 Q2 115 -10 101Z"/>
+  <path d="M18 95 C44 73 50 103 21 113 Q9 108 18 95Z"/>
+ </g>
+</g>
+<!-- Uneven crystal group on the right. -->
+<g transform="translate(330 0)">
+ <path d="M-48 130 L-45 76 L-25 34 L-5 76 L-8 132Z" fill="url(#crystal)" stroke="#25484a" stroke-width="2"/>
+ <path d="M-25 34 L-25 123 L-45 76Z" fill="#e4fff0" opacity=".22"/>
+ <path d="M0 132 L0 91 L17 57 L36 91 L33 132Z" fill="#557e80" stroke="#29494a" stroke-width="2"/>
+ <path d="M17 57 L17 125 L0 91Z" fill="#e0f8e9" opacity=".23"/>
+ <path d="M39 132 L42 103 L56 82 L71 104 L69 133Z" fill="#6e9890" stroke="#29494a" stroke-width="2"/>
+ <path d="M56 82 L56 128 L42 103Z" fill="#eafff1" opacity=".24"/>
+ <ellipse cx="10" cy="133" rx="72" ry="7" fill="#101915" opacity=".35"/>
+</g>
+<!-- Thick wooden shelf, with a shaded underside and softly lit front edge. -->
+<path d="M3 137 Q220 124 437 137 L431 171 Q220 183 9 171Z" fill="#38271d" opacity=".8"/>
+<path d="M4 129 Q220 116 436 129 L430 155 Q220 168 10 155Z" fill="url(#top)" stroke="#3c291d" stroke-width="2"/>
+<path d="M10 154 Q220 166 430 154 L428 176 Q220 190 12 176Z" fill="url(#wood)"/>
+<path d="M10 132 Q220 120 430 132" fill="none" stroke="#e2b37a" stroke-width="2" opacity=".55"/>
+<path d="M20 178 Q220 190 420 178" fill="none" stroke="#211914" stroke-width="3" opacity=".72"/>
+</svg>
