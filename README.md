@@ -1,23 +1,32 @@
-# Spell Sort — Alchemy Interaction Test
+# Spell Sort — First Alchemy Experiment
 
-This branch contains the focused portrait test scene for the Alchemy Core Loop.
+This branch combines the procedural alchemy-vial interaction test with the original playable sorting rules. The configured startup scene is the first complete experiment: **Separation of Essences**.
 
 ## Run
 
 Open the project in Godot 4.7 and run the project. The configured main scene is `res://scenes/alchemy_interaction_test.tscn`.
 
-The original playable sorting prototype remains available at `res://scenes/main.tscn`.
+The original tap-to-select prototype remains available at `res://scenes/main.tscn`.
 
-## Current test
+## Experiment 01 — Separation of Essences
 
-- Four procedural, open-top glass vial profiles: round, tall, squared-shoulder and bulbous.
-- Dimensional glass construction using layered polygon geometry, thick rims, an open mouth, side reflections, shoulder facets and a heavier glass base.
-- A shared liquid renderer made from narrow, convex polygon strips that follow each vial's interior profile. Adjacent essence regions overlap slightly to avoid visible hairline gaps.
-- Animated liquid surfaces, tilt response and damped sloshing.
-- Press-and-drag interaction for mouse and touch.
-- Target detection around the receiving vial's open mouth rather than its body.
-- Invalid releases return to the original slot.
-- Valid releases align the source mouth above the target mouth, tilt the source and pour through a tapered, irregular liquid ribbon with moving droplets and a receiving splash ripple.
-- Both fill levels animate during transfer and the source returns to its original slot.
+The player must separate Tide, Moon and Ember into three pure vials. Each essence has four measures. The experiment starts with four partially mixed vessels and one empty vessel.
 
-The original source asset sheets are unchanged. This is a visual and interaction test, not yet the final puzzle experience.
+- Four procedural open-top glass profiles: round, tall, squared-shoulder and bulbous.
+- Hold and drag a vial. The source mouth is measured against each receiving vial's actual open mouth; release only pours when the openings are aligned.
+- Grip position influences tilt, and the source remains anchored to the touch point while being moved.
+- A valid pour stages the source above the target, then transfers the matching top run through the animated stream. The stream ends at the receiving vial's live liquid surface.
+- An empty vial or a vial topped with the same essence can receive a pour. A full vial cannot receive more. The complete contiguous top run transfers, limited by the target's remaining capacity.
+- Invalid drops return the source to its original slot.
+- Undo restores the previous arrangement and move count. Reset restores the exact opening experiment.
+- The interface presents the puzzle as a laboratory experiment, with an objective card, essence references, a dedicated workbench, purity progress and a completion state.
+
+## Bottle and liquid implementation
+
+The procedural bottle renderer remains in `scripts/alchemy_bottle.gd`. It draws the open mouth, dimensional glass, profile-fitted liquid bands, animated meniscus and sloshing. The same renderer is used for all four vial profiles.
+
+The original asset sheets are unchanged. The older sprite-based sorting scene is retained for comparison.
+
+## Validation
+
+The code has been committed to the feature branch, but a Godot 4.7 runtime launch and interaction pass still need to be checked locally.
