@@ -144,6 +144,9 @@ func _build_props() -> void:
 	var page := _mat(Color(0.79, 0.68, 0.48))
 	var green := _mat(Color(0.35, 0.62, 0.35), 0.0, 0.22)
 
+	# A shallow timber backdrop gives the bench wall shelves and map a proper silhouette.
+	_add_box("MainLabBackboard", Vector3(6.8, 4.9, 0.18), Vector3(0.0, 2.45, -2.62), _mat(Color(0.35, 0.38, 0.31)))
+
 	# Main workbench in the foreground.
 	_add_box("WorkbenchTop", Vector3(5.70, 0.22, 4.20), Vector3(0.0, 1.12, 1.63), wood_light)
 	_add_box("WorkbenchFrontApron", Vector3(5.42, 0.32, 0.16), Vector3(0.0, 0.86, 3.67), wood)
@@ -357,7 +360,7 @@ func _build_main_interactables() -> void:
 	_register_interactable(
 		"alchemy_table", "Alchemy Table",
 		"Your first experiment is ready. Separate the tangled tide, moon and ember essences by guiding each vial's open mouth into position.",
-		Vector3(0.0, 1.17, 1.72), Vector3(5.80, 0.42, 4.40)
+		Vector3(0.0, 1.12, 1.63), Vector3(5.80, 0.16, 4.30)
 	)
 	_register_interactable(
 		"grimoire", "The Grimoire",
@@ -482,9 +485,13 @@ func _register_interactable(id: String, title: String, description: String, cent
 
 func _make_potion(world_position: Vector3, tint: Color, scale_value: float) -> void:
 	var glass := _mat(Color(tint.r, tint.g, tint.b, 0.92), 0.0, 0.08)
-	_add_cylinder("PotionBody", 0.095 * scale_value, 0.095 * scale_value, 0.30 * scale_value, world_position, glass)
-	_add_cylinder("PotionNeck", 0.046 * scale_value, 0.046 * scale_value, 0.12 * scale_value, world_position + Vector3(0.0, 0.21 * scale_value, 0.0), glass)
-	_add_cylinder("PotionCork", 0.052 * scale_value, 0.052 * scale_value, 0.07 * scale_value, world_position + Vector3(0.0, 0.30 * scale_value, 0.0), _mat(Color(0.57, 0.38, 0.22)))
+	var potion_body := _add_sphere("PotionBody", 0.13 * scale_value, world_position, glass)
+	potion_body.scale = Vector3(1.0, 1.10, 0.82)
+	var potion_shoulders := _add_sphere("PotionShoulders", 0.085 * scale_value, world_position + Vector3(0.0, 0.10 * scale_value, 0.0), glass)
+	potion_shoulders.scale = Vector3(0.86, 0.72, 0.82)
+	_add_cylinder("PotionNeck", 0.046 * scale_value, 0.046 * scale_value, 0.12 * scale_value, world_position + Vector3(0.0, 0.20 * scale_value, 0.0), glass)
+	var cork := _add_sphere("PotionCork", 0.055 * scale_value, world_position + Vector3(0.0, 0.30 * scale_value, 0.0), _mat(Color(0.57, 0.38, 0.22)))
+	cork.scale = Vector3(0.86, 0.62, 0.86)
 
 
 func _add_candle(world_position: Vector3) -> void:
