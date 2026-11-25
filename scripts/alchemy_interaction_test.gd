@@ -10,6 +10,13 @@ const CAPACITY := 4
 const BOTTLE_SIZE := Vector2(96.0, 228.0)
 const BOTTLE_GAP := 18.0
 const BOTTLE_ROW_Y := 520.0
+const TABLETOP_BASE_ANCHORS: Array[Vector2] = [
+	Vector2(0.630, 0.445),
+	Vector2(0.505, 0.500),
+	Vector2(0.385, 0.550),
+	Vector2(0.265, 0.600)
+]
+const VESSEL_DEPTH_SCALES: Array[float] = [0.94, 0.98, 1.02, 1.06]
 
 const ESSENCE_NAMES: Array[String] = ["tide", "moon", "ember"]
 const PALETTE: Dictionary = {
