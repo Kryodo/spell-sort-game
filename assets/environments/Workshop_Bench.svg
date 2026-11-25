@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="610" viewBox="0 0 720 610">
+<defs>
+ <linearGradient id="woodTop" x1="0" y1="0" x2=".15" y2="1"><stop stop-color="#d59a61"/><stop offset=".18" stop-color="#aa6b3d"/><stop offset=".5" stop-color="#88512f"/><stop offset=".82" stop-color="#684027"/><stop offset="1" stop-color="#45291d"/></linearGradient>
+ <linearGradient id="woodFace" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a86a3e"/><stop offset=".16" stop-color="#89502f"/><stop offset=".52" stop-color="#674027"/><stop offset=".85" stop-color="#43291e"/><stop offset="1" stop-color="#302119"/></linearGradient>
+ <linearGradient id="woodSide" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#3d281d"/><stop offset=".22" stop-color="#75472b"/><stop offset=".48" stop-color="#ad7144"/><stop offset=".7" stop-color="#70432a"/><stop offset="1" stop-color="#302119"/></linearGradient>
+ <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff0bc"/><stop offset=".2" stop-color="#dbad69"/><stop offset=".54" stop-color="#99602f"/><stop offset=".78" stop-color="#e6b978"/><stop offset="1" stop-color="#684222"/></linearGradient>
+ <linearGradient id="drawer" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#60402c"/><stop offset=".48" stop-color="#432b20"/><stop offset="1" stop-color="#2d211b"/></linearGradient>
+</defs>
+
+<!-- Grounding shadow under the whole bench. -->
+<ellipse cx="360" cy="578" rx="326" ry="21" fill="#090908" opacity=".42"/>
+<ellipse cx="360" cy="572" rx="277" ry="12" fill="#1b1511" opacity=".35"/>
+
+<!-- Rear legs and side stretchers. -->
+<path d="M87 210 L145 222 L131 550 L83 570 L68 554Z" fill="url(#woodSide)" stroke="#2b211a" stroke-width="5"/>
+<path d="M574 222 L633 210 L652 554 L637 570 L589 550Z" fill="url(#woodSide)" stroke="#2b211a" stroke-width="5"/>
+<path d="M99 266 L133 273 L121 527 L91 540Z" fill="#d1945b" opacity=".18"/>
+<path d="M600 273 L633 266 L630 540 L599 527Z" fill="#f0b978" opacity=".12"/>
+<path d="M94 530 L127 521 L122 557 L84 570 L72 557Z M594 521 L627 530 L648 557 L636 570 L598 557Z" fill="url(#brass)" opacity=".82" stroke="#4d321f" stroke-width="2"/>
+
+<!-- Inner support apron. -->
+<path d="M109 229 L610 229 L621 425 Q360 451 99 425Z" fill="#302119" stroke="#211914" stroke-width="5"/>
+<path d="M119 235 L601 235 L608 415 Q360 440 112 415Z" fill="url(#woodFace)" stroke="#4a2c1e" stroke-width="3"/>
+<path d="M133 250 Q360 264 587 250 L592 399 Q360 422 128 399Z" fill="none" stroke="#d7a16c" stroke-width="2" opacity=".32"/>
+
+<!-- Central inset panel and carved edging. -->
+<path d="M270 269 Q360 260 450 269 L444 389 Q360 398 276 389Z" fill="#3a2920" stroke="url(#brass)" stroke-width="2.2"/>
+<path d="M283 279 Q360 272 437 279 L432 378 Q360 387 288 378Z" fill="url(#drawer)" stroke="#8e6035" stroke-width="1.4"/>
+<path d="M296 289 Q360 283 424 289 L420 369 Q360 376 300 369Z" fill="none" stroke="#d5a66b" stroke-width="1.5" opacity=".45"/>
+<path d="M328 330 L360 307 L392 330 L360 353Z" fill="#33291f" stroke="#b98a53" stroke-width="1.7"/>
+<path d="M360 314 L375 330 L360 346 L345 330Z" fill="#34685f" stroke="#e3bc79" stroke-width="1.5"/>
+<path d="M360 317 L367 330 L360 339 L353 330Z" fill="#c8edcf" opacity=".42"/>
+
+<!-- Wide drawers. -->
+<g>
+ <path d="M139 278 L251 278 L249 360 Q195 365 140 360Z" fill="url(#drawer)" stroke="#bf8852" stroke-width="2"/>
+ <path d="M151 289 L239 289 L238 347 Q195 352 152 347Z" fill="none" stroke="#d6a36c" stroke-width="1.5" opacity=".5"/>
+ <path d="M469 278 L581 278 L580 360 Q525 365 471 360Z" fill="url(#drawer)" stroke="#bf8852" stroke-width="2"/>
+ <path d="M482 289 L569 289 L568 347 Q525 352 482 347Z" fill="none" stroke="#d6a36c" stroke-width="1.5" opacity=".5"/>
+ <path d="M187 317 L203 317 L205 336 L185 336Z M517 317 L533 317 L535 336 L515 336Z" fill="url(#brass)" stroke="#4e321f" stroke-width="1.6"/>
+ <circle cx="195" cy="327" r="2.3" fill="#fff0bc"/><circle cx="525" cy="327" r="2.3" fill="#fff0bc"/>
+</g>
+
+<!-- Side panels and carved braces. -->
+<path d="M115 426 L170 421 L180 505 L128 523Z M605 426 L550 421 L540 505 L592 523Z" fill="#473020" stroke="#241b16" stroke-width="3"/>
+<path d="M128 438 L158 435 L164 491 L139 502Z M592 438 L562 435 L556 491 L581 502Z" fill="none" stroke="#bc8752" stroke-width="2" opacity=".5"/>
+<path d="M180 441 Q360 460 540 441" fill="none" stroke="#2c2019" stroke-width="9" opacity=".8"/>
+<path d="M184 444 Q360 463 536 444" fill="none" stroke="#bd8955" stroke-width="2.5" opacity=".55"/>
+
+<!-- Front board thickness. -->
+<path d="M29 112 Q360 158 691 112 L681 199 Q360 245 39 199Z" fill="url(#woodSide)" stroke="#352319" stroke-width="5"/>
+<path d="M39 164 Q360 207 681 164 L676 195 Q360 238 44 195Z" fill="#3a251b" opacity=".76"/>
+<path d="M43 169 Q360 212 677 169" fill="none" stroke="#e4b276" stroke-width="2.2" opacity=".62"/>
+<path d="M44 190 Q360 231 676 190" fill="none" stroke="#211914" stroke-width="3" opacity=".8"/>
+
+<!-- The broad worktop: large, softly rounded, with a deep front lip. -->
+<path d="M25 55 Q360 5 695 55 L711 119 Q710 138 690 145 Q360 190 30 145 Q10 138 9 119Z" fill="#2b1c15" opacity=".65"/>
+<path d="M18 46 Q360 -2 702 46 L713 103 Q712 121 691 129 Q360 175 29 129 Q8 121 7 103Z" fill="url(#woodTop)" stroke="#38241a" stroke-width="5"/>
+<path d="M22 49 Q360 6 698 49 L704 83 Q360 126 16 83Z" fill="#d59a61" opacity=".13"/>
+<path d="M17 101 Q360 150 703 101 L710 120 Q712 132 690 137 Q360 183 30 137 Q8 132 10 120Z" fill="url(#woodFace)" stroke="#43291d" stroke-width="3"/>
+<path d="M20 112 Q360 160 700 112" fill="none" stroke="#edbd7c" stroke-width="3" opacity=".72"/>
+<path d="M27 124 Q360 169 693 124" fill="none" stroke="#281b14" stroke-width="2.2" opacity=".78"/>
+<path d="M39 55 Q360 14 681 55" fill="none" stroke="#ffe0a7" stroke-width="2.4" opacity=".78"/>
+
+<!-- Wood grain and subtle wear, kept broad rather than noisy. -->
+<g fill="none" stroke-linecap="round">
+ <path d="M76 63 Q156 48 235 55 M270 47 Q370 35 467 48 M499 57 Q571 52 647 66" stroke="#f2c78f" stroke-width="2" opacity=".23"/>
+ <path d="M63 82 Q145 73 206 82 M328 76 Q407 66 476 78 M516 83 Q578 76 656 88" stroke="#3b2418" stroke-width="2" opacity=".23"/>
+ <path d="M96 95 Q156 108 212 103 M426 100 Q502 105 588 91" stroke="#edbb7d" stroke-width="1.3" opacity=".2"/>
+ <path d="M88 176 Q168 189 251 184 M471 184 Q554 188 630 174" stroke="#c4874e" stroke-width="1.5" opacity=".27"/>
+</g>
+
+<!-- Brass corner plates, studs and lower foot details. -->
+<g fill="url(#brass)" stroke="#5b3b23" stroke-width="1.5">
+ <path d="M28 62 L56 57 L62 83 L35 88Z"/><path d="M664 57 L692 62 L685 88 L658 83Z"/>
+ <circle cx="45" cy="72" r="3"/><circle cx="675" cy="72" r="3"/>
+ <circle cx="115" cy="245" r="3.2"/><circle cx="605" cy="245" r="3.2"/>
+</g>
+</svg>
