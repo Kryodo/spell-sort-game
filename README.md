@@ -72,7 +72,7 @@ Godot 4.7 was not available in the editing environment, so a runtime launch and 
 
 ## Workbench cauldron
 
-The layered cauldron is now part of the main sorting gameplay screen, positioned on the upper-right tabletop above the vial row. It is a visual workshop prop and does not cover or intercept bottle interactions.
+The layered cauldron is now part of the main sorting gameplay screen, positioned in the clear upper-right workbench area above the vial row. It is a visual workshop prop and does not cover or intercept bottle interactions.
 
 - `assets/environments/SpellSort_Cauldron_Rear.svg` — copper body, handles, feet, dark inner bowl and rear rim.
 - `scripts/alchemy_cauldron.gd` — animated liquid with a full oval fill, moving wave bands, a drifting sheen and continuously moving bubbles.
