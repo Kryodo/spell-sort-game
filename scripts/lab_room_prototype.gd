@@ -168,22 +168,25 @@ func _build_props() -> void:
 			Color(0.89, 0.50, 0.29), Color(0.42, 0.65, 0.82),
 			Color(0.83, 0.70, 0.39)
 		]
-		_make_potion(Vector3(-2.42 + float(index) * 0.34, 2.45, -2.05), colors[index], 0.76)
+		_make_potion(Vector3(-2.42 + float(index) * 0.34, 2.35, -2.05), colors[index], 0.76)
 
+	_add_box("MapShelf", Vector3(1.38, 0.14, 0.52), Vector3(1.83, 2.00, -2.05), wood_light)
+	_add_box("MapShelfSupportLeft", Vector3(0.10, 0.30, 0.12), Vector3(1.30, 1.83, -2.25), brass)
+	_add_box("MapShelfSupportRight", Vector3(0.10, 0.30, 0.12), Vector3(2.36, 1.83, -2.25), brass)
 	_add_box("WorldMapFrame", Vector3(1.02, 1.26, 0.14), Vector3(1.83, 2.95, -2.42), brass)
 	_add_box("WorldMapCanvas", Vector3(0.88, 1.12, 0.055), Vector3(1.83, 2.95, -2.32), _mat(Color(0.42, 0.52, 0.43)))
 	for index in range(4):
 		_add_box("MapRoute_%d" % index, Vector3(0.055, 0.55 - 0.07 * float(index), 0.025), Vector3(1.58 + float(index) * 0.16, 2.93 + 0.10 * sin(float(index)), -2.275), _mat(Color(0.83, 0.69, 0.39)))
 
 	# Candles add a little warm life without relying on textures.
-	_add_candle(Vector3(-2.18, 2.60, -2.00))
+	_add_candle(Vector3(-2.18, 2.38, -2.00))
 	_add_candle(Vector3(0.78, 1.35, 1.55))
-	_add_candle(Vector3(2.16, 2.25, -2.02))
+	_add_candle(Vector3(2.16, 2.22, -2.02))
 
 	# Simple plant silhouettes near the window.
-	_add_cylinder("PlantPot", 0.24, 0.18, 0.30, Vector3(0.93, 0.37, -2.03), _mat(Color(0.57, 0.32, 0.22)))
+	_add_cylinder("PlantPot", 0.24, 0.18, 0.30, Vector3(0.93, 0.17, -2.03), _mat(Color(0.57, 0.32, 0.22)))
 	for index in range(5):
-		var leaf := _add_sphere("PlantLeaf_%d" % index, 0.20, Vector3(0.93 + 0.15 * cos(float(index) * TAU / 5.0), 0.68 + 0.08 * float(index % 2), -2.02 + 0.15 * sin(float(index) * TAU / 5.0)), _mat(Color(0.28, 0.52, 0.32)))
+		var leaf := _add_sphere("PlantLeaf_%d" % index, 0.20, Vector3(0.93 + 0.15 * cos(float(index) * TAU / 5.0), 0.48 + 0.08 * float(index % 2), -2.02 + 0.15 * sin(float(index) * TAU / 5.0)), _mat(Color(0.28, 0.52, 0.32)))
 		leaf.scale = Vector3(0.68, 1.0, 0.48)
 
 
