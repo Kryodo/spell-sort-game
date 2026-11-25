@@ -10,6 +10,19 @@ var _fireflies: Array[MeshInstance3D] = []
 var _firefly_origins: Array[Vector3] = []
 var _firefly_lights: Array[OmniLight3D] = []
 var _clock := 0.0
+var _altar_light: OmniLight3D
+var _altar_seed: MeshInstance3D
+var _altar_water: MeshInstance3D
+var _rune_visuals: Dictionary = {}
+var _status_label: Label
+var _modal_action_button: Button
+var _modal_close_button: Button
+var _modal_action_kind := ""
+var _rune_sequence: Array[String] = ["moon", "ember", "tide"]
+var _rune_progress := 0
+var _ritual_started := false
+var _ritual_complete := false
+var _chapter_complete := false
 
 
 func _ready() -> void:
@@ -42,12 +55,12 @@ func _build_world() -> void:
 	moonlight.shadow_enabled = true
 	add_child(moonlight)
 
-	var altar_light := OmniLight3D.new()
-	altar_light.position = Vector3(0.0, 3.0, -0.2)
-	altar_light.light_color = Color(0.43, 0.84, 0.76)
-	altar_light.light_energy = 1.35
-	altar_light.omni_range = 5.0
-	add_child(altar_light)
+	_altar_light = OmniLight3D.new()
+	_altar_light.position = Vector3(0.0, 3.0, -0.2)
+	_altar_light.light_color = Color(0.43, 0.84, 0.76)
+	_altar_light.light_energy = 0.52
+	_altar_light.omni_range = 5.0
+	add_child(_altar_light)
 
 	var camera := Camera3D.new()
 	_camera = camera
@@ -120,8 +133,9 @@ func _build_landmarks() -> void:
 	_add_cylinder("AltarFoot", 0.80, 0.92, 0.24, Vector3(0.0, 0.22, 0.10), worn_stone)
 	_add_cylinder("AltarPedestal", 0.54, 0.68, 0.82, Vector3(0.0, 0.72, 0.10), stone)
 	_add_cylinder("AltarBowl", 0.83, 0.62, 0.28, Vector3(0.0, 1.24, 0.10), worn_stone)
-	_add_cylinder("AltarWater", 0.58, 0.58, 0.035, Vector3(0.0, 1.40, 0.10), glow)
-	_add_sphere("AltarSeed", 0.34, Vector3(0.0, 1.82, 0.10), _mat(Color(0.61, 0.94, 0.78), 0.0, 1.8))
+	_altar_water = _add_cylinder("AltarWater", 0.58, 0.58, 0.035, Vector3(0.0, 1.40, 0.10), _mat(Color(0.18, 0.39, 0.39), 0.05, 0.18))
+	_altar_seed = _add_sphere("AltarSeed", 0.34, Vector3(0.0, 1.82, 0.10), _mat(Color(0.61, 0.94, 0.78), 0.0, 1.8))
+	_altar_seed.visible = false
 	_add_cylinder("AltarGoldBand", 0.56, 0.56, 0.08, Vector3(0.0, 0.63, 0.10), gold)
 
 	# Broken standing stones on the edge of the glade.
@@ -135,6 +149,9 @@ func _build_landmarks() -> void:
 
 	_add_crystal_cluster(Vector3(-2.65, 0.08, -1.05), Color(0.36, 0.79, 0.78))
 	_add_crystal_cluster(Vector3(2.85, 0.08, -0.45), Color(0.66, 0.56, 0.91))
+	_add_rune_station("moon", Vector3(-3.85, 0.0, 1.25), Color(0.66, 0.54, 0.91))
+	_add_rune_station("ember", Vector3(3.85, 0.0, 1.25), Color(0.96, 0.51, 0.24))
+	_add_rune_station("tide", Vector3(0.0, 0.0, 4.15), Color(0.24, 0.77, 0.76))
 	_add_firefly(Vector3(-1.75, 1.55, 1.85))
 	_add_firefly(Vector3(1.85, 2.10, 0.35))
 	_add_firefly(Vector3(-2.75, 1.35, -2.25))
@@ -142,10 +159,28 @@ func _build_landmarks() -> void:
 	_add_firefly(Vector3(0.85, 2.35, -3.10))
 
 
+func _add_rune_station(rune_name: String, origin: Vector3, tint: Color) -> void:
+	var worn_stone := _mat(Color(0.43, 0.47, 0.40))
+	_add_cylinder("RunePedestal_" + rune_name, 0.60, 0.76, 0.42, origin + Vector3(0.0, 0.24, 0.0), worn_stone)
+	_add_cylinder("RuneInset_" + rune_name, 0.43, 0.43, 0.055, origin + Vector3(0.0, 0.48, 0.0), _mat(Color(0.18, 0.23, 0.21)))
+	var glow := _add_sphere("RuneGlow_" + rune_name, 0.25, origin + Vector3(0.0, 0.88, 0.0), _mat(tint, 0.0, 0.85))
+	glow.scale = Vector3(0.82, 1.24, 0.82)
+	_rune_visuals[rune_name] = glow
+	var light := OmniLight3D.new()
+	light.position = origin + Vector3(0.0, 1.0, 0.0)
+	light.light_color = tint
+	light.light_energy = 0.22
+	light.omni_range = 2.0
+	add_child(light)
+
+
 func _build_interactions() -> void:
-	_register_interaction("altar", "The Verdant Altar", "A luminous seed rests above the old stone bowl. It responds to the alchemical essences you have begun to separate.", Vector3(0.0, 1.45, 0.10), Vector3(1.75, 2.20, 1.50))
-	_register_interaction("gate", "The Ancient Gate", "Runes awaken in the stone. Beyond this arch lies a deeper part of Verdant Hollow, still hidden from view.", Vector3(0.0, 3.00, -2.32), Vector3(3.95, 2.80, 0.92))
-	_register_interaction("spring", "The Moonlit Spring", "The water reflects a light that does not seem to come from the sky. Perhaps a discovered recipe will reveal its purpose.", Vector3(0.0, 0.28, -3.75), Vector3(2.90, 0.65, 2.90))
+	_register_interaction("altar", "The Verdant Altar", "The altar is dormant. Restore the three rune stones first, then return here to claim the seed.", Vector3(0.0, 1.45, 0.10), Vector3(1.75, 2.20, 1.50))
+	_register_interaction("gate", "The Ancient Gate", "The gate preserves a short sequence: MOON → EMBER → TIDE. Memorize the order, begin the trial, then touch the three matching rune stones around the clearing.", Vector3(0.0, 3.00, -2.32), Vector3(3.95, 2.80, 0.92))
+	_register_interaction("spring", "The Moonlit Spring", "The spring carries a low, steady hum. Its water brightens each time one of the ancient runes is restored.", Vector3(0.0, 0.28, -3.75), Vector3(2.90, 0.65, 2.90))
+	_register_interaction("rune_moon", "Moon Rune", "A cool violet light shimmers within the carved stone.", Vector3(-3.85, 1.05, 1.25), Vector3(1.35, 1.70, 1.25))
+	_register_interaction("rune_ember", "Ember Rune", "A warm orange spark turns slowly beneath the stone surface.", Vector3(3.85, 1.05, 1.25), Vector3(1.35, 1.70, 1.25))
+	_register_interaction("rune_tide", "Tide Rune", "A clear blue-green ripple circles the old rune.", Vector3(0.0, 1.05, 4.15), Vector3(1.35, 1.70, 1.25))
 
 
 func _build_hud() -> void:
@@ -175,11 +210,12 @@ func _build_hud() -> void:
 
 	var footer := _panel(Rect2(52.0, 1178.0, 616.0, 72.0), Color(0.035, 0.058, 0.064, 0.82), Color(0.71, 0.76, 0.62, 0.48), 18)
 	root.add_child(footer)
-	var instruction := _label("EXPLORE THE GLADE  ·  TAP THE ALTAR, GATE OR SPRING", 11, Color(0.82, 0.88, 0.80))
-	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	instruction.position = Vector2(12.0, 12.0)
-	instruction.size = Vector2(592.0, 40.0)
-	footer.add_child(instruction)
+	_status_label = _label("VISIT THE ANCIENT GATE TO BEGIN THE RUNE TRIAL", 11, Color(0.82, 0.88, 0.80))
+	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_status_label.position = Vector2(12.0, 12.0)
+	_status_label.size = Vector2(592.0, 40.0)
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	footer.add_child(_status_label)
 
 	_modal = _panel(Rect2(72.0, 484.0, 576.0, 304.0), Color(0.035, 0.058, 0.064, 0.97), Color(0.74, 0.80, 0.64, 0.88), 22)
 	_modal.visible = false
@@ -197,11 +233,18 @@ func _build_hud() -> void:
 	_modal_text.size = Vector2(520.0, 105.0)
 	_modal_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_modal.add_child(_modal_text)
-	var close := _button("CLOSE", true)
-	close.position = Vector2(350.0, 236.0)
-	close.size = Vector2(174.0, 44.0)
-	close.pressed.connect(func(): _modal.visible = false)
-	_modal.add_child(close)
+	_modal_action_button = _button("BEGIN RUNE TRIAL", true)
+	_modal_action_button.position = Vector2(132.0, 236.0)
+	_modal_action_button.size = Vector2(196.0, 44.0)
+	_modal_action_button.visible = false
+	_modal_action_button.pressed.connect(_on_modal_action_pressed)
+	_modal.add_child(_modal_action_button)
+
+	_modal_close_button = _button("CLOSE", false)
+	_modal_close_button.position = Vector2(350.0, 236.0)
+	_modal_close_button.size = Vector2(174.0, 44.0)
+	_modal_close_button.pressed.connect(_on_modal_close_pressed)
+	_modal.add_child(_modal_close_button)
 
 
 func _register_interaction(id: String, title: String, description: String, center: Vector3, extent: Vector3) -> void:
@@ -395,9 +438,106 @@ func _try_interaction(screen_position: Vector2) -> void:
 	if not collider is Area3D:
 		return
 	var area := collider as Area3D
+	var interaction_id := String(area.get_meta("interaction_id"))
+	if interaction_id.begins_with("rune_"):
+		_tap_rune(interaction_id.substr(5))
+		return
+
+	_modal_action_kind = ""
+	_modal_action_button.visible = false
+	_modal_close_button.text = "CLOSE"
 	_modal_title.text = String(area.get_meta("title"))
 	_modal_text.text = String(area.get_meta("description"))
+
+	if interaction_id == "gate":
+		if _ritual_complete:
+			_modal_text.text = "All three runes are awake. The ancient altar is ready to reveal its seed."
+		elif _ritual_started:
+			_modal_text.text = "The trial is active. Touch the rune stones in this order: MOON → EMBER → TIDE. Progress: %d / 3." % _rune_progress
+		else:
+			_modal_action_kind = "start_trial"
+			_modal_action_button.text = "BEGIN RUNE TRIAL"
+			_modal_action_button.visible = true
+	elif interaction_id == "altar":
+		if _ritual_complete and not _chapter_complete:
+			_modal_title.text = "The Awakened Altar"
+			_modal_text.text = "The seed has returned to life. Claim it and carry this discovery back to the laboratory."
+			_modal_action_kind = "claim_seed"
+			_modal_action_button.text = "CLAIM VERDANT SEED"
+			_modal_action_button.visible = true
+		elif _chapter_complete:
+			_modal_title.text = "Verdant Hollow Restored"
+			_modal_text.text = "The seed is yours. The glade's first secret has been restored."
+			_modal_close_button.text = "RETURN TO LAB"
+
 	_modal.visible = true
+
+
+func _tap_rune(rune_name: String) -> void:
+	if not _ritual_started or _ritual_complete:
+		_status_label.text = "The rune stones are dormant. Read the gate's sequence first."
+		return
+	var expected_rune := _rune_sequence[_rune_progress]
+	if rune_name != expected_rune:
+		_rune_progress = 0
+		_reset_rune_visuals()
+		_status_label.text = "The pattern breaks. Start again: MOON → EMBER → TIDE."
+		return
+
+	_rune_progress += 1
+	var rune_visual := _rune_visuals.get(rune_name) as MeshInstance3D
+	if rune_visual != null:
+		rune_visual.scale = Vector3(1.16, 1.54, 1.16)
+	_status_label.text = "Rune restored: %s  ·  %d / 3" % [rune_name.to_upper(), _rune_progress]
+	if _rune_progress >= _rune_sequence.size():
+		_ritual_started = false
+		_ritual_complete = true
+		_restore_altar()
+		_status_label.text = "All three runes answer. The altar has awakened — return to claim its seed."
+
+
+func _reset_rune_visuals() -> void:
+	for rune_name in _rune_visuals.keys():
+		var rune_visual := _rune_visuals[rune_name] as MeshInstance3D
+		if rune_visual != null:
+			rune_visual.scale = Vector3(0.82, 1.24, 0.82)
+
+
+func _restore_altar() -> void:
+	if _altar_seed != null:
+		_altar_seed.visible = true
+		_altar_seed.scale = Vector3.ZERO
+		var seed_tween := create_tween()
+		seed_tween.tween_property(_altar_seed, "scale", Vector3.ONE, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if _altar_water != null:
+		_altar_water.material_override = _mat(Color(0.42, 0.88, 0.77), 0.10, 1.35)
+	if _altar_light != null:
+		_altar_light.light_energy = 1.85
+
+
+func _on_modal_action_pressed() -> void:
+	match _modal_action_kind:
+		"start_trial":
+			_ritual_started = true
+			_rune_progress = 0
+			_reset_rune_visuals()
+			_modal.visible = false
+			_status_label.text = "Remember the pattern: MOON → EMBER → TIDE. Find each glowing rune stone."
+		"claim_seed":
+			_chapter_complete = true
+			_modal_action_kind = ""
+			_modal_action_button.visible = false
+			_modal_title.text = "Verdant Seed Recovered"
+			_modal_text.text = "The glade's first secret is restored. A new discovery awaits in the laboratory."
+			_modal_close_button.text = "RETURN TO LAB"
+			_status_label.text = "CHAPTER DISCOVERY COMPLETE  ·  THE VERDANT SEED IS YOURS"
+
+
+func _on_modal_close_pressed() -> void:
+	if _chapter_complete:
+		get_tree().change_scene_to_file(HUB_SCENE)
+	else:
+		_modal.visible = false
 
 
 func _process(delta: float) -> void:
