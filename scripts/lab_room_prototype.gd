@@ -211,9 +211,39 @@ func _build_props() -> void:
 	for index in range(4):
 		_add_box("MapRoute_%d" % index, Vector3(0.055, 0.55 - 0.07 * float(index), 0.025), Vector3(1.58 + float(index) * 0.16, 2.93 + 0.10 * sin(float(index)), -2.275), _mat(Color(0.83, 0.69, 0.39)))
 
+	# The map used to be an unlabelled green panel. Add actual readable chapter text
+	# on its front face so the Verdant destination is visible at the hub camera scale.
+	var chapter_tag := Label3D.new()
+	chapter_tag.name = "VerdantChapterTag"
+	chapter_tag.text = "CHAPTER 01"
+	chapter_tag.font_size = 24
+	chapter_tag.pixel_size = 0.0025
+	chapter_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chapter_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	chapter_tag.modulate = Color(0.91, 0.78, 0.52)
+	chapter_tag.outline_size = 7
+	chapter_tag.outline_modulate = Color(0.12, 0.16, 0.13)
+	chapter_tag.no_depth_test = true
+	chapter_tag.position = Vector3(1.83, 3.30, -2.23)
+	_spawn_parent.add_child(chapter_tag)
+
+	var chapter_title := Label3D.new()
+	chapter_title.name = "VerdantChapterTitle"
+	chapter_title.text = "VERDANT\\nHOLLOW"
+	chapter_title.font_size = 46
+	chapter_title.pixel_size = 0.0025
+	chapter_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chapter_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	chapter_title.modulate = Color(0.94, 0.90, 0.73)
+	chapter_title.outline_size = 8
+	chapter_title.outline_modulate = Color(0.10, 0.14, 0.11)
+	chapter_title.no_depth_test = true
+	chapter_title.position = Vector3(1.83, 2.83, -2.23)
+	_spawn_parent.add_child(chapter_title)
+
 	# Candles add a little warm life without relying on textures.
 	_add_candle(Vector3(-2.18, 2.38, -2.00))
-	_add_candle(Vector3(0.78, 1.35, 1.55))
+	_add_candle(Vector3(0.78, 1.38, 1.55))
 	_add_candle(Vector3(2.16, 2.22, -2.02))
 
 	# Simple plant silhouettes near the window.
@@ -297,8 +327,9 @@ func _build_storage_area() -> void:
 		var crate_x := -0.72 + float(crate_index) * 0.72
 		_add_box("IngredientCrate_%d" % crate_index, Vector3(0.54, 0.48, 0.52), Vector3(crate_x, 1.40, 1.50), _mat(Color(0.39, 0.29, 0.18)))
 		_add_box("IngredientCrateBand_%d" % crate_index, Vector3(0.56, 0.07, 0.055), Vector3(crate_x, 1.43, 1.77), brass)
-	_add_candle(Vector3(-2.35, 2.38, -2.00))
-	_add_candle(Vector3(2.32, 2.38, -2.00))
+	# Candles sit on the upper storage shelves, with their bases aligned to the shelf tops.
+	_add_candle(Vector3(-1.65, 3.875, -2.06))
+	_add_candle(Vector3(1.45, 3.875, -2.06))
 
 
 func _build_archive_area() -> void:
@@ -326,7 +357,8 @@ func _build_archive_area() -> void:
 	_add_cylinder("ArchiveCrystalBase", 0.35, 0.27, 0.22, Vector3(0.70, 1.20, 1.48), brass)
 	var archive_crystal := _add_sphere("ArchiveCrystal", 0.34, Vector3(0.70, 1.58, 1.48), _mat(Color(0.38, 0.78, 0.76), 0.0, 1.1))
 	archive_crystal.scale = Vector3(0.70, 1.35, 0.70)
-	_add_candle(Vector3(-2.40, 2.30, -2.02))
+	# The archive candle rests on the front desk, not in mid-air beside the bookcases.
+	_add_candle(Vector3(-0.95, 1.29, 1.52))
 
 
 func _build_restoration_area() -> void:
@@ -351,7 +383,8 @@ func _build_restoration_area() -> void:
 			var leaf := _add_sphere("HerbLeaf_%d_%d" % [plant_index, leaf_index], 0.21, Vector3(plant_x + cos(angle) * 0.18, 0.62 + 0.08 * float(leaf_index % 2), plant_z + sin(angle) * 0.18), leaf_green if leaf_index % 2 == 0 else leaf_light)
 			leaf.scale = Vector3(0.44, 1.28, 0.36)
 	_add_box("RestorationCrate", Vector3(0.82, 0.70, 0.74), Vector3(2.18, 0.38, 1.30), wood)
-	_add_candle(Vector3(2.52, 1.45, -2.08))
+	# The restoration candle is placed on the crate top.
+	_add_candle(Vector3(2.18, 0.88, 1.30))
 
 
 func _build_main_interactables() -> void:
@@ -507,12 +540,97 @@ func _add_candle(world_position: Vector3) -> void:
 	_flame_lights.append(light)
 
 
+
+func _bevel_samples(half_extent: float, bevel: float) -> PackedFloat32Array:
+	return PackedFloat32Array([
+		-half_extent,
+		-half_extent + bevel,
+		0.0,
+		half_extent - bevel,
+		half_extent
+	])
+
+
+func _rounded_box_mesh(dimensions: Vector3) -> ArrayMesh:
+	var half := dimensions * 0.5
+	var bevel := minf(minf(half.x, minf(half.y, half.z)) * 0.42, 0.14)
+	bevel = maxf(bevel, 0.001)
+	var inner := Vector3(half.x - bevel, half.y - bevel, half.z - bevel)
+
+	# Six subdivided faces share the same rounded edge profile. The extra
+	# boundary samples create broad, soft bevels rather than sharp box corners.
+	var face_centers: Array[Vector3] = [
+		Vector3(half.x, 0.0, 0.0),
+		Vector3(-half.x, 0.0, 0.0),
+		Vector3(0.0, half.y, 0.0),
+		Vector3(0.0, -half.y, 0.0),
+		Vector3(0.0, 0.0, half.z),
+		Vector3(0.0, 0.0, -half.z)
+	]
+	var u_axes: Array[Vector3] = [
+		Vector3.UP, Vector3.FORWARD,
+		Vector3.FORWARD, Vector3.RIGHT,
+		Vector3.RIGHT, Vector3.UP
+	]
+	var v_axes: Array[Vector3] = [
+		Vector3.BACK, Vector3.UP,
+		Vector3.RIGHT, Vector3.BACK,
+		Vector3.UP, Vector3.RIGHT
+	]
+	var u_halves: Array[float] = [half.y, half.z, half.z, half.x, half.x, half.y]
+	var v_halves: Array[float] = [half.z, half.y, half.x, half.z, half.y, half.x]
+
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	for face_index in range(6):
+		var u_samples := _bevel_samples(u_halves[face_index], bevel)
+		var v_samples := _bevel_samples(v_halves[face_index], bevel)
+		var face_start := vertices.size()
+
+		for v_index in range(5):
+			for u_index in range(5):
+				var point: Vector3 = face_centers[face_index] + u_axes[face_index] * u_samples[u_index] + v_axes[face_index] * v_samples[v_index]
+				var inner_point := Vector3(
+					clampf(point.x, -inner.x, inner.x),
+					clampf(point.y, -inner.y, inner.y),
+					clampf(point.z, -inner.z, inner.z)
+				)
+				var normal := (point - inner_point).normalized()
+				vertices.append(inner_point + normal * bevel)
+				normals.append(normal)
+				uvs.append(Vector2(float(u_index) / 4.0, float(v_index) / 4.0))
+
+		for v_index in range(4):
+			for u_index in range(4):
+				var a := face_start + v_index * 5 + u_index
+				var b := a + 1
+				var d := a + 5
+				var c := d + 1
+				indices.append(a)
+				indices.append(b)
+				indices.append(c)
+				indices.append(a)
+				indices.append(c)
+				indices.append(d)
+
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
 func _add_box(node_name: String, dimensions: Vector3, world_position: Vector3, material: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
-	var mesh := BoxMesh.new()
-	mesh.size = dimensions
-	instance.mesh = mesh
+	instance.mesh = _rounded_box_mesh(dimensions)
 	instance.position = world_position
 	instance.material_override = material
 	_spawn_parent.add_child(instance)
@@ -556,7 +674,7 @@ func _mat(color: Color, metallic: float = 0.0, emission_strength: float = 0.0) -
 	material.set_shader_parameter("metallic_amount", metallic)
 	material.set_shader_parameter("roughness_amount", 0.88)
 	material.set_shader_parameter("grain_scale", 8.0)
-	material.set_shader_parameter("grain_strength", 0.055)
+	material.set_shader_parameter("grain_strength", 0.14)
 	material.set_shader_parameter("emission_color", Color(color.r, color.g, color.b, 1.0))
 	material.set_shader_parameter("emission_strength", emission_strength)
 	return material
