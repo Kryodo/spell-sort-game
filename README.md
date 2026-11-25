@@ -1,24 +1,45 @@
-# Spell Sort — First Playable Prototype
+# Spell Sort — Illustrated Workbench Sorting Prototype
 
-This branch adds the first playable portrait puzzle screen to the existing Godot project.
+This branch resets the active game presentation around the sorting mechanic. It uses a generated 2D environment illustration as the full-screen scene and keeps the vial sorting, pouring, undo, reset, and completion behaviour as live Godot controls.
 
 ## Run
 
-Open the project in Godot 4.7 and run the project (F6 is not required; the main scene is configured in project.godot).
+Open the project in Godot 4.7 and run the configured main scene:
 
-## Prototype loop
+`res://scenes/alchemy_interaction_test.tscn`
 
-- Tap or click a vial to select it.
-- Tap an empty vial, or a vial whose top essence matches, to pour.
-- A pour transfers the complete contiguous top run that fits.
-- Sort the three essences into full, single-colour vials.
-- Undo reverses the previous successful pour.
-- Reset restores the opening puzzle. After solving it, the same button starts a new shuffled mix.
+The project remains portrait-first at 720 × 1280.
 
-The puzzle uses four vials, three essences and four layers per vial.
+## Environment artwork
 
-## Art integration
+The four uploaded environment options are kept in `assets/environments/`:
 
-The portrait laboratory background is used directly from assets/environments/laboratory_background.png. The gameplay vials use a trimmed bottle sprite from the approved bottle sheet, with the essence layers drawn dynamically over the glass artwork. The first bottle cell in the 4 × 4 sheet is used consistently across the four puzzle slots in this prototype.
+- `SpellSort_Workbench_Variant_1.png`
+- `SpellSort_Workbench_Variant_2.png`
+- `SpellSort_Workbench_Variant_3.png`
+- `SpellSort_Workbench_Variant_4.png`
 
-The source sheets in assets/ remain untouched. The ingredient, prop and gameplay-icon sheets remain untouched and can be integrated after their individual sprite bounds have been checked in the running project. Bottle pouring now includes a lift, directional tilt, animated essence stream, interpolated source and destination fill levels, and a return-to-rest motion. Undo and reset are temporarily locked while a pour animation is in progress. UI panels, labels and buttons are intentionally built in Godot.
+Variant 4 is currently selected as the full-screen background in `scripts/alchemy_interaction_test.gd`. The image is used as artwork, not reconstructed with 3D meshes or a shared material shader.
+
+## Sorting gameplay
+
+The sorting activity remains implemented in:
+
+- `scripts/alchemy_interaction_test.gd` — level state, drag/drop, pour animation, stream, undo/reset, completion.
+- `scripts/alchemy_bottle.gd` — live glass vessel drawing, animated liquid, slosh, lift and tilt.
+- `scenes/alchemy_interaction_test.tscn` — screen root.
+
+The current test level has four vessels, three essences and four measures per essence. Drag a vessel and align its open mouth with a valid receiving vessel. A valid transfer moves the matching contiguous run at the top of the source. Undo and Reset are available in the bottom HUD.
+
+## Presentation approach
+
+- One illustrated 2D environment background.
+- Live vials and liquid remain independently rendered and interactive.
+- No procedural 3D room, low-poly props, camera panning or shared painterly shader.
+- The environment artwork stays visible; the HUD uses small translucent panels and the vials are drawn directly over the tabletop.
+
+The initial vial placement is a first alignment pass. Run the scene locally and adjust the vial row position/scale against the exact Variant 4 composition if required.
+
+## Validation
+
+This code update was made through the GitHub repository tools; Godot 4.7 is not available in this environment, so a runtime launch and touch-interaction pass still need local confirmation.
