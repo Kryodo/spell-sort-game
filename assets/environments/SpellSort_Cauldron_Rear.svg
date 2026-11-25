@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="220" viewBox="0 0 240 220">
+ <defs>
+  <linearGradient id="copperBody" x1="0" y1="0" x2=".85" y2="1">
+   <stop offset="0" stop-color="#e5ad6c"/>
+   <stop offset=".18" stop-color="#b87543"/>
+   <stop offset=".42" stop-color="#75442c"/>
+   <stop offset=".68" stop-color="#a86539"/>
+   <stop offset=".88" stop-color="#583321"/>
+   <stop offset="1" stop-color="#39251c"/>
+  </linearGradient>
+  <linearGradient id="bodyEdge" x1="0" y1="0" x2="1" y2="0">
+   <stop offset="0" stop-color="#4e2f22"/>
+   <stop offset=".16" stop-color="#f0be79"/>
+   <stop offset=".34" stop-color="#9b5c37"/>
+   <stop offset=".68" stop-color="#633a27"/>
+   <stop offset=".86" stop-color="#e2aa66"/>
+   <stop offset="1" stop-color="#4b2e21"/>
+  </linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#fff0be"/>
+   <stop offset=".18" stop-color="#e6b46d"/>
+   <stop offset=".48" stop-color="#a96d38"/>
+   <stop offset=".74" stop-color="#f0c27c"/>
+   <stop offset="1" stop-color="#714526"/>
+  </linearGradient>
+  <linearGradient id="darkGold" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#754724"/>
+   <stop offset=".5" stop-color="#d39b56"/>
+   <stop offset="1" stop-color="#4c2d1e"/>
+  </linearGradient>
+  <radialGradient id="innerBowl" cx="48%" cy="28%" r="78%">
+   <stop offset="0" stop-color="#304c42"/>
+   <stop offset=".55" stop-color="#172a26"/>
+   <stop offset="1" stop-color="#0c1716"/>
+  </radialGradient>
+  <linearGradient id="handle" x1="0" y1="0" x2="1" y2="1">
+   <stop offset="0" stop-color="#f4ce86"/>
+   <stop offset=".28" stop-color="#9b6335"/>
+   <stop offset=".58" stop-color="#5b351f"/>
+   <stop offset=".82" stop-color="#d9a662"/>
+   <stop offset="1" stop-color="#5a351f"/>
+  </linearGradient>
+  <linearGradient id="foot" x1="0" y1="0" x2="1" y2="0">
+   <stop offset="0" stop-color="#613a25"/>
+   <stop offset=".45" stop-color="#d49a5b"/>
+   <stop offset=".70" stop-color="#8d542e"/>
+   <stop offset="1" stop-color="#3e281d"/>
+  </linearGradient>
+ </defs>
+
+ <!-- Ground shadow and small rear feet. -->
+ <ellipse cx="120" cy="208" rx="96" ry="8" fill="#080706" opacity=".35"/>
+ <path d="M64 165 Q58 184 55 201 Q70 211 88 202 L91 183 Z" fill="url(#foot)" stroke="#43291d" stroke-width="2"/>
+ <path d="M176 165 Q182 184 185 201 Q170 211 152 202 L149 183 Z" fill="url(#foot)" stroke="#43291d" stroke-width="2"/>
+ <path d="M64 190 Q73 195 85 192 M175 190 Q167 195 155 192" fill="none" stroke="#f0bf7b" stroke-width="2" opacity=".45"/>
+
+ <!-- Side handles are behind the vessel body. -->
+ <path d="M48 83 C13 60 7 89 21 116 C28 130 40 137 52 135"
+       fill="none" stroke="#3f281d" stroke-width="19" stroke-linecap="round"/>
+ <path d="M48 82 C16 63 12 91 25 114 C31 125 41 130 51 130"
+       fill="none" stroke="url(#handle)" stroke-width="13" stroke-linecap="round"/>
+ <path d="M43 82 C23 72 19 91 29 109" fill="none" stroke="#ffe0a0" stroke-width="2.2" opacity=".66" stroke-linecap="round"/>
+ <path d="M192 83 C227 60 233 89 219 116 C212 130 200 137 188 135"
+       fill="none" stroke="#3f281d" stroke-width="19" stroke-linecap="round"/>
+ <path d="M192 82 C224 63 228 91 215 114 C209 125 199 130 189 130"
+       fill="none" stroke="url(#handle)" stroke-width="13" stroke-linecap="round"/>
+ <path d="M197 82 C217 72 221 91 211 109" fill="none" stroke="#ffe0a0" stroke-width="2.2" opacity=".66" stroke-linecap="round"/>
+
+ <!-- Main rounded copper vessel. -->
+ <path d="M28 76
+          C31 66 51 58 76 54
+          Q120 46 164 54
+          C189 58 209 66 212 76
+          C210 111 200 158 182 183
+          C166 204 144 211 120 213
+          C96 211 74 204 58 183
+          C40 158 30 111 28 76 Z"
+       fill="url(#copperBody)" stroke="#3e281d" stroke-width="4" stroke-linejoin="round"/>
+ <path d="M34 82 C42 130 51 165 68 184 C81 198 99 205 120 207"
+       fill="none" stroke="#f0bd7d" stroke-width="3" opacity=".36" stroke-linecap="round"/>
+ <path d="M206 82 C198 130 189 165 172 184 C159 198 141 205 120 207"
+       fill="none" stroke="#261d18" stroke-width="4" opacity=".48" stroke-linecap="round"/>
+ <path d="M52 135 C57 162 71 181 88 190" fill="none" stroke="#ffd08b" stroke-width="8" opacity=".12" stroke-linecap="round"/>
+ <path d="M188 133 C181 166 169 184 151 194" fill="none" stroke="#ffe1a1" stroke-width="5" opacity=".12" stroke-linecap="round"/>
+
+ <!-- Hammered-metal sheen and subtle engraved bands. -->
+ <path d="M44 145 Q120 174 196 145" fill="none" stroke="#f0bd79" stroke-width="2" opacity=".30"/>
+ <path d="M48 151 Q120 181 192 151" fill="none" stroke="#42291d" stroke-width="2" opacity=".32"/>
+ <path d="M62 177 Q120 203 178 177" fill="none" stroke="#f2c27f" stroke-width="1.5" opacity=".30"/>
+ <path d="M51 109 C61 124 67 130 74 132" fill="none" stroke="#ffe5b0" stroke-width="2" opacity=".32" stroke-linecap="round"/>
+ <path d="M189 109 C179 124 173 130 166 132" fill="none" stroke="#ffe5b0" stroke-width="2" opacity=".22" stroke-linecap="round"/>
+
+ <!-- Bowl opening: the liquid is drawn dynamically over this dark inset. -->
+ <ellipse cx="120" cy="77" rx="92" ry="28" fill="#3c251b" stroke="#2c1c15" stroke-width="2"/>
+ <ellipse cx="120" cy="76" rx="87" ry="24" fill="url(#gold)" stroke="#55351f" stroke-width="1.6"/>
+ <ellipse cx="120" cy="76" rx="80" ry="18.5" fill="url(#innerBowl)" stroke="#674326" stroke-width="1.5"/>
+ <ellipse cx="120" cy="73.5" rx="75" ry="13.5" fill="none" stroke="#d8a365" stroke-width="1" opacity=".26"/>
+ <path d="M39 75 Q120 43 201 75" fill="none" stroke="#fff0bf" stroke-width="2.1" opacity=".75" stroke-linecap="round"/>
+ <path d="M43 84 Q120 113 197 84" fill="none" stroke="#4b2c1a" stroke-width="2.4" opacity=".72" stroke-linecap="round"/>
+
+ <!-- Riveted handle mounts. -->
+ <g>
+  <circle cx="43" cy="91" r="7.5" fill="url(#gold)" stroke="#4a2b1b" stroke-width="2"/>
+  <circle cx="43" cy="91" r="2.2" fill="#fff0c4" opacity=".8"/>
+  <circle cx="197" cy="91" r="7.5" fill="url(#gold)" stroke="#4a2b1b" stroke-width="2"/>
+  <circle cx="197" cy="91" r="2.2" fill="#fff0c4" opacity=".8"/>
+ </g>
+
+ <!-- Small front medallion; the front overlay will add its final polish. -->
+ <path d="M120 164 L135 176 L120 190 L105 176 Z" fill="#4c2b1c" stroke="#d39a58" stroke-width="2"/>
+ <path d="M120 168 L130 176 L120 185 L110 176 Z" fill="#367d70" stroke="#f1ca82" stroke-width="1.2"/>
+ <path d="M120 170 L124 176 L120 181 L116 176 Z" fill="#d9f3cf" opacity=".46"/>
+</svg>
