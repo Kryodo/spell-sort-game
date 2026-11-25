@@ -2,10 +2,12 @@ extends Node2D
 
 var _time := 0.0
 
-const LEFT_CANDLE_BASE := Vector2(26.0, 220.0)
-const REAR_CANDLE_BASE := Vector2(520.0, 345.0)
+const LEFT_CANDLE_FOOT := Vector2(26.0, 272.0)
+const LEFT_FLAME_BASE := Vector2(26.0, 213.0)
+const REAR_CANDLE_FOOT := Vector2(520.0, 345.0)
+const REAR_FLAME_BASE := Vector2(520.0, 281.0)
 const CRYSTAL_GLOW_CENTER := Vector2(470.0, 142.0)
-const CAULDRON_GLOW_CENTER := Vector2(198.0, 530.0)
+const CAULDRON_GLOW_CENTER := Vector2(205.0, 548.0)
 
 
 func _process(delta: float) -> void:
@@ -14,14 +16,14 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	_draw_candle_glow(LEFT_CANDLE_BASE + Vector2(0.0, -12.0), 1.0, 76.0)
-	_draw_candle_glow(REAR_CANDLE_BASE + Vector2(0.0, -11.0), 0.82, 64.0)
+	_draw_candle_glow(LEFT_FLAME_BASE + Vector2(0.0, -9.0), 1.0, 72.0)
+	_draw_candle_glow(REAR_FLAME_BASE + Vector2(0.0, -9.0), 0.82, 62.0)
 	_draw_crystal_glow(CRYSTAL_GLOW_CENTER)
 	_draw_cauldron_glow(CAULDRON_GLOW_CENTER)
 
 	_draw_rear_candle_stand()
-	_draw_flame(LEFT_CANDLE_BASE, 1.0, 0.0)
-	_draw_flame(REAR_CANDLE_BASE, 0.82, 1.4)
+	_draw_flame(LEFT_FLAME_BASE, 1.0, 0.0)
+	_draw_flame(REAR_FLAME_BASE, 0.82, 1.4)
 	_draw_motes()
 
 
@@ -51,7 +53,7 @@ func _draw_cauldron_glow(center: Vector2) -> void:
 
 func _draw_rear_candle_stand() -> void:
 	# A restrained brass holder on the rear counter; the wick and flame stay live.
-	var base := REAR_CANDLE_BASE
+	var base := REAR_CANDLE_FOOT
 	draw_colored_polygon(
 		PackedVector2Array([
 			base + Vector2(-20.0, 0.0),
@@ -88,30 +90,30 @@ func _draw_flame(base: Vector2, strength: float, phase: float) -> void:
 	var sway := sin(_time * 5.2 + phase) * 2.7
 	var height := 28.0 + sin(_time * 4.1 + phase) * 2.2
 	var outer := PackedVector2Array([
-		base + Vector2(-8.0, -59.0),
-		base + Vector2(-10.0 + sway * 0.35, -59.0 - height * 0.34),
-		base + Vector2(-4.0 + sway, -59.0 - height * 0.78),
-		base + Vector2(1.0 + sway * 1.2, -59.0 - height),
-		base + Vector2(8.0 + sway * 0.65, -59.0 - height * 0.68),
-		base + Vector2(9.0, -59.0 - height * 0.28),
-		base + Vector2(6.0, -59.0)
+		base + Vector2(-8.0, 0.0),
+		base + Vector2(-10.0 + sway * 0.35, -height * 0.34),
+		base + Vector2(-4.0 + sway, -height * 0.78),
+		base + Vector2(1.0 + sway * 1.2, -height),
+		base + Vector2(8.0 + sway * 0.65, -height * 0.68),
+		base + Vector2(9.0, -height * 0.28),
+		base + Vector2(6.0, 0.0)
 	])
 	draw_colored_polygon(outer, Color(1.0, 0.48, 0.15, 0.92 * strength))
 
 	var inner := PackedVector2Array([
-		base + Vector2(-4.5, -59.0),
-		base + Vector2(-4.0 + sway * 0.5, -59.0 - height * 0.35),
-		base + Vector2(0.0 + sway, -59.0 - height * 0.72),
-		base + Vector2(4.5 + sway * 0.4, -59.0 - height * 0.31),
-		base + Vector2(4.0, -59.0)
+		base + Vector2(-4.5, 0.0),
+		base + Vector2(-4.0 + sway * 0.5, -height * 0.35),
+		base + Vector2(0.0 + sway, -height * 0.72),
+		base + Vector2(4.5 + sway * 0.4, -height * 0.31),
+		base + Vector2(4.0, 0.0)
 	])
 	draw_colored_polygon(inner, Color(1.0, 0.82, 0.43, 0.96 * strength))
 
 	var core := PackedVector2Array([
-		base + Vector2(-2.0, -59.0),
-		base + Vector2(-1.0 + sway * 0.25, -59.0 - height * 0.39),
-		base + Vector2(2.5 + sway * 0.3, -59.0 - height * 0.15),
-		base + Vector2(2.5, -59.0)
+		base + Vector2(-2.0, 0.0),
+		base + Vector2(-1.0 + sway * 0.25, -height * 0.39),
+		base + Vector2(2.5 + sway * 0.3, -height * 0.15),
+		base + Vector2(2.5, 0.0)
 	])
 	draw_colored_polygon(core, Color(1.0, 0.96, 0.76, 0.86 * strength))
 
