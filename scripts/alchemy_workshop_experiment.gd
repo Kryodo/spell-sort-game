@@ -141,7 +141,8 @@ func _add_tabletop_prop(
 
 	var sprite := Sprite2D.new()
 	sprite.name = node_name
-	sprite.texture = load(resource_or_scene as String) as Texture2D
+	var texture_path := str(resource_or_scene)
+	sprite.texture = load(texture_path) as Texture2D
 	sprite.centered = false
 	sprite.scale = Vector2.ONE * final_scale
 	var texture_size := sprite.texture.get_size()
