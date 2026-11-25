@@ -745,6 +745,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	target.set_preview(_pour_target_preview, _pour_target_start)
 	target.set_feedback(false, true, false)
 
+	_set_status("Aligning the source mouth with the receiving vessel...")
 	var approach := create_tween().set_parallel(true)
 	approach.tween_property(source, "position", source_staging_position, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	approach.tween_method(Callable(source, "set_pose"), source.get_pose(), pour_pose, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -753,6 +754,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 
 	source.trigger_slosh(0.24)
 	target.trigger_slosh(0.12)
+	_set_status("Pouring %s essence..." % essence.capitalize())
 	_pour_stream_active = true
 	_stream_shape.visible = true
 	_stream_highlight.visible = true
