@@ -113,13 +113,13 @@ func _build_interface() -> void:
 
 
 func _build_cauldron() -> void:
-	# Place the cauldron on the open front-right tabletop, below the vial row.
-	# The smaller scale keeps its feet within the visible tabletop surface.
+	# Place the cauldron on the back half of the tabletop, slightly right of
+	# center. The vial row is drawn in front so the prop feels seated behind it.
 	var cauldron := CauldronScene.instantiate() as Node2D
 	cauldron.name = "WorkbenchCauldron"
-	cauldron.position = Vector2(532.0, 760.0)
+	cauldron.position = Vector2(418.0, 382.0)
 	cauldron.scale = Vector2(0.62, 0.62)
-	cauldron.z_index = 1
+	cauldron.z_index = 0
 	add_child(cauldron)
 
 
