@@ -125,6 +125,13 @@ func _build_header() -> void:
 	badge_number.size = Vector2(82.0, 29.0)
 	badge.add_child(badge_number)
 
+	var back_button := _make_action_button("BACK TO LAB", false)
+	back_button.position = Vector2(548.0, 84.0)
+	back_button.size = Vector2(140.0, 25.0)
+	back_button.add_theme_font_size_override("font_size", 10)
+	back_button.pressed.connect(_return_to_lab)
+	add_child(back_button)
+
 
 func _build_experiment_card() -> void:
 	var panel := _make_panel(
@@ -1002,6 +1009,12 @@ func _reset_test() -> void:
 
 	_set_status("Begin the separation. Drag a vial and align its mouth with another.")
 	_refresh_hud()
+
+
+func _return_to_lab() -> void:
+	if _is_animating:
+		return
+	get_tree().change_scene_to_file("res://scenes/lab_room_prototype.tscn")
 
 
 func _set_status(value: String) -> void:
