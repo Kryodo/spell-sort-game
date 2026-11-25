@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/alchemy_cauldron.gd" id="1_controller"]
+[ext_resource type="Texture2D" path="res://assets/environments/SpellSort_Cauldron_Rear.svg" id="2_rear"]
+[ext_resource type="Texture2D" path="res://assets/environments/SpellSort_Cauldron_Front.svg" id="3_front"]
+
+[node name="AlchemyCauldron" type="Node2D"]
+script = ExtResource("1_controller")
+
+[node name="RearMetalwork" type="Sprite2D" parent="."]
+texture = ExtResource("2_rear")
+centered = false
+z_index = -1
+
+[node name="FrontRimAndHighlights" type="Sprite2D" parent="."]
+texture = ExtResource("3_front")
+centered = false
+z_index = 1
