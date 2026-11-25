@@ -9,6 +9,13 @@ const LIQUID_WALL_INSET_PIXELS := 4.5
 const LIQUID_FLOOR_INSET_PIXELS := 5.0
 const LIQUID_BAND_OVERLAP_PIXELS := 1.2
 
+const GLASS_OVERLAY_PATHS: Array[String] = [
+	"res://assets/environments/SpellSort_Vial_01.svg",
+	"res://assets/environments/SpellSort_Vial_02.svg",
+	"res://assets/environments/SpellSort_Vial_03.svg",
+	"res://assets/environments/SpellSort_Vial_04.svg"
+]
+
 var vial_index: int = 0
 var display_name: String = ""
 var procedural_variant: int = 0
@@ -16,6 +23,7 @@ var procedural_variant: int = 0
 var _contents: Array = []
 var _visual_contents: Array = []
 var _palette: Dictionary = {}
+var _glass_overlay: Texture2D = null
 var _liquid_level: float = 0.0
 
 var _selected: bool = false
@@ -43,6 +51,7 @@ func setup(index: int, label: String, variant: int, palette: Dictionary, content
 	vial_index = index
 	display_name = label
 	procedural_variant = variant
+	_glass_overlay = load(GLASS_OVERLAY_PATHS[clampi(variant, 0, GLASS_OVERLAY_PATHS.size() - 1)]) as Texture2D
 	_palette = palette
 	_contents = contents.duplicate()
 	_visual_contents = contents.duplicate()
@@ -250,7 +259,7 @@ func _draw() -> void:
 	var vessel_rect := _get_vessel_rect()
 	_draw_glass_back(vessel_rect)
 	_draw_liquid(vessel_rect)
-	_draw_glass_front(vessel_rect)
+	_draw_glass_overlay()
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	draw_string(
@@ -262,6 +271,16 @@ func _draw() -> void:
 		12,
 		Color(0.96, 0.88, 0.70, 0.96)
 	)
+
+
+
+func _draw_glass_overlay() -> void:
+	if _glass_overlay == null:
+		return
+	# SVG overlay supplies the sculpted glass edges, metal neck ferrule,
+	# open lip, thick foot and layered reflections. The liquid remains live
+	# and is drawn underneath this texture.
+	draw_texture_rect(_glass_overlay, Rect2(Vector2.ZERO, size), false, Color.WHITE)
 
 
 func _draw_glass_back(rect: Rect2) -> void:
