@@ -68,3 +68,18 @@ A compact translucent HUD sits at the top and bottom of the screen. It leaves th
 The scene is configured for a 720 × 1280 portrait viewport. The background source is 768 × 1376, so its aspect ratio is close to the design viewport. Final visual alignment, drag targeting, mouth alignment, liquid streams, undo, reset and completion still need a local Godot 4.7 runtime check.
 
 Godot 4.7 was not available in the editing environment, so a runtime launch and interaction pass have not been performed here.
+
+
+## Cauldron prototype
+
+A separate layered cauldron asset is being tested against the same workbench artwork before it is placed into the sorting screen.
+
+- `assets/environments/SpellSort_Cauldron_Rear.svg` — copper body, handles, feet, dark inner bowl and rear rim.
+- `scripts/alchemy_cauldron.gd` — independently animated liquid surface, soft reflections and rising bubbles.
+- `assets/environments/SpellSort_Cauldron_Front.svg` — foreground rolled rim and front-metal highlights.
+- `scenes/alchemy_cauldron.tscn` — reusable layered Godot cauldron scene.
+- `scenes/alchemy_cauldron_preview.tscn` — development preview using the existing workbench background.
+
+To preview it, open `scenes/alchemy_cauldron_preview.tscn` in Godot and use **Run Current Scene (F6)**. The main sorting scene remains unchanged while the cauldron's material, scale and placement are evaluated. It is not a separate player-facing room or HUB.
+
+The current prototype uses a teal-green liquid at a 62% fill level. `fill_level`, `liquid_color` and `animate_liquid` are exported on the cauldron node for easy tuning. Brewing interaction and ingredient inputs are deliberately not implemented in this visual study yet.
