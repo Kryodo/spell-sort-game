@@ -28,11 +28,11 @@ float value_noise(vec2 p) {
 
 void fragment() {
     vec2 paint_uv = UV * grain_scale;
-    float broad = value_noise(paint_uv * 0.72);
-    float fine = value_noise(paint_uv * 3.8);
-    float brush = sin((UV.y * 31.0) + broad * 2.1) * 0.5 + 0.5;
-    float pigment = (broad - 0.5) * 0.075 + (fine - 0.5) * 0.035 + (brush - 0.5) * 0.018;
-    ALBEDO = max(base_color.rgb * (1.0 + pigment * grain_strength * 12.0), vec3(0.0));
+    float broad = value_noise(paint_uv * 0.54);
+    float fine = value_noise(paint_uv * 2.6);
+    float brush = sin((UV.y * 23.0) + broad * 1.8) * 0.5 + 0.5;
+    float pigment = (broad - 0.5) * 0.12 + (fine - 0.5) * 0.055 + (brush - 0.5) * 0.025;
+    ALBEDO = max(base_color.rgb * (1.0 + pigment * grain_strength * 8.0), vec3(0.0));
     METALLIC = metallic_amount;
     ROUGHNESS = roughness_amount;
     SPECULAR = 0.22;
