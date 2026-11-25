@@ -6,6 +6,7 @@ signal return_to_hub_requested
 
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 const BACKGROUND_PATH := "res://assets/environments/SpellSort_Workbench.png"
+const RACK_PATH := "res://assets/environments/SpellSort_Vial_Rack.svg"
 const CAPACITY := 4
 const BOTTLE_SIZE := Vector2(116.0, 365.0)
 const BOTTLE_GAP := 18.0
@@ -323,9 +324,18 @@ func _build_instruction_bar() -> void:
 
 
 func _build_workbench() -> void:
-	# The generated environment already contains the tabletop. Do not draw a
-	# second artificial bench panel or pedestals over the artwork.
-	pass
+	# A separate shallow rack gives each vial a clear resting position while
+	# keeping all four bottle controls independent and draggable.
+	var rack := TextureRect.new()
+	rack.name = "AlchemyVialRack"
+	rack.texture = load(RACK_PATH)
+	rack.position = Vector2(50.0, 778.0)
+	rack.size = Vector2(620.0, 110.0)
+	rack.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rack.stretch_mode = TextureRect.STRETCH_SCALE
+	rack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rack.z_index = 1
+	add_child(rack)
 
 
 func _build_status_panel() -> void:
