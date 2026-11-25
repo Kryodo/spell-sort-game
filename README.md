@@ -24,7 +24,7 @@ Four upright vessels are arranged in one centred horizontal row on the tabletop.
 
 - Vessel control size: 116 × 365
 - Horizontal gap: 18
-- Row Y position: 520 in the 720 × 1280 design viewport
+- Row Y position: 440 in the 720 × 1280 design viewport
 - The vessel bodies, openings and resting liquid surfaces remain front-facing and level
 
 The row is intentionally simple and readable. Perspective comes from the illustrated workbench background, not from transforming the individual vessels.
