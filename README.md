@@ -1,59 +1,72 @@
-# Spell Sort — World and 3D Alchemy Evaluation
+# Spell Sort — Hybrid World and Alchemy Prototype
 
-This branch contains three connected visual/technical prototypes to evaluate a possible stylized 3D/2.5D foundation for Spell Sort. This is an exploration build, not a final art-direction commitment.
+This branch explores a hybrid 2.5D direction: 3D laboratory and chapter environments, with the proven 2D sorting interaction retained as the main alchemy activity. This is a playable direction test, not a final art-direction or production-art commitment.
 
-## Run
+## Run the prototype
 
 Open the project in Godot 4.7 and run it. The configured main scene is `res://scenes/lab_room_prototype.tscn`.
 
-## Prototype A — Swipeable laboratory hub
+## Laboratory hub
 
-The main room now sits between two adjoining hub areas:
+The laboratory is one continuous room rather than three fixed camera stops.
 
-- **Ingredient Stores:** ingredient shelves, potion stock and storage work island.
-- **Main Lab:** the workbench, cauldron, grimoire and current laboratory props.
-- **Research Archive:** bookcases, research desk, crystal and chapter map.
-
-Swipe horizontally to move between the three areas, or use the navigation buttons near the bottom. Tap highlighted/interactive objects for their prototype descriptions. The archive's chapter landmark opens Verdant Hollow. The main workbench opens the 3D alchemy experiment.
+- Drag or swipe to pan around the room within bounded camera limits.
+- Tap objects to inspect or open their activities.
+- The workbench launches the original 2D sorting puzzle.
+- The world map / Verdant Hollow entrance opens the chapter environment.
+- The ingredient storage and research archive remain parts of the same room, not separate page scenes.
 
 Main implementation: `scripts/lab_room_prototype.gd` and `scenes/lab_room_prototype.tscn`.
 
-## Prototype B — 3D alchemy experiment
+## Main sorting activity — 2D
 
-The close-up experiment uses a 3D workbench and 3D glass vials with visible layered liquids. It keeps the first experiment's Tide, Moon and Ember sorting rules:
+The hub workbench now launches `scenes/alchemy_interaction_test.tscn`, retaining the previous working puzzle presentation and mechanics:
 
 - Four vessels, three essences, four measures per essence.
-- Drag a vial onto an empty receiver or one with a matching top essence.
-- The contiguous matching top run transfers, respecting vessel capacity.
-- Invalid drops return to their slot.
+- Drag a vial and align its mouth with a receiving vial.
+- Transfer the matching contiguous top run, respecting vessel capacity.
+- The liquid surface, pouring stream, splashes, vial tilt and settling animation are preserved.
 - Undo, Reset and completion feedback are included.
-- **Back to Lab** returns to the hub.
+- **Back to Lab** returns to the continuous hub.
 
-This is intentionally an early visual and interaction proof. The 3D bottle interaction is separate from the earlier 2D prototype so the two approaches can be compared without losing the working baseline.
+The 2D bottle renderer is in `scripts/alchemy_bottle.gd`.
 
-Main implementation: `scripts/alchemy_3d_experiment.gd` and `scenes/alchemy_3d_experiment.tscn`.
+## 3D vial study — comparison only
 
-## Prototype C — Verdant Hollow chapter environment
+The earlier 3D experiment remains available as a separate comparison scene: `scenes/alchemy_3d_experiment.tscn`.
 
-Open the chapter from the Research Archive's map. Verdant Hollow is a small, fixed-camera exploration location built from the same simple geometry/material approach, with stylized trees, a stone gate, altar, crystals, moonlit spring, animated fireflies and clickable discovery points. **Back to Lab** returns to the hub.
+To run it directly in Godot, open that scene and press **F6** (Run Current Scene). It is not the main workbench route in this hybrid build.
 
-Main implementation: `scripts/chapter_forest_prototype.gd` and `scenes/chapter_forest_prototype.tscn`.
+Implementation: `scripts/alchemy_3d_experiment.gd` and `scenes/alchemy_3d_experiment.tscn`.
 
-## Comparison and fallback scenes
+## Verdant Hollow — playable discovery loop
 
-- `scenes/alchemy_interaction_test.tscn`: previous 2D alchemy interaction/puzzle presentation.
+Verdant Hollow is a separate 3D chapter environment with its own lighting, atmosphere and landmarks. It now includes a small environmental activity:
+
+1. Tap the Ancient Gate and begin the rune trial.
+2. Remember the displayed order: **Moon → Ember → Tide**.
+3. Find and tap the three glowing rune stones in that order. An incorrect input resets the sequence.
+4. The altar awakens and reveals its seed.
+5. Return to the altar and claim the Verdant Seed to finish the chapter discovery.
+
+**Back to Lab** remains available from the chapter header.
+
+Implementation: `scripts/chapter_forest_prototype.gd` and `scenes/chapter_forest_prototype.tscn`.
+
+## Other preserved prototype
+
 - `scenes/main.tscn`: original sprite-based sorting prototype.
 
-The procedural 2D bottle renderer remains in `scripts/alchemy_bottle.gd`.
+## What to evaluate next
 
-## What to evaluate
+1. Does the continuously pannable hub feel like one enclosed, inviting place?
+2. Does the old 2D sorting activity feel natural as the workbench activity, despite using a different presentation from the 3D world?
+3. Is the Verdant Hollow rune activity engaging enough to establish a chapter gameplay loop?
+4. Do the 3D environment and 2D puzzle feel like parts of the same game?
+5. What needs to change in silhouette, proportions, material treatment and lighting to reach the intended painterly-stylized asset direction?
 
-1. Does the hub feel like a larger place, and is swipe navigation comfortable on mobile?
-2. Do the 3D vials and workbench feel like they belong to the laboratory?
-3. Does the chapter environment feel like a natural extension of the hub's art direction?
-4. Are silhouettes, colours, lighting and scene detail readable and appealing?
-5. Does the 3D approach feel practical to expand across more objects, chapters and UI?
+## Known limitations and validation
 
-## Validation status
+The hub and chapter still use procedural placeholder geometry; object silhouettes, proportions, material detail and painterly art treatment have **not** been upgraded in this pass. The 3D vial study also remains experimental.
 
-The prototype scenes and scripts have been committed to this feature branch, but a Godot 4.7 runtime launch, interaction pass and visual evaluation still need to be performed locally. No final art-direction or production-pipeline decision has been made.
+The scenes and scripts have been updated on this branch, but a Godot 4.7 runtime launch and interaction pass still need to be performed locally. No final art-direction or production-pipeline decision has been made.
