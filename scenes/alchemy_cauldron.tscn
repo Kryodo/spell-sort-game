@@ -9,16 +9,16 @@
 [node name="RearMetalwork" type="Sprite2D" parent="."]
 texture = ExtResource("2_rear")
 centered = false
-z_index = 1
+z_index = 0
 z_as_relative = false
 
 [node name="LiquidSurface" type="Node2D" parent="."]
-z_index = 2
+z_index = 0
 z_as_relative = false
 script = ExtResource("1_controller")
 
 [node name="FrontRimAndHighlights" type="Sprite2D" parent="."]
 texture = ExtResource("3_front")
 centered = false
-z_index = 3
+z_index = 1
 z_as_relative = false
