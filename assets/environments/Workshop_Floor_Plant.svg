@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="170" height="260" viewBox="0 0 170 260">
+<defs>
+ <linearGradient id="pot" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d08a58"/><stop offset=".42" stop-color="#985332"/><stop offset="1" stop-color="#4d3024"/></linearGradient>
+ <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a0ae65"/><stop offset=".4" stop-color="#5e814b"/><stop offset="1" stop-color="#2b4d37"/></linearGradient>
+</defs>
+<ellipse cx="84" cy="244" rx="69" ry="11" fill="#0c0a08" opacity=".4"/>
+<path d="M83 194 C67 151 41 121 26 73 M84 194 C83 145 78 105 87 40 M86 194 C104 147 126 108 145 77 M84 194 C56 155 35 154 16 132 M86 194 C111 160 132 157 154 133" fill="none" stroke="#354f36" stroke-width="7" stroke-linecap="round"/>
+<g fill="url(#leaf)" stroke="#2d4a34" stroke-width="2">
+ <path d="M28 76 C-7 31 29 21 48 62 Q51 80 28 76Z"/><path d="M87 45 C60 5 100 -8 104 32 Q102 52 87 45Z"/>
+ <path d="M143 80 C164 34 190 50 158 89 Q147 96 143 80Z"/><path d="M18 136 C-22 111 -7 87 30 122 Q39 138 18 136Z"/>
+ <path d="M154 137 C189 102 207 127 167 151 Q151 157 154 137Z"/><path d="M53 117 C22 78 57 63 71 105 Q71 124 53 117Z"/>
+ <path d="M111 111 C111 62 146 62 132 111 Q123 127 111 111Z"/><path d="M75 158 C38 132 54 111 83 145 Q91 162 75 158Z"/>
+ <path d="M106 157 C130 118 155 137 119 164 Q103 171 106 157Z"/>
+</g>
+<g fill="none" stroke="#c2c78a" stroke-width="1.7" opacity=".48" stroke-linecap="round">
+ <path d="M26 70 Q30 53 42 48 M86 40 Q86 19 96 12 M146 81 Q160 65 170 66 M19 132 Q8 116 1 116 M155 137 Q175 124 181 128"/>
+</g>
+<path d="M35 190 Q84 204 135 190 L121 236 Q84 252 49 236Z" fill="url(#pot)" stroke="#452d22" stroke-width="3"/>
+<path d="M32 187 Q84 201 138 187 L135 202 Q84 218 35 202Z" fill="#b97648" stroke="#4a3022" stroke-width="2.5"/>
+<path d="M41 199 Q84 211 129 199" fill="none" stroke="#efb47c" stroke-width="2" opacity=".65"/>
+<path d="M49 233 Q84 244 121 233" fill="none" stroke="#38251d" stroke-width="3" opacity=".55"/>
+<path d="M79 208 L84 225 L90 208" fill="none" stroke="#e1b378" stroke-width="1.4" opacity=".42"/>
+</svg>
