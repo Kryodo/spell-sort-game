@@ -160,6 +160,44 @@ func _build_landmarks() -> void:
 	_add_firefly(Vector3(2.70, 1.65, -2.65))
 	_add_firefly(Vector3(0.85, 2.35, -3.10))
 
+	# A physical field-note board makes the rune sequence readable before the trial.
+	var board_wood := _mat(Color(0.25, 0.17, 0.12))
+	var board_trim := _mat(Color(0.66, 0.48, 0.25), 0.22)
+	var board_center := Vector3(3.55, 1.78, -1.05)
+	_add_box("RuneOrderBoard", Vector3(2.28, 1.08, 0.18), board_center, board_wood)
+	_add_box("RuneOrderBoardTopTrim", Vector3(2.42, 0.10, 0.24), board_center + Vector3(0.0, 0.58, 0.0), board_trim)
+	_add_box("RuneOrderBoardBottomTrim", Vector3(2.42, 0.10, 0.24), board_center + Vector3(0.0, -0.58, 0.0), board_trim)
+	for post_x in [-0.92, 0.92]:
+		_add_box("RuneOrderBoardPost", Vector3(0.13, 1.48, 0.15), Vector3(3.55 + post_x, 0.55, -1.05), board_wood)
+
+	var board_heading := Label3D.new()
+	board_heading.name = "RuneOrderBoardHeading"
+	board_heading.text = "RUNE ORDER"
+	board_heading.font_size = 42
+	board_heading.pixel_size = 0.003
+	board_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	board_heading.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	board_heading.modulate = Color(0.94, 0.84, 0.62)
+	board_heading.outline_size = 8
+	board_heading.outline_modulate = Color(0.10, 0.13, 0.10)
+	board_heading.no_depth_test = true
+	board_heading.position = board_center + Vector3(0.0, 0.22, 0.11)
+	add_child(board_heading)
+
+	var board_sequence := Label3D.new()
+	board_sequence.name = "RuneOrderBoardSequence"
+	board_sequence.text = "MOON  >  EMBER  >  TIDE"
+	board_sequence.font_size = 34
+	board_sequence.pixel_size = 0.003
+	board_sequence.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	board_sequence.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	board_sequence.modulate = Color(0.81, 0.92, 0.82)
+	board_sequence.outline_size = 8
+	board_sequence.outline_modulate = Color(0.10, 0.13, 0.10)
+	board_sequence.no_depth_test = true
+	board_sequence.position = board_center + Vector3(0.0, -0.19, 0.11)
+	add_child(board_sequence)
+
 
 func _add_rune_station(rune_name: String, origin: Vector3, tint: Color) -> void:
 	var worn_stone := _mat(Color(0.43, 0.47, 0.40))
@@ -269,15 +307,45 @@ func _register_interaction(id: String, title: String, description: String, cente
 
 
 func _add_tree(origin: Vector3, scale_value: float) -> void:
-	var trunk := _add_cylinder("TreeTrunk", 0.24 * scale_value, 0.36 * scale_value, 2.10 * scale_value, origin + Vector3(0.0, 1.05 * scale_value, 0.0), _mat(Color(0.31, 0.20, 0.13)))
-	trunk.rotation_degrees.z = -3.0
-	var crown_material := _mat(Color(0.25, 0.47, 0.31))
-	var crown := _add_sphere("TreeCrown", 1.18 * scale_value, origin + Vector3(0.0, 2.75 * scale_value, 0.0), crown_material)
-	crown.scale = Vector3(1.10, 1.25, 0.94)
-	for index in range(4):
-		var angle := TAU * float(index) / 4.0
-		var leaf := _add_sphere("TreeCanopy_%d" % index, 0.74 * scale_value, origin + Vector3(cos(angle) * 0.72 * scale_value, (2.45 + 0.28 * float(index % 2)) * scale_value, sin(angle) * 0.62 * scale_value), _mat(Color(0.31 + 0.025 * float(index % 2), 0.52, 0.32)))
-		leaf.scale = Vector3(1.0, 1.08, 0.92)
+	var trunk_material := _mat(Color(0.30, 0.19, 0.12))
+	var trunk := _add_cylinder("TreeTrunk", 0.23 * scale_value, 0.38 * scale_value, 2.16 * scale_value, origin + Vector3(0.0, 1.08 * scale_value, 0.0), trunk_material)
+	trunk.rotation_degrees.z = -4.0
+
+	# Short exposed limbs break the single-pole silhouette and connect the crown masses.
+	var left_branch := _add_cylinder("TreeBranchLeft", 0.065 * scale_value, 0.15 * scale_value, 1.12 * scale_value, origin + Vector3(-0.24 * scale_value, 1.82 * scale_value, 0.02 * scale_value), trunk_material)
+	left_branch.rotation_degrees.z = 29.0
+	var right_branch := _add_cylinder("TreeBranchRight", 0.060 * scale_value, 0.14 * scale_value, 1.02 * scale_value, origin + Vector3(0.23 * scale_value, 1.82 * scale_value, -0.03 * scale_value), trunk_material)
+	right_branch.rotation_degrees.z = -25.0
+
+	# A handful of uneven, overlapping canopy masses create a broken, leafy outline.
+	var canopy_specs: Array[Dictionary] = [
+		{"offset": Vector3(-0.62, 2.57, 0.03), "radius": 0.82, "scale": Vector3(1.08, 0.94, 0.92), "color": Color(0.27, 0.49, 0.30)},
+		{"offset": Vector3(-0.12, 3.25, -0.08), "radius": 0.76, "scale": Vector3(0.94, 1.12, 0.90), "color": Color(0.31, 0.53, 0.32)},
+		{"offset": Vector3(0.62, 2.72, 0.02), "radius": 0.91, "scale": Vector3(1.04, 1.04, 0.96), "color": Color(0.25, 0.46, 0.28)},
+		{"offset": Vector3(0.12, 2.36, 0.55), "radius": 0.72, "scale": Vector3(1.12, 0.86, 0.88), "color": Color(0.34, 0.55, 0.33)},
+		{"offset": Vector3(-0.55, 2.94, -0.48), "radius": 0.70, "scale": Vector3(1.02, 1.02, 0.92), "color": Color(0.29, 0.50, 0.29)}
+	]
+	for index in range(canopy_specs.size()):
+		var spec: Dictionary = canopy_specs[index]
+		var leaf := _add_sphere(
+			"TreeCanopy_%d" % index,
+			float(spec["radius"]) * scale_value,
+			origin + Vector3(spec["offset"]) * scale_value,
+			_mat(spec["color"])
+		)
+		leaf.scale = spec["scale"]
+		leaf.rotation_degrees.z = [-8.0, 5.0, -3.0, 11.0, -12.0][index]
+
+	# A few low roots visibly meet the ground rather than letting the trunk look planted on a peg.
+	for index in range(3):
+		var angle := TAU * float(index) / 3.0
+		var root := _add_sphere(
+			"TreeRoot_%d" % index,
+			0.30 * scale_value,
+			origin + Vector3(cos(angle) * 0.30 * scale_value, 0.20 * scale_value, sin(angle) * 0.30 * scale_value),
+			trunk_material
+		)
+		root.scale = Vector3(1.18, 0.46, 0.62)
 
 
 func _add_fern(origin: Vector3, scale_value: float) -> void:
@@ -320,18 +388,103 @@ func _mat(color: Color, metallic: float = 0.0, emission_strength: float = 0.0) -
 	material.set_shader_parameter("metallic_amount", metallic)
 	material.set_shader_parameter("roughness_amount", 0.84 if metallic == 0.0 else 0.36)
 	material.set_shader_parameter("grain_scale", 7.0)
-	material.set_shader_parameter("grain_strength", 0.045)
+	material.set_shader_parameter("grain_strength", 0.14)
 	material.set_shader_parameter("emission_color", Color(color.r, color.g, color.b, 1.0))
 	material.set_shader_parameter("emission_strength", emission_strength)
 	return material
 
 
+
+func _bevel_samples(half_extent: float, bevel: float) -> PackedFloat32Array:
+	return PackedFloat32Array([
+		-half_extent,
+		-half_extent + bevel,
+		0.0,
+		half_extent - bevel,
+		half_extent
+	])
+
+
+func _rounded_box_mesh(dimensions: Vector3) -> ArrayMesh:
+	var half := dimensions * 0.5
+	var bevel := minf(minf(half.x, minf(half.y, half.z)) * 0.42, 0.14)
+	bevel = maxf(bevel, 0.001)
+	var inner := Vector3(half.x - bevel, half.y - bevel, half.z - bevel)
+
+	# Six subdivided faces share the same rounded edge profile. The extra
+	# boundary samples create broad, soft bevels rather than sharp box corners.
+	var face_centers: Array[Vector3] = [
+		Vector3(half.x, 0.0, 0.0),
+		Vector3(-half.x, 0.0, 0.0),
+		Vector3(0.0, half.y, 0.0),
+		Vector3(0.0, -half.y, 0.0),
+		Vector3(0.0, 0.0, half.z),
+		Vector3(0.0, 0.0, -half.z)
+	]
+	var u_axes: Array[Vector3] = [
+		Vector3.UP, Vector3.FORWARD,
+		Vector3.FORWARD, Vector3.RIGHT,
+		Vector3.RIGHT, Vector3.UP
+	]
+	var v_axes: Array[Vector3] = [
+		Vector3.BACK, Vector3.UP,
+		Vector3.RIGHT, Vector3.BACK,
+		Vector3.UP, Vector3.RIGHT
+	]
+	var u_halves: Array[float] = [half.y, half.z, half.z, half.x, half.x, half.y]
+	var v_halves: Array[float] = [half.z, half.y, half.x, half.z, half.y, half.x]
+
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	for face_index in range(6):
+		var u_samples := _bevel_samples(u_halves[face_index], bevel)
+		var v_samples := _bevel_samples(v_halves[face_index], bevel)
+		var face_start := vertices.size()
+
+		for v_index in range(5):
+			for u_index in range(5):
+				var point: Vector3 = face_centers[face_index] + u_axes[face_index] * u_samples[u_index] + v_axes[face_index] * v_samples[v_index]
+				var inner_point := Vector3(
+					clampf(point.x, -inner.x, inner.x),
+					clampf(point.y, -inner.y, inner.y),
+					clampf(point.z, -inner.z, inner.z)
+				)
+				var normal := (point - inner_point).normalized()
+				vertices.append(inner_point + normal * bevel)
+				normals.append(normal)
+				uvs.append(Vector2(float(u_index) / 4.0, float(v_index) / 4.0))
+
+		for v_index in range(4):
+			for u_index in range(4):
+				var a := face_start + v_index * 5 + u_index
+				var b := a + 1
+				var d := a + 5
+				var c := d + 1
+				indices.append(a)
+				indices.append(b)
+				indices.append(c)
+				indices.append(a)
+				indices.append(c)
+				indices.append(d)
+
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
 func _add_box(node_name: String, dimensions: Vector3, world_position: Vector3, material: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
-	var mesh := BoxMesh.new()
-	mesh.size = dimensions
-	instance.mesh = mesh
+	instance.mesh = _rounded_box_mesh(dimensions)
 	instance.position = world_position
 	instance.material_override = material
 	add_child(instance)
