@@ -137,7 +137,17 @@ func _build_vials() -> void:
 		var shoulder := _add_sphere_child(vial, "Shoulder", 0.34, Vector3(0.0, 1.18, 0.0), glass)
 		shoulder.scale = Vector3(1.0, 0.55, 1.0)
 		_add_cylinder_child(vial, "Neck", 0.205, 0.205, 0.38, Vector3(0.0, 1.39, 0.0), neck_glass, 24)
-		_add_cylinder_child(vial, "OpenMouthRim", 0.245, 0.245, 0.075, Vector3(0.0, 1.60, 0.0), neck_glass, 24)
+		var mouth_ring := MeshInstance3D.new()
+		mouth_ring.name = "OpenMouthRim"
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.19
+		torus.outer_radius = 0.245
+		torus.rings = 24
+		torus.ring_segments = 8
+		mouth_ring.mesh = torus
+		mouth_ring.position = Vector3(0.0, 1.60, 0.0)
+		mouth_ring.material_override = neck_glass
+		vial.add_child(mouth_ring)
 		_add_cylinder_child(vial, "FootRing", 0.42, 0.42, 0.09, Vector3(0.0, 0.12, 0.0), neck_glass, 28)
 		_add_box_child(vial, "FrontGlassGlint", Vector3(0.045, 0.70, 0.035), Vector3(-0.22, 0.72, 0.365), highlight)
 		_add_box_child(vial, "SideGlassGlint", Vector3(0.035, 0.46, 0.035), Vector3(0.27, 0.56, 0.29), highlight)
@@ -172,7 +182,6 @@ func _add_label_marker(index: int) -> void:
 	marker.font_size = 36
 	marker.pixel_size = 0.004
 	marker.position = Vector3(0.0, -0.05, 0.48)
-	marker.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	marker.modulate = Color(0.88, 0.78, 0.58)
 	_vials[index].add_child(marker)
 
@@ -456,6 +465,7 @@ func _return_vial(index: int, message: String) -> void:
 
 func _perform_pour(source_index: int, target_index: int) -> void:
 	_is_animating = true
+	_refresh_hud()
 	_save_history()
 	var amount := _get_pour_amount(source_index, target_index)
 	if amount <= 0:
@@ -469,7 +479,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var direction := signf(target.position.x - source.position.x)
 	if is_zero_approx(direction):
 		direction = 1.0
-	var pour_position := target.position + Vector3(-direction * 0.56, 0.0, 0.12)
+	var pour_position := target.position + Vector3(-direction * 1.24, 0.55, 0.12)
 	var pour_angle := -direction * 0.98
 	_drag_index = -1
 
