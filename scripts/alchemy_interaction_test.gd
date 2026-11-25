@@ -5,6 +5,7 @@ signal return_to_hub_requested
 @export var in_world_presentation := false
 
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
+const CauldronScene = preload("res://scenes/alchemy_cauldron.tscn")
 const BACKGROUND_PATH := "res://assets/environments/SpellSort_Workbench.png"
 const RACK_PATH := "res://assets/environments/SpellSort_Vial_Rack.svg"
 const RACK_FRONT_PATH := "res://assets/environments/SpellSort_Vial_Rack_Front.svg"
@@ -103,10 +104,23 @@ func _build_interface() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 
+	_build_cauldron()
 	_build_minimal_header()
 	_build_workbench()
 	_build_status_panel()
 	_build_completion_panel()
+
+
+
+func _build_cauldron() -> void:
+	# Keep the cauldron on the clear tabletop area above the rightmost vial.
+	# Its base ends above the bottle row, so it never blocks sorting or dragging.
+	var cauldron := CauldronScene.instantiate() as Node2D
+	cauldron.name = "WorkbenchCauldron"
+	cauldron.position = Vector2(506.0, 184.0)
+	cauldron.scale = Vector2(0.80, 0.80)
+	cauldron.z_index = 1
+	add_child(cauldron)
 
 
 func _build_minimal_header() -> void:
