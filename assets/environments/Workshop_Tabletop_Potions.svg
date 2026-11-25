@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="170" viewBox="0 0 150 170">
+<defs>
+ <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c0f2d9" stop-opacity=".9"/><stop offset=".38" stop-color="#65a992" stop-opacity=".83"/><stop offset="1" stop-color="#1e5147" stop-opacity=".96"/></linearGradient>
+ <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f2ddff" stop-opacity=".9"/><stop offset=".44" stop-color="#9475b4" stop-opacity=".85"/><stop offset="1" stop-color="#483653" stop-opacity=".96"/></linearGradient>
+ <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe9b5" stop-opacity=".9"/><stop offset=".4" stop-color="#cb8740" stop-opacity=".86"/><stop offset="1" stop-color="#60371f" stop-opacity=".98"/></linearGradient>
+ <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f8dfaa"/><stop offset=".42" stop-color="#b67c43"/><stop offset="1" stop-color="#654323"/></linearGradient>
+</defs>
+<ellipse cx="75" cy="161" rx="68" ry="8" fill="#080706" opacity=".42"/>
+<!-- A small low tray keeps the cluster grounded as one set. -->
+<path d="M9 143 Q75 151 141 143 L136 157 Q75 166 14 157Z" fill="#4a2f20"/>
+<path d="M12 141 Q75 148 138 141 L135 150 Q75 158 15 150Z" fill="#9c653b" stroke="#50311f" stroke-width="1.5"/>
+<path d="M16 143 Q75 150 134 143" fill="none" stroke="#e5b978" stroke-width="1.4" opacity=".6"/>
+<!-- Rear violet bottle. -->
+<g transform="translate(39 0)">
+ <path d="M-16 137 L-14 77 Q-13 69 -6 65 L-5 47 L5 47 L6 65 Q13 69 14 77 L16 137 Q0 145 -16 137Z" fill="url(#violet)" stroke="#3d3049" stroke-width="2"/>
+ <path d="M-5 48 L-5 35 L5 35 L5 48Z" fill="url(#brass)" stroke="#55391f" stroke-width="1.3"/>
+ <path d="M-10 95 Q0 101 10 95" fill="none" stroke="#f0ddff" stroke-width="1.7" opacity=".75"/>
+ <path d="M-8 78 Q-4 72 -3 81 L-3 125" fill="none" stroke="#fff5ff" stroke-width="2.2" opacity=".67" stroke-linecap="round"/>
+</g>
+<!-- Taller teal bottle. -->
+<g transform="translate(82 0)">
+ <path d="M-19 139 L-17 70 Q-16 60 -8 56 L-7 33 L7 33 L8 56 Q16 60 17 70 L19 139 Q0 149 -19 139Z" fill="url(#teal)" stroke="#244a40" stroke-width="2"/>
+ <path d="M-7 34 L-7 18 L7 18 L7 34Z" fill="url(#brass)" stroke="#55391f" stroke-width="1.4"/>
+ <path d="M-11 89 Q0 96 11 89" fill="none" stroke="#d5ffec" stroke-width="1.9" opacity=".75"/>
+ <path d="M-10 69 Q-6 63 -4 71 L-4 129" fill="none" stroke="#f1fff8" stroke-width="2.5" opacity=".68" stroke-linecap="round"/>
+</g>
+<!-- Small amber bottle forward. -->
+<g transform="translate(119 0)">
+ <path d="M-13 141 L-11 91 Q-10 83 -5 80 L-4 65 L4 65 L5 80 Q10 83 11 91 L13 141 Q0 147 -13 141Z" fill="url(#amber)" stroke="#54351f" stroke-width="1.8"/>
+ <path d="M-4 66 L-4 54 L4 54 L4 66Z" fill="url(#brass)" stroke="#55391f" stroke-width="1.2"/>
+ <path d="M-8 107 Q0 112 8 107" fill="none" stroke="#ffe9bc" stroke-width="1.5" opacity=".74"/>
+ <path d="M-7 92 Q-4 87 -2 94 L-2 132" fill="none" stroke="#fff4d5" stroke-width="2" opacity=".65" stroke-linecap="round"/>
+</g>
+</svg>
