@@ -24,13 +24,13 @@ Four upright vessels are arranged in one centred horizontal row on the tabletop.
 
 - Vessel control size: 116 × 365
 - Horizontal gap: 18
-- Row Y position: 480 in the 720 × 1280 design viewport
+- Row Y position: 390 in the 720 × 1280 design viewport
 - The vessel bodies, openings and resting liquid surfaces remain front-facing and level
 - A separate wooden-and-brass vial rack sits behind the bottle controls, with four aligned empty sockets; the bottles remain independently draggable
 
 The row is intentionally simple and readable. Perspective comes from the illustrated workbench background and the shallow illustrated rack, not from transforming the individual vessels.
 
-The rack asset is `assets/environments/SpellSort_Vial_Rack.svg`. It is a transparent vector overlay with four shallow brass-lined holders. The rack is drawn below the bottle controls, so the live bottle artwork covers each socket and can be lifted, dragged and returned independently.
+The rack asset is `assets/environments/SpellSort_Vial_Rack.svg`. It is a transparent vector overlay with four shallow brass-lined holders. The rack is drawn below the bottle controls, so the live bottle artwork covers each socket and can be lifted, dragged and returned independently. Its 620 × 110 screen-space rectangle is positioned at (50, 688), so the entire rack-and-vial assembly is 90 pixels farther back on the tabletop than the previous version.
 
 ## Sorting gameplay
 
