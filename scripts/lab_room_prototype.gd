@@ -327,9 +327,9 @@ func _add_candle(world_position: Vector3) -> void:
 	var flame := _add_sphere("CandleFlame", 0.075, world_position + Vector3(0.0, 0.20, 0.0), _mat(Color(1.0, 0.64, 0.29), 0.0, 1.4))
 	flame.scale = Vector3(0.72, 1.25, 0.72)
 	_flames.append(flame)
-	_flame_base_positions.append(flame.world_position)
+	_flame_base_positions.append(flame.position)
 	var light := OmniLight3D.new()
-	light.world_position = world_position + Vector3(0.0, 0.28, 0.0)
+	light.position = world_position + Vector3(0.0, 0.28, 0.0)
 	light.light_color = Color(1.0, 0.59, 0.30)
 	light.light_energy = 0.72
 	light.omni_range = 2.2
