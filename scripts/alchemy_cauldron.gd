@@ -154,7 +154,3 @@ func _draw_bubbles() -> void:
 func _get_lower_ellipse_y(normalized_x: float) -> float:
 	var inside: float = maxf(0.0, 1.0 - normalized_x * normalized_x)
 	return LIQUID_CENTER.y + LIQUID_RADIUS.y * sqrt(inside)
-
-
-func _input_event(viewport: Viewport, event: InputEvent, shape_idx: int) -> void:
-	pass
