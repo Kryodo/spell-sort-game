@@ -25,7 +25,8 @@ var _flames: Array[MeshInstance3D] = []
 var _flame_lights: Array[OmniLight3D] = []
 var _flame_base_positions: Array[Vector3] = []
 var _elapsed := 0.0
-var _camera_look_target := Vector3(0.0, 1.55, 0.0)
+# Start by framing the main laboratory quadrant instead of the empty central crossing.
+var _camera_look_target := MAIN_LAB_OFFSET + Vector3(0.0, 1.55, 1.0)
 var _gesture_start := Vector2.ZERO
 var _gesture_last := Vector2.ZERO
 var _gesture_active := false
@@ -75,7 +76,7 @@ func _build_world() -> void:
 	# View into the open front-left corner, looking diagonally across both interior walls.
 	# The wider orthographic frame compensates for the portrait viewport.
 	_camera.size = 10.0
-	_camera.position = Vector3(5.8, 8.8, 10.8)
+	_camera.position = _camera_look_target + Vector3(5.8, 7.25, 10.8)
 	_camera.near = 0.05
 	_camera.far = 60.0
 	add_child(_camera)
@@ -677,8 +678,8 @@ func _pan_camera(screen_delta: Vector2) -> void:
 	requested_shift.y = 0.0
 
 	var next_target := _camera_look_target + requested_shift
-	next_target.x = clampf(next_target.x, -3.8, 3.8)
-	next_target.z = clampf(next_target.z, -3.2, 3.2)
+	next_target.x = clampf(next_target.x, -4.2, 4.2)
+	next_target.z = clampf(next_target.z, -4.2, 4.2)
 	var actual_shift := next_target - _camera_look_target
 	actual_shift.y = 0.0
 	if actual_shift.length_squared() < 0.000001:
