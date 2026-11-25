@@ -281,6 +281,16 @@ func _build_interactables() -> void:
 		Vector3(1.78, 1.42, 0.42), Vector3(1.38, 1.42, 1.18)
 	)
 	_register_interactable(
+		"ingredient_store", "Ingredient Stores",
+		"Collected herbs, minerals and curious ingredients are kept here. The shelves and work surfaces will gradually fill as new ingredients are discovered.",
+		Vector3(-7.8, 1.42, 1.50), Vector3(2.55, 1.10, 1.50)
+	)
+	_register_interactable(
+		"chapter_gate", "Verdant Hollow",
+		"A first place beyond the laboratory has been discovered. Explore a quiet glade of ancient stones, luminous plants and forgotten magic.",
+		Vector3(9.32, 2.80, -2.25), Vector3(1.80, 2.30, 0.70)
+	)
+	_register_interactable(
 		"world_map", "World Map",
 		"Unknown places lie beyond the laboratory. Discoveries will gradually reveal new environments and experiments.",
 		Vector3(1.83, 2.95, -2.27), Vector3(1.16, 1.42, 0.42)
@@ -310,7 +320,7 @@ func _build_hud() -> void:
 
 	var footer := _make_panel(Rect2(65.0, 1188.0, 590.0, 62.0), Color(0.045, 0.067, 0.068, 0.78), Color(0.78, 0.61, 0.36, 0.40), 16)
 	root.add_child(footer)
-	var instruction := _make_label("TAP AN OBJECT TO EXPLORE", 13, Color(0.98, 0.91, 0.77))
+	var instruction := _make_label("SWIPE BETWEEN AREAS  ·  TAP OBJECTS TO EXPLORE", 13, Color(0.98, 0.91, 0.77))
 	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	instruction.position = Vector2(12.0, 8.0)
 	instruction.size = Vector2(566.0, 22.0)
@@ -320,6 +330,25 @@ func _build_hud() -> void:
 	footer_note.position = Vector2(12.0, 32.0)
 	footer_note.size = Vector2(566.0, 18.0)
 	footer.add_child(footer_note)
+
+	var navigation_y := 1108.0
+	_storage_button = _make_button("‹  STORAGE", false)
+	_storage_button.position = Vector2(22.0, navigation_y)
+	_storage_button.size = Vector2(170.0, 48.0)
+	_storage_button.pressed.connect(func(): _set_hub_page(0))
+	root.add_child(_storage_button)
+
+	_lab_button = _make_button("MAIN LAB", false)
+	_lab_button.position = Vector2(265.0, navigation_y)
+	_lab_button.size = Vector2(190.0, 48.0)
+	_lab_button.pressed.connect(func(): _set_hub_page(1))
+	root.add_child(_lab_button)
+
+	_archive_button = _make_button("ARCHIVE  ›", false)
+	_archive_button.position = Vector2(528.0, navigation_y)
+	_archive_button.size = Vector2(170.0, 48.0)
+	_archive_button.pressed.connect(func(): _set_hub_page(2))
+	root.add_child(_archive_button)
 
 	_modal = _make_panel(Rect2(76.0, 492.0, 568.0, 292.0), Color(0.055, 0.078, 0.075, 0.97), Color(0.86, 0.69, 0.43, 0.92), 22)
 	_modal.visible = false
@@ -518,12 +547,56 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _modal != null and _modal.visible:
 		return
 
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		_try_interact(event.position)
-	elif event is InputEventScreenTouch and event.pressed:
-		_try_interact(event.position)
-	elif event is InputEventMouseMotion:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_swipe_start = event.position
+			_swipe_active = true
+		else:
+			_finish_hub_gesture(event.position)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_swipe_start = event.position
+			_swipe_active = true
+		else:
+			_finish_hub_gesture(event.position)
+	elif event is InputEventMouseMotion and not _swipe_active:
 		_update_hover(event.position)
+
+
+func _finish_hub_gesture(screen_position: Vector2) -> void:
+	if not _swipe_active:
+		return
+	var delta := screen_position - _swipe_start
+	_swipe_active = false
+	if absf(delta.x) > 86.0 and absf(delta.x) > absf(delta.y) * 1.2:
+		_set_hub_page(_hub_page + (1 if delta.x < 0.0 else -1))
+	elif delta.length() < 30.0:
+		_try_interact(screen_position)
+
+
+func _set_hub_page(page: int) -> void:
+	var next_page := clampi(page, 0, 2)
+	if next_page == _hub_page:
+		return
+	_hub_page = next_page
+	if is_instance_valid(_camera_tween):
+		_camera_tween.kill()
+	var target_position := _camera_home_position + Vector3(float(_hub_page - 1) * 8.0, 0.0, 0.0)
+	_camera_tween = create_tween()
+	_camera_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	_camera_tween.tween_property(_camera, "position", target_position, 0.55)
+
+	if is_instance_valid(_page_label):
+		match _hub_page:
+			0:
+				_page_label.text = "INGREDIENT STORES  ·  01 / 03"
+			1:
+				_page_label.text = "MAIN LAB  ·  02 / 03"
+			2:
+				_page_label.text = "RESEARCH ARCHIVE  ·  03 / 03"
+	_storage_button.disabled = _hub_page == 0
+	_lab_button.disabled = _hub_page == 1
+	_archive_button.disabled = _hub_page == 2
 
 
 func _try_interact(screen_position: Vector2) -> void:
@@ -533,7 +606,7 @@ func _try_interact(screen_position: Vector2) -> void:
 	_active_interaction = String(area.get_meta("interaction_id"))
 	_modal_title.text = String(area.get_meta("title"))
 	_modal_body.text = String(area.get_meta("description"))
-	_primary_button.text = "BEGIN EXPERIMENT" if _active_interaction == "alchemy_table" else "CLOSE"
+	_primary_button.text = "BEGIN EXPERIMENT" if _active_interaction == "alchemy_table" else ("EXPLORE CHAPTER" if _active_interaction == "world_map" or _active_interaction == "chapter_gate" else "CLOSE")
 	_modal.visible = true
 
 
@@ -564,6 +637,8 @@ func _update_hover(screen_position: Vector2) -> void:
 func _on_primary_pressed() -> void:
 	if _active_interaction == "alchemy_table":
 		get_tree().change_scene_to_file(PUZZLE_SCENE)
+	elif _active_interaction == "world_map" or _active_interaction == "chapter_gate":
+		get_tree().change_scene_to_file(CHAPTER_SCENE)
 	else:
 		_close_modal()
 
