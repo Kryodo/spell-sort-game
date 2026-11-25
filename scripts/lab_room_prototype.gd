@@ -12,9 +12,6 @@ var _spawn_parent: Node3D
 var _hub_hud_root: Control
 var _puzzle_layer: CanvasLayer
 var _puzzle_overlay: Control
-var _camera_home_position := Vector3.ZERO
-var _camera_home_target := Vector3.ZERO
-var _camera_home_size := 10.0
 var _camera_return_position := Vector3.ZERO
 var _camera_return_target := Vector3.ZERO
 var _camera_return_size := 10.0
@@ -84,9 +81,6 @@ func _build_world() -> void:
 	add_child(_camera)
 	_camera.look_at(_camera_look_target, Vector3.UP)
 	_camera.make_current()
-	_camera_home_position = _camera.position
-	_camera_home_target = _camera_look_target
-	_camera_home_size = _camera.size
 
 
 func _build_room() -> void:
