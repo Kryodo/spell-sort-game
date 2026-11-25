@@ -7,7 +7,7 @@ signal return_to_hub_requested
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 const BACKGROUND_PATH := "res://assets/environments/SpellSort_Workbench_Variant_4.png"
 const CAPACITY := 4
-const BOTTLE_SIZE := Vector2(116.0, 365.0)
+const BOTTLE_SIZE := Vector2(96.0, 228.0)
 const BOTTLE_GAP := 18.0
 const BOTTLE_ROW_Y := 520.0
 
@@ -75,9 +75,9 @@ var _bottle_row_y := BOTTLE_ROW_Y
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	if in_world_presentation:
-		_bottle_size = Vector2(116.0, 365.0)
-		_bottle_gap = 18.0
-		_bottle_row_y = 520.0
+		_bottle_size = BOTTLE_SIZE
+		_bottle_gap = 0.0
+		_bottle_row_y = BOTTLE_ROW_Y
 	_build_interface()
 	_build_bottles()
 	_build_stream_layers()
@@ -441,20 +441,20 @@ func _build_completion_panel() -> void:
 
 
 func _build_bottles() -> void:
-	var total_width: float = _bottle_size.x * 4.0 + _bottle_gap * 3.0
-	var start_x: float = (720.0 - total_width) * 0.5
+	var viewport_size: Vector2 = get_viewport_rect().size
 	var labels: Array[String] = ["VIAL I", "VIAL II", "VIAL III", "VIAL IV"]
 
 	for index in range(4):
-		var slot_position := Vector2(start_x + float(index) * (_bottle_size.x + _bottle_gap), _bottle_row_y)
+		var base_anchor: Vector2 = viewport_size * TABLETOP_BASE_ANCHORS[index]
 		var vial = BottleScript.new()
-		vial.position = slot_position
 		vial.size = _bottle_size
-		vial.z_index = 2
 		vial.setup(index, labels[index], index, PALETTE, INITIAL_CONTENTS[index])
+		vial.set_draw_scale(VESSEL_DEPTH_SCALES[index])
+		vial.position = base_anchor - vial.get_resting_base_offset()
+		vial.z_index = 2 + index
 		add_child(vial)
 		bottle_controls.append(vial)
-		slot_positions.append(slot_position)
+		slot_positions.append(vial.position)
 		bottle_contents.append(INITIAL_CONTENTS[index].duplicate())
 
 
@@ -590,7 +590,7 @@ func _begin_drag(pointer: Vector2) -> void:
 
 	for index in range(bottle_controls.size()):
 		var vial = bottle_controls[index]
-		if Rect2(vial.position, vial.size).has_point(pointer):
+		if vial.contains_pointer(pointer):
 			if bottle_contents[index].is_empty():
 				_set_status("That vessel is empty. Choose one containing an essence.")
 				return
@@ -683,7 +683,8 @@ func _find_target_at(source_index: int) -> int:
 			maxf(18.0, (source_radius.y + target_radius.y) * 0.50)
 		)
 		var delta: Vector2 = source_mouth - target_mouth
-		var normalized_distance: float = pow(delta.x / tolerance.x, 2.0) + pow(delta.y / tolerance.y, 2.0)
+		var tabletop_aligned_delta: Vector2 = delta.rotated(0.418879)
+		var normalized_distance: float = pow(tabletop_aligned_delta.x / tolerance.x, 2.0) + pow(tabletop_aligned_delta.y / tolerance.y, 2.0)
 		if normalized_distance <= 1.0:
 			return index
 
@@ -760,7 +761,7 @@ func _return_to_slot(source_index: int, status_text: String) -> void:
 	return_tween.tween_method(Callable(source, "set_pose"), source.get_pose(), Vector2.ZERO, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await return_tween.finished
 
-	source.z_index = 2
+	source.z_index = 2 + source_index
 	source.set_feedback(false, false, false)
 	source.reset_motion()
 	_drag_index = -1
@@ -1033,7 +1034,7 @@ func _on_undo_pressed() -> void:
 	for index in range(bottle_controls.size()):
 		var vial = bottle_controls[index]
 		vial.position = slot_positions[index]
-		vial.z_index = 2
+		vial.z_index = 2 + index
 		vial.reset_motion()
 		vial.set_feedback(false, false, false)
 		vial.set_contents(bottle_contents[index])
