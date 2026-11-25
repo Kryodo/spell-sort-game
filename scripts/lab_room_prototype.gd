@@ -345,8 +345,8 @@ func _build_hud() -> void:
 	root.add_child(_lab_button)
 
 	_page_label = _make_label("MAIN LAB  ·  02 / 03", 10, Color(0.90, 0.83, 0.68))
-	_page_label.position = Vector2(206.0, navigation_y + 5.0)
-	_page_label.size = Vector2(310.0, 38.0)
+	_page_label.position = Vector2(190.0, navigation_y - 34.0)
+	_page_label.size = Vector2(340.0, 26.0)
 	_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(_page_label)
 
