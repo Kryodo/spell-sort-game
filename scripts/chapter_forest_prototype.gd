@@ -318,23 +318,38 @@ func _add_tree(origin: Vector3, scale_value: float) -> void:
 	right_branch.rotation_degrees.z = -25.0
 
 	# A handful of uneven, overlapping canopy masses create a broken, leafy outline.
-	var canopy_specs: Array[Dictionary] = [
-		{"offset": Vector3(-0.62, 2.57, 0.03), "radius": 0.82, "scale": Vector3(1.08, 0.94, 0.92), "color": Color(0.27, 0.49, 0.30)},
-		{"offset": Vector3(-0.12, 3.25, -0.08), "radius": 0.76, "scale": Vector3(0.94, 1.12, 0.90), "color": Color(0.31, 0.53, 0.32)},
-		{"offset": Vector3(0.62, 2.72, 0.02), "radius": 0.91, "scale": Vector3(1.04, 1.04, 0.96), "color": Color(0.25, 0.46, 0.28)},
-		{"offset": Vector3(0.12, 2.36, 0.55), "radius": 0.72, "scale": Vector3(1.12, 0.86, 0.88), "color": Color(0.34, 0.55, 0.33)},
-		{"offset": Vector3(-0.55, 2.94, -0.48), "radius": 0.70, "scale": Vector3(1.02, 1.02, 0.92), "color": Color(0.29, 0.50, 0.29)}
+	var canopy_offsets: Array[Vector3] = [
+		Vector3(-0.62, 2.57, 0.03),
+		Vector3(-0.12, 3.25, -0.08),
+		Vector3(0.62, 2.72, 0.02),
+		Vector3(0.12, 2.36, 0.55),
+		Vector3(-0.55, 2.94, -0.48)
 	]
-	for index in range(canopy_specs.size()):
-		var spec: Dictionary = canopy_specs[index]
+	var canopy_radii: Array[float] = [0.82, 0.76, 0.91, 0.72, 0.70]
+	var canopy_scales: Array[Vector3] = [
+		Vector3(1.08, 0.94, 0.92),
+		Vector3(0.94, 1.12, 0.90),
+		Vector3(1.04, 1.04, 0.96),
+		Vector3(1.12, 0.86, 0.88),
+		Vector3(1.02, 1.02, 0.92)
+	]
+	var canopy_colors: Array[Color] = [
+		Color(0.27, 0.49, 0.30),
+		Color(0.31, 0.53, 0.32),
+		Color(0.25, 0.46, 0.28),
+		Color(0.34, 0.55, 0.33),
+		Color(0.29, 0.50, 0.29)
+	]
+	var canopy_rotations: Array[float] = [-8.0, 5.0, -3.0, 11.0, -12.0]
+	for index in range(canopy_offsets.size()):
 		var leaf := _add_sphere(
 			"TreeCanopy_%d" % index,
-			float(spec["radius"]) * scale_value,
-			origin + Vector3(spec["offset"]) * scale_value,
-			_mat(spec["color"])
+			canopy_radii[index] * scale_value,
+			origin + canopy_offsets[index] * scale_value,
+			_mat(canopy_colors[index])
 		)
-		leaf.scale = spec["scale"]
-		leaf.rotation_degrees.z = [-8.0, 5.0, -3.0, 11.0, -12.0][index]
+		leaf.scale = canopy_scales[index]
+		leaf.rotation_degrees.z = canopy_rotations[index]
 
 	# A few low roots visibly meet the ground rather than letting the trunk look planted on a peg.
 	for index in range(3):
@@ -422,8 +437,8 @@ func _rounded_box_mesh(dimensions: Vector3) -> ArrayMesh:
 		Vector3(0.0, 0.0, -half.z)
 	]
 	var u_axes: Array[Vector3] = [
-		Vector3.UP, Vector3.FORWARD,
-		Vector3.FORWARD, Vector3.RIGHT,
+		Vector3.UP, Vector3.BACK,
+		Vector3.BACK, Vector3.RIGHT,
 		Vector3.RIGHT, Vector3.UP
 	]
 	var v_axes: Array[Vector3] = [
