@@ -2,7 +2,6 @@ extends Node2D
 
 var _time := 0.0
 
-const LEFT_CANDLE_FOOT := Vector2(26.0, 272.0)
 const LEFT_FLAME_BASE := Vector2(26.0, 213.0)
 const REAR_CANDLE_FOOT := Vector2(520.0, 345.0)
 const REAR_FLAME_BASE := Vector2(520.0, 281.0)
