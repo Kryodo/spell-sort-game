@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="112" viewBox="0 0 120 112">
+<defs>
+ <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#efd09a"/><stop offset=".36" stop-color="#a66f3c"/><stop offset=".7" stop-color="#714626"/><stop offset="1" stop-color="#3f2a1c"/></linearGradient>
+ <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#1b2520"/><stop offset="1" stop-color="#503722"/></linearGradient>
+</defs>
+<ellipse cx="60" cy="101" rx="52" ry="8" fill="#080706" opacity=".4"/>
+<path d="M18 48 Q21 94 60 97 Q99 94 102 48 Q60 60 18 48Z" fill="url(#brass)" stroke="#3d291c" stroke-width="2"/>
+<ellipse cx="60" cy="49" rx="42" ry="13" fill="#4c321f" stroke="#d2a065" stroke-width="2"/>
+<ellipse cx="60" cy="48" rx="34" ry="8.5" fill="url(#inner)"/>
+<path d="M26 51 Q60 65 94 51" fill="none" stroke="#edc17e" stroke-width="1.7" opacity=".65"/>
+<path d="M58 49 L83 14" stroke="#593b26" stroke-width="12" stroke-linecap="round"/>
+<path d="M58 47 L81 14" stroke="#e4b77b" stroke-width="3" stroke-linecap="round" opacity=".75"/>
+<path d="M36 80 Q60 91 84 80" fill="none" stroke="#4a2f1f" stroke-width="2" opacity=".55"/>
+<path d="M21 61 Q25 83 39 90" fill="none" stroke="#f0c487" stroke-width="2" opacity=".36"/>
+</svg>
