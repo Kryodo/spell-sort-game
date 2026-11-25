@@ -9,12 +9,12 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	_draw_candle_glow(Vector2(118.0, 160.0), 1.0)
-	_draw_candle_glow(Vector2(598.0, 160.0), 0.88)
-	_draw_crystal_glow(Vector2(590.0, 385.0))
-	_draw_cauldron_glow(Vector2(146.0, 685.0))
-	_draw_flame(Vector2(118.0, 160.0), 1.0, 0.0)
-	_draw_flame(Vector2(598.0, 160.0), 0.88, 1.7)
+	_draw_candle_glow(Vector2(118.0, 178.0), 1.0)
+	_draw_candle_glow(Vector2(598.0, 178.0), 0.88)
+	_draw_crystal_glow(Vector2(590.0, 405.0))
+	_draw_cauldron_glow(Vector2(130.0, 670.0))
+	_draw_flame(Vector2(118.0, 178.0), 1.0, 0.0)
+	_draw_flame(Vector2(598.0, 178.0), 0.88, 1.7)
 	_draw_motes()
 
 
