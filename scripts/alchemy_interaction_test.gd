@@ -329,8 +329,8 @@ func _build_workbench() -> void:
 	var rack := TextureRect.new()
 	rack.name = "AlchemyVialRack"
 	rack.texture = load(RACK_PATH)
-	rack.position = Vector2(50.0, 688.0)
-	rack.size = Vector2(620.0, 110.0)
+	rack.position = Vector2(50.0, 498.0)
+	rack.size = Vector2(620.0, 300.0)
 	rack.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rack.stretch_mode = TextureRect.STRETCH_SCALE
 	rack.mouse_filter = Control.MOUSE_FILTER_IGNORE
