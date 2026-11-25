@@ -5,11 +5,11 @@ signal return_to_hub_requested
 @export var in_world_presentation := false
 
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
-const BACKGROUND_PATH := "res://assets/environments/laboratory_background.png"
+const BACKGROUND_PATH := "res://assets/environments/SpellSort_Workbench_Variant_4.png"
 const CAPACITY := 4
-const BOTTLE_SIZE := Vector2(140.0, 430.0)
-const BOTTLE_GAP := 14.0
-const BOTTLE_ROW_Y := 423.0
+const BOTTLE_SIZE := Vector2(116.0, 365.0)
+const BOTTLE_GAP := 18.0
+const BOTTLE_ROW_Y := 520.0
 
 const ESSENCE_NAMES: Array[String] = ["tide", "moon", "ember"]
 const PALETTE: Dictionary = {
@@ -77,7 +77,7 @@ func _ready() -> void:
 	if in_world_presentation:
 		_bottle_size = Vector2(116.0, 365.0)
 		_bottle_gap = 18.0
-		_bottle_row_y = 422.0
+		_bottle_row_y = 520.0
 	_build_interface()
 	_build_bottles()
 	_build_stream_layers()
@@ -92,6 +92,7 @@ func _build_interface() -> void:
 		return
 
 	var background := TextureRect.new()
+	background.name = "WorkbenchEnvironmentBackground"
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	background.texture = load(BACKGROUND_PATH)
 	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -99,18 +100,50 @@ func _build_interface() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 
-	var atmosphere := ColorRect.new()
-	atmosphere.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	atmosphere.color = Color(0.012, 0.024, 0.034, 0.47)
-	atmosphere.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(atmosphere)
-
-	_build_header()
-	_build_experiment_card()
-	_build_instruction_bar()
+	_build_minimal_header()
 	_build_workbench()
 	_build_status_panel()
 	_build_completion_panel()
+
+
+func _build_minimal_header() -> void:
+	var header := _make_panel(
+		Rect2(22.0, 20.0, 676.0, 76.0),
+		Color(0.018, 0.030, 0.030, 0.62),
+		Color(0.78, 0.62, 0.39, 0.36),
+		17
+	)
+	add_child(header)
+
+	var title := _make_label("SPELL SORT", 23, Color(0.99, 0.92, 0.78, 1.0))
+	title.position = Vector2(19.0, 8.0)
+	title.size = Vector2(330.0, 34.0)
+	header.add_child(title)
+
+	var subtitle := _make_label("THE LOST ALCHEMY LAB", 10, Color(0.78, 0.84, 0.78, 0.96))
+	subtitle.position = Vector2(21.0, 43.0)
+	subtitle.size = Vector2(300.0, 18.0)
+	header.add_child(subtitle)
+
+	var level_badge := _make_panel(
+		Rect2(536.0, 13.0, 120.0, 49.0),
+		Color(0.12, 0.085, 0.050, 0.72),
+		Color(0.88, 0.69, 0.43, 0.52),
+		12
+	)
+	header.add_child(level_badge)
+
+	var level_kicker := _make_label("LEVEL", 9, Color(0.78, 0.72, 0.60, 1.0))
+	level_kicker.position = Vector2(12.0, 5.0)
+	level_kicker.size = Vector2(96.0, 14.0)
+	level_kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_badge.add_child(level_kicker)
+
+	var level_value := _make_label("01", 19, Color(1.0, 0.88, 0.66, 1.0))
+	level_value.position = Vector2(12.0, 18.0)
+	level_value.size = Vector2(96.0, 24.0)
+	level_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_badge.add_child(level_value)
 
 
 func _build_in_world_interface() -> void:
@@ -290,92 +323,83 @@ func _build_instruction_bar() -> void:
 
 
 func _build_workbench() -> void:
-	var bench_background := Color(0.025, 0.040, 0.047, 0.62) if not in_world_presentation else Color(0.10, 0.065, 0.038, 0.10)
-	var bench_border := Color(0.72, 0.60, 0.42, 0.50) if not in_world_presentation else Color(0.82, 0.67, 0.43, 0.20)
-	var bench_rect := Rect2(18.0, 382.0, 684.0, 498.0) if not in_world_presentation else Rect2(18.0, 350.0, 684.0, 520.0)
-	var bench := _make_panel(bench_rect, bench_background, bench_border, 24)
-	add_child(bench)
-
-	var bench_label := _make_label("THE WORKBENCH", 11, Color(0.84, 0.72, 0.52, 0.96))
-	bench_label.position = Vector2(20.0, 11.0)
-	bench_label.size = Vector2(190.0, 22.0)
-	bench.add_child(bench_label)
-
-	var vessel_note := _make_label("FOUR OPEN VESSELS  ·  FOUR MEASURES EACH", 10, Color(0.65, 0.77, 0.75, 0.90))
-	vessel_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	vessel_note.position = Vector2(300.0, 11.0)
-	vessel_note.size = Vector2(360.0, 22.0)
-	bench.add_child(vessel_note)
+	# The generated environment already contains the tabletop. Do not draw a
+	# second artificial bench panel or pedestals over the artwork.
+	pass
 
 
 func _build_status_panel() -> void:
-	var status_background := Color(0.026, 0.047, 0.059, 0.94) if not in_world_presentation else Color(0.026, 0.047, 0.059, 0.86)
 	var panel := _make_panel(
-		Rect2(24.0, 897.0, 672.0, 272.0),
-		status_background,
-		Color(0.76, 0.61, 0.40, 0.73),
-		20
+		Rect2(22.0, 1018.0, 676.0, 240.0),
+		Color(0.020, 0.035, 0.035, 0.82),
+		Color(0.78, 0.62, 0.40, 0.52),
+		18
 	)
 	add_child(panel)
 
-	var section_label := _make_label("EXPERIMENT NOTES", 10, Color(0.83, 0.68, 0.46, 1.0))
-	section_label.position = Vector2(20.0, 13.0)
-	section_label.size = Vector2(220.0, 19.0)
+	var section_label := _make_label("ESSENCE JOURNAL", 10, Color(0.87, 0.70, 0.47, 1.0))
+	section_label.position = Vector2(19.0, 10.0)
+	section_label.size = Vector2(220.0, 18.0)
 	panel.add_child(section_label)
 
-	move_label = _make_label("MOVES 00", 12, Color(0.88, 0.82, 0.68, 1.0))
-	move_label.position = Vector2(20.0, 34.0)
-	move_label.size = Vector2(150.0, 23.0)
+	move_label = _make_label("MOVES 00", 12, Color(0.94, 0.87, 0.73, 1.0))
+	move_label.position = Vector2(19.0, 33.0)
+	move_label.size = Vector2(150.0, 22.0)
 	panel.add_child(move_label)
 
-	purity_label = _make_label("PURE VIALS 0 / 3", 12, Color(0.85, 0.91, 0.84, 1.0))
+	purity_label = _make_label("PURE VIALS 0 / 3", 12, Color(0.91, 0.93, 0.83, 1.0))
 	purity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	purity_label.position = Vector2(450.0, 34.0)
-	purity_label.size = Vector2(200.0, 23.0)
+	purity_label.position = Vector2(428.0, 33.0)
+	purity_label.size = Vector2(224.0, 22.0)
 	panel.add_child(purity_label)
 
 	for index in range(ESSENCE_NAMES.size()):
 		var essence_name: String = ESSENCE_NAMES[index]
 		var essence_color: Color = PALETTE[essence_name]
 		var chip := _make_panel(
-			Rect2(20.0 + float(index) * 210.0, 66.0, 198.0, 34.0),
-			Color(0.045, 0.065, 0.071, 0.92),
-			Color(essence_color.r, essence_color.g, essence_color.b, 0.30),
+			Rect2(19.0 + float(index) * 213.0, 65.0, 198.0, 34.0),
+			Color(essence_color.r * 0.12, essence_color.g * 0.12, essence_color.b * 0.12, 0.82),
+			Color(essence_color.r, essence_color.g, essence_color.b, 0.42),
 			9
 		)
 		panel.add_child(chip)
 		objective_chips.append(chip)
 
-		var chip_label := _make_label(essence_name.to_upper(), 10, Color(0.73, 0.80, 0.77, 0.95))
+		var chip_label := _make_label(essence_name.to_upper(), 10, Color(0.86, 0.87, 0.80, 1.0))
 		chip_label.position = Vector2(10.0, 4.0)
-		chip_label.size = Vector2(175.0, 25.0)
+		chip_label.size = Vector2(178.0, 25.0)
+		chip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		chip.add_child(chip_label)
 		objective_chip_labels.append(chip_label)
 
-	status_label = _make_label("Grip a vial and guide its opening to a receiving vial.", 14, Color(0.94, 0.93, 0.86, 1.0))
-	status_label.position = Vector2(20.0, 111.0)
-	status_label.size = Vector2(632.0, 43.0)
+	status_label = _make_label(
+		"Drag a vial and align its open mouth with a receiving vial.",
+		12,
+		Color(0.95, 0.92, 0.83, 1.0)
+	)
+	status_label.position = Vector2(19.0, 116.0)
+	status_label.size = Vector2(388.0, 58.0)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(status_label)
 
 	var hint := _make_label(
-		"A pour transfers the complete matching run at the top of the source vial.",
-		10,
-		Color(0.67, 0.77, 0.75, 0.94)
+		"Only matching top layers or an empty vial can receive a pour.",
+		9,
+		Color(0.70, 0.77, 0.71, 0.95)
 	)
-	hint.position = Vector2(20.0, 157.0)
-	hint.size = Vector2(630.0, 22.0)
+	hint.position = Vector2(19.0, 180.0)
+	hint.size = Vector2(390.0, 22.0)
 	panel.add_child(hint)
 
 	undo_button = _make_action_button("UNDO", false)
-	undo_button.position = Vector2(398.0, 200.0)
-	undo_button.size = Vector2(118.0, 48.0)
+	undo_button.position = Vector2(430.0, 155.0)
+	undo_button.size = Vector2(102.0, 47.0)
 	undo_button.pressed.connect(_on_undo_pressed)
 	panel.add_child(undo_button)
 
 	reset_button = _make_action_button("RESET", true)
-	reset_button.position = Vector2(528.0, 200.0)
-	reset_button.size = Vector2(122.0, 48.0)
+	reset_button.position = Vector2(544.0, 155.0)
+	reset_button.size = Vector2(108.0, 47.0)
 	reset_button.pressed.connect(_reset_test)
 	panel.add_child(reset_button)
 
@@ -391,7 +415,7 @@ func _build_completion_panel() -> void:
 	completion_panel.visible = false
 	add_child(completion_panel)
 
-	var kicker := _make_label("EXPERIMENT 01  ·  COMPLETE", 11, Color(0.91, 0.75, 0.48, 1.0))
+	var kicker := _make_label("LEVEL 01  ·  COMPLETE", 11, Color(0.91, 0.75, 0.48, 1.0))
 	kicker.position = Vector2(25.0, 22.0)
 	kicker.size = Vector2(478.0, 20.0)
 	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -409,7 +433,7 @@ func _build_completion_panel() -> void:
 	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	completion_panel.add_child(detail)
 
-	var repeat_button := _make_action_button("REPEAT EXPERIMENT", true)
+	var repeat_button := _make_action_button("PLAY AGAIN", true)
 	repeat_button.position = Vector2(154.0, 137.0)
 	repeat_button.size = Vector2(220.0, 40.0)
 	repeat_button.pressed.connect(_reset_test)
@@ -423,22 +447,6 @@ func _build_bottles() -> void:
 
 	for index in range(4):
 		var slot_position := Vector2(start_x + float(index) * (_bottle_size.x + _bottle_gap), _bottle_row_y)
-		var slot := _make_panel(
-			Rect2(slot_position.x + 5.0, slot_position.y + 30.0, _bottle_size.x - 10.0, _bottle_size.y - 54.0),
-			Color(0.020, 0.037, 0.044, 0.30),
-			Color(0.77, 0.66, 0.47, 0.20),
-			17
-		)
-		add_child(slot)
-
-		var pedestal := _make_panel(
-			Rect2(slot_position.x + 12.0, slot_position.y + _bottle_size.y - 41.0, _bottle_size.x - 24.0, 35.0),
-			Color(0.075, 0.073, 0.060, 0.70),
-			Color(0.75, 0.61, 0.41, 0.30),
-			10
-		)
-		add_child(pedestal)
-
 		var vial = BottleScript.new()
 		vial.position = slot_position
 		vial.size = _bottle_size
