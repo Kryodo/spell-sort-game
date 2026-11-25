@@ -9,7 +9,7 @@ const BACKGROUND_PATH := "res://assets/environments/SpellSort_Workbench.png"
 const CAPACITY := 4
 const BOTTLE_SIZE := Vector2(116.0, 365.0)
 const BOTTLE_GAP := 18.0
-const BOTTLE_ROW_Y := 440.0
+const BOTTLE_ROW_Y := 480.0
 
 const ESSENCE_NAMES: Array[String] = ["tide", "moon", "ember"]
 const PALETTE: Dictionary = {
