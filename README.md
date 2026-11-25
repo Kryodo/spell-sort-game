@@ -1,12 +1,20 @@
 # Spell Sort — First Alchemy Experiment
 
-This branch combines the procedural alchemy-vial interaction test with the original playable sorting rules. The configured startup scene is the first complete experiment: **Separation of Essences**.
+This branch combines the procedural alchemy-vial interaction test with the original playable sorting rules. The configured startup scene is an interactive, procedural 3D laboratory room prototype. The first experiment, **Separation of Essences**, opens from the workbench.
 
 ## Run
 
-Open the project in Godot 4.7 and run the project. The configured main scene is `res://scenes/alchemy_interaction_test.tscn`.
+Open the project in Godot 4.7 and run it. The configured main scene is `res://scenes/lab_room_prototype.tscn`. Tap the alchemy workbench to open the experiment. Use **Back to Lab** in the experiment header to return to the room.
 
 The original tap-to-select prototype remains available at `res://scenes/main.tscn`.
+
+## Laboratory room prototype
+
+The room is built at runtime from simple Godot 3D primitives and shared flat-colour materials; it does not depend on a texture or external model pack. It uses a fixed orthographic camera with a slight 3/4 angle, warm key lighting, cool fill lighting and small animated candle flames.
+
+Clickable areas are provided for the alchemy table, grimoire, ingredient cabinet, cauldron and world map. The workbench launches the existing experiment scene. The other objects currently show prototype interaction descriptions so the room's future hub navigation can be evaluated before those systems are built.
+
+Main implementation: `scripts/lab_room_prototype.gd` and `scenes/lab_room_prototype.tscn`.
 
 ## Experiment 01 — Separation of Essences
 
