@@ -30,7 +30,7 @@ Four upright vessels are arranged in one centred horizontal row on the tabletop.
 
 The row is intentionally simple and readable. Perspective comes from the illustrated workbench background and the shallow illustrated rack, not from transforming the individual vessels.
 
-The rack asset is `assets/environments/SpellSort_Vial_Rack.svg`. It is a transparent vector overlay with four shallow brass-lined holders. The rack is drawn below the bottle controls, so the live bottle artwork covers each socket and can be lifted, dragged and returned independently. The rack's 620 × 300 screen-space rectangle is positioned at (50, 498). Its new 190-pixel raised rear panel sits behind the vial bodies; the original socket/base line remains unchanged.
+The rack asset is `assets/environments/SpellSort_Vial_Rack.svg`. It is a transparent vector overlay with four shallow brass-lined holders and a low rear support rail. The rack is drawn below the bottle controls, so the live bottle artwork covers each socket and can be lifted, dragged and returned independently. The rack's 620 × 300 screen-space rectangle is positioned at (50, 498). Its new 190-pixel raised rear panel sits behind the vial bodies; the original socket/base line remains unchanged.
 
 ## Sorting gameplay
 
