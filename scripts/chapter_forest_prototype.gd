@@ -313,17 +313,16 @@ func _add_crystal_cluster(origin: Vector3, tint: Color) -> void:
 		spike.rotation_degrees.z = -12.0 + float(index) * 12.0
 
 
-func _mat(color: Color, metallic: float = 0.0, emission_strength: float = 0.0) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.metallic = metallic
-	material.roughness = 0.74 if metallic == 0.0 else 0.30
-	if emission_strength > 0.0:
-		material.emission_enabled = true
-		material.emission = Color(color.r, color.g, color.b)
-		material.emission_energy_multiplier = emission_strength
-	if color.a < 1.0:
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+func _mat(color: Color, metallic: float = 0.0, emission_strength: float = 0.0) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = load("res://shaders/painterly_surface.gdshader") as Shader
+	material.set_shader_parameter("base_color", color)
+	material.set_shader_parameter("metallic_amount", metallic)
+	material.set_shader_parameter("roughness_amount", 0.84 if metallic == 0.0 else 0.36)
+	material.set_shader_parameter("grain_scale", 7.0)
+	material.set_shader_parameter("grain_strength", 0.045)
+	material.set_shader_parameter("emission_color", Color(color.r, color.g, color.b, 1.0))
+	material.set_shader_parameter("emission_strength", emission_strength)
 	return material
 
 
