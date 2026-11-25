@@ -8,8 +8,6 @@ const LIQUID_SURFACE_COLUMNS := 64
 const LIQUID_WALL_INSET_PIXELS := 4.5
 const LIQUID_FLOOR_INSET_PIXELS := 5.0
 const LIQUID_BAND_OVERLAP_PIXELS := 1.2
-const TABLETOP_AXIS_ANGLE := -0.418879
-const TABLETOP_SURFACE_SLOPE := -0.4452
 
 var vial_index: int = 0
 var display_name: String = ""
@@ -119,27 +117,10 @@ func trigger_slosh(strength: float = 0.12) -> void:
 	queue_redraw()
 
 
-func get_resting_base_offset() -> Vector2:
-	var rect := _get_vessel_rect()
-	var base_point := Vector2(rect.get_center().x, rect.position.y + rect.size.y * 0.975)
-	return get_point_local_for_pose(base_point, Vector2.ZERO, _draw_scale)
-
-
-func contains_pointer(pointer_in_parent: Vector2) -> bool:
-	var rect := _get_vessel_rect()
-	var pivot := Vector2(size.x * 0.5, size.y * 0.86)
-	var pointer_local: Vector2 = pointer_in_parent - position
-	var untransformed := pivot + (pointer_local - pivot - Vector2(0.0, -_lift)).rotated(-_tilt) / maxf(0.001, _draw_scale)
-	var normalized_y: float = (untransformed.y - rect.position.y) / rect.size.y
-	if normalized_y < 0.0 or normalized_y > 1.0:
-		return false
-	var half_width: float = rect.size.x * _get_profile_at(normalized_y).y
-	return absf(untransformed.x - rect.get_center().x) <= half_width + 12.0
-
-
 func get_mouth_local() -> Vector2:
 	var rect := _get_vessel_rect()
 	return Vector2(size.x * 0.5, rect.position.y + 2.0)
+
 
 
 func get_mouth_local_for_pose(pose: Vector2, draw_scale: float = -1.0) -> Vector2:
@@ -254,39 +235,9 @@ func _get_vessel_rect() -> Rect2:
 
 func _draw() -> void:
 	var center_x: float = size.x * 0.5
-	var vessel_rect := _get_vessel_rect()
-	var base_point := Vector2(center_x, vessel_rect.position.y + vessel_rect.size.y * 0.975)
-	var base_center := get_point_local_for_pose(base_point, Vector2.ZERO, _draw_scale)
-
-	# Ground the vessel on the illustrated tabletop with a perspective-aligned
-	# contact ellipse and a softer cast shadow extending down-left.
-	var shadow_scale: float = _draw_scale
-	var cast_shadow := _ellipse_points(
-		base_center + Vector2(-4.0, 5.0),
-		size.x * 0.47 * shadow_scale,
-		size.x * 0.135 * shadow_scale,
-		40,
-		TABLETOP_AXIS_ANGLE
-	)
-	var soft_shadow := _ellipse_points(
-		base_center + Vector2(-2.0, 3.0),
-		size.x * 0.37 * shadow_scale,
-		size.x * 0.105 * shadow_scale,
-		40,
-		TABLETOP_AXIS_ANGLE
-	)
-	var contact_shadow := _ellipse_points(
-		base_center + Vector2(0.0, 1.0),
-		size.x * 0.285 * shadow_scale,
-		size.x * 0.075 * shadow_scale,
-		40,
-		TABLETOP_AXIS_ANGLE
-	)
-	draw_colored_polygon(cast_shadow, Color(0.018, 0.014, 0.010, 0.105))
-	draw_colored_polygon(soft_shadow, Color(0.014, 0.018, 0.018, 0.13))
-	draw_colored_polygon(contact_shadow, Color(0.012, 0.018, 0.018, 0.20))
-
 	var pivot := Vector2(center_x, size.y * 0.86)
+	draw_circle(Vector2(center_x, size.y * 0.87), size.x * 0.34, Color(0.012, 0.022, 0.027, 0.30))
+
 	var draw_origin := pivot + Vector2(0.0, -_lift) - pivot.rotated(_tilt) * _draw_scale
 	draw_set_transform(draw_origin, _tilt, Vector2(_draw_scale, _draw_scale))
 
@@ -296,11 +247,21 @@ func _draw() -> void:
 		draw_circle(Vector2(center_x, size.y * 0.46), size.x * 0.43, glow)
 		draw_arc(Vector2(center_x, size.y * 0.46), size.x * 0.43, 0.0, TAU, 48, Color(glow.r, glow.g, glow.b, 0.40), 2.0, true)
 
+	var vessel_rect := _get_vessel_rect()
 	_draw_glass_back(vessel_rect)
 	_draw_liquid(vessel_rect)
 	_draw_glass_front(vessel_rect)
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_string(
+		ThemeDB.fallback_font,
+		Vector2(0.0, size.y - 5.0),
+		display_name,
+		HORIZONTAL_ALIGNMENT_CENTER,
+		size.x,
+		12,
+		Color(0.96, 0.88, 0.70, 0.96)
+	)
 
 
 func _draw_glass_back(rect: Rect2) -> void:
@@ -345,10 +306,10 @@ func _draw_glass_front(rect: Rect2) -> void:
 		left_reflection.append(Vector2(left_x + rect.size.x * 0.055, y))
 		right_reflection.append(Vector2(right_x - rect.size.x * 0.055, y))
 
-	draw_polyline(left_edge, Color(0.68, 0.82, 0.84, 0.48), 2.5, true)
-	draw_polyline(right_edge, Color(1.0, 0.82, 0.58, 0.72), 2.5, true)
-	draw_polyline(left_reflection, Color(0.86, 0.93, 0.90, 0.22), 4.0, true)
-	draw_polyline(right_reflection, Color(1.0, 0.91, 0.72, 0.34), 3.2, true)
+	draw_polyline(left_edge, Color(0.83, 0.95, 0.98, 0.78), 2.8, true)
+	draw_polyline(right_edge, Color(0.42, 0.67, 0.76, 0.46), 2.2, true)
+	draw_polyline(left_reflection, Color(1.0, 1.0, 1.0, 0.36), 4.5, true)
+	draw_polyline(right_reflection, Color(0.67, 0.84, 0.91, 0.20), 3.0, true)
 
 	# Short bevel facets catch the light near the shoulders.
 	var facet_y: float = rect.position.y + rect.size.y * 0.23
@@ -362,15 +323,15 @@ func _draw_glass_front(rect: Rect2) -> void:
 		Vector2(rect.position.x + rect.size.x * 0.73, facet_y + 21.0),
 		Vector2(rect.position.x + rect.size.x * 0.66, facet_y + 28.0)
 	])
-	draw_colored_polygon(facet_left, Color(0.78, 0.88, 0.87, 0.10))
-	draw_colored_polygon(facet_right, Color(1.0, 0.82, 0.57, 0.20))
+	draw_colored_polygon(facet_left, Color(0.94, 0.99, 1.0, 0.17))
+	draw_colored_polygon(facet_right, Color(0.52, 0.72, 0.79, 0.13))
 
 	# The thicker bottom gives the glass a visible, dimensional foot.
 	var bottom_center := Vector2(rect.get_center().x, rect.position.y + rect.size.y * 0.975)
 	var bottom_rx: float = rect.size.x * _get_profile_at(0.96).y * 0.93
-	var outer_base := _ellipse_points(bottom_center, bottom_rx, 7.0, 32, TABLETOP_AXIS_ANGLE)
+	var outer_base := _ellipse_points(bottom_center, bottom_rx, 7.0, 32)
 	draw_colored_polygon(outer_base, Color(0.68, 0.85, 0.91, 0.30))
-	var base_highlight := _ellipse_points(bottom_center + Vector2(0.0, -1.5), bottom_rx * 0.78, 2.1, 32, TABLETOP_AXIS_ANGLE)
+	var base_highlight := _ellipse_points(bottom_center + Vector2(0.0, -1.5), bottom_rx * 0.78, 2.1, 32)
 	draw_polyline(_closed_points(base_highlight), Color(0.97, 1.0, 1.0, 0.52), 1.6, true)
 
 	_draw_open_mouth(rect)
@@ -384,19 +345,19 @@ func _draw_open_mouth(rect: Rect2) -> void:
 	var inner_rx: float = outer_rx * 0.72
 	var inner_ry: float = outer_ry * 0.54
 
-	var outer_rim := _ellipse_points(mouth, outer_rx, outer_ry, 36, TABLETOP_AXIS_ANGLE)
-	draw_colored_polygon(outer_rim, Color(0.80, 0.83, 0.80, 0.76))
-	draw_polyline(_closed_points(outer_rim), Color(1.0, 0.88, 0.69, 0.92), 2.2, true)
+	var outer_rim := _ellipse_points(mouth, outer_rx, outer_ry, 36)
+	draw_colored_polygon(outer_rim, Color(0.64, 0.83, 0.90, 0.72))
+	draw_polyline(_closed_points(outer_rim), Color(0.90, 0.98, 1.0, 0.95), 2.2, true)
 
-	var inner_opening := _ellipse_points(mouth + Vector2(0.0, 0.5), inner_rx, inner_ry, 36, TABLETOP_AXIS_ANGLE)
+	var inner_opening := _ellipse_points(mouth + Vector2(0.0, 0.5), inner_rx, inner_ry, 36)
 	draw_colored_polygon(inner_opening, Color(0.012, 0.025, 0.035, 0.92))
-	draw_polyline(_closed_points(inner_opening), Color(0.66, 0.64, 0.54, 0.62), 1.0, true)
+	draw_polyline(_closed_points(inner_opening), Color(0.49, 0.70, 0.78, 0.72), 1.0, true)
 
 	var front_rim := PackedVector2Array()
 	for index in range(19):
 		var angle: float = lerpf(0.0, PI, float(index) / 18.0)
-		front_rim.append(mouth + Vector2(cos(angle) * outer_rx, sin(angle) * outer_ry).rotated(TABLETOP_AXIS_ANGLE))
-	draw_polyline(front_rim, Color(1.0, 0.91, 0.73, 0.88), 2.0, true)
+		front_rim.append(mouth + Vector2(cos(angle) * outer_rx, sin(angle) * outer_ry))
+	draw_polyline(front_rim, Color(1.0, 1.0, 1.0, 0.85), 2.0, true)
 
 
 
@@ -475,7 +436,6 @@ func _draw_liquid_band(
 
 	var left_contour := PackedVector2Array()
 	var right_contour := PackedVector2Array()
-	var center_x: float = rect.get_center().x
 
 	for strip_index in range(LIQUID_BAND_STRIPS):
 		var strip_top: float = body_top + strip_height * float(strip_index)
@@ -487,36 +447,36 @@ func _draw_liquid_band(
 		if half_width <= 2.0:
 			continue
 
-		# The liquid layers follow the same projected tabletop axis as the
-		# vessel's elliptical mouth and foot, rather than reading as flat bars.
-		var left_top := Vector2(center_x - half_width, strip_top - TABLETOP_SURFACE_SLOPE * half_width)
-		var right_top := Vector2(center_x + half_width, strip_top + TABLETOP_SURFACE_SLOPE * half_width)
-		var left_bottom := Vector2(center_x - half_width, strip_bottom - TABLETOP_SURFACE_SLOPE * half_width)
-		var right_bottom := Vector2(center_x + half_width, strip_bottom + TABLETOP_SURFACE_SLOPE * half_width)
-
+		var strip_rect := Rect2(
+			rect.get_center().x - half_width,
+			strip_top,
+			half_width * 2.0,
+			strip_bottom - strip_top
+		)
 		if left_contour.is_empty():
-			left_contour.append(left_top)
-			right_contour.append(right_top)
-		left_contour.append(left_bottom)
-		right_contour.append(right_bottom)
+			left_contour.append(Vector2(strip_rect.position.x, strip_top))
+			right_contour.append(Vector2(strip_rect.end.x, strip_top))
+		left_contour.append(Vector2(strip_rect.position.x, strip_bottom))
+		right_contour.append(Vector2(strip_rect.end.x, strip_bottom))
 
 		var depth_factor: float = 0.07 + 0.08 * sin(PI * (float(strip_index) + 0.5) / float(LIQUID_BAND_STRIPS))
 		var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.15), depth_factor)
-		var band := PackedVector2Array([left_top, right_top, right_bottom, left_bottom])
-		draw_colored_polygon(band, fill_color)
+		draw_rect(strip_rect, fill_color, true, -1.0, false)
 
 		var side_width: float = minf(2.2, half_width * 0.08)
-		var left_inner_top := left_top + Vector2(side_width, TABLETOP_SURFACE_SLOPE * side_width)
-		var left_inner_bottom := left_bottom + Vector2(side_width, TABLETOP_SURFACE_SLOPE * side_width)
-		var right_inner_top := right_top + Vector2(-side_width, -TABLETOP_SURFACE_SLOPE * side_width)
-		var right_inner_bottom := right_bottom + Vector2(-side_width, -TABLETOP_SURFACE_SLOPE * side_width)
-		draw_colored_polygon(
-			PackedVector2Array([left_top, left_inner_top, left_inner_bottom, left_bottom]),
-			liquid_color.darkened(0.18)
+		draw_rect(
+			Rect2(strip_rect.position.x, strip_rect.position.y, side_width, strip_rect.size.y),
+			liquid_color.darkened(0.18),
+			true,
+			-1.0,
+			false
 		)
-		draw_colored_polygon(
-			PackedVector2Array([right_inner_top, right_top, right_bottom, right_inner_bottom]),
-			liquid_color.darkened(0.24)
+		draw_rect(
+			Rect2(strip_rect.end.x - side_width, strip_rect.position.y, side_width, strip_rect.size.y),
+			liquid_color.darkened(0.24),
+			true,
+			-1.0,
+			false
 		)
 
 	if left_contour.size() >= 2:
@@ -564,15 +524,10 @@ func _draw_wavy_surface_fill(
 	for point_index in range(LIQUID_SURFACE_COLUMNS + 1):
 		var normalized_x: float = float(point_index) / float(LIQUID_SURFACE_COLUMNS) * 2.0 - 1.0
 		var x: float = rect.get_center().x + normalized_x * half_width
-		var plane_offset: float = TABLETOP_SURFACE_SLOPE * normalized_x * half_width
-		var moving_surface_y: float = surface_y + plane_offset + _get_surface_wave_offset(normalized_x)
-		moving_surface_y = clampf(
-			moving_surface_y,
-			surface_y + plane_offset - maximum_wave - 3.5,
-			fill_bottom + plane_offset - 1.5
-		)
+		var moving_surface_y: float = surface_y + _get_surface_wave_offset(normalized_x)
+		moving_surface_y = clampf(moving_surface_y, surface_y - maximum_wave - 3.5, fill_bottom - 1.5)
 		top_edge.append(Vector2(x, moving_surface_y))
-		bottom_edge.append(Vector2(x, fill_bottom + plane_offset))
+		bottom_edge.append(Vector2(x, fill_bottom))
 
 	var surface_polygon := PackedVector2Array()
 	for point in top_edge:
@@ -586,7 +541,6 @@ func _draw_wavy_surface_fill(
 	var highlight_color: Color = surface_color.lightened(0.35)
 	highlight_color.a = 0.15 + _surface_activity * 0.07 + absf(_slosh) * 0.035
 	draw_polyline(top_edge, highlight_color, 1.25, true)
-
 
 func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
 	if points.size() != 4:
@@ -610,19 +564,13 @@ func _is_safe_convex_quad(points: PackedVector2Array) -> bool:
 	return absf(signed_area) > 0.8
 
 
-func _ellipse_points(
-	center: Vector2,
-	radius_x: float,
-	radius_y: float,
-	segments: int,
-	rotation: float = TABLETOP_AXIS_ANGLE
-) -> PackedVector2Array:
+func _ellipse_points(center: Vector2, radius_x: float, radius_y: float, segments: int) -> PackedVector2Array:
 	var points := PackedVector2Array()
 	for index in range(segments):
 		var angle: float = TAU * float(index) / float(segments)
-		var point := Vector2(cos(angle) * radius_x, sin(angle) * radius_y).rotated(rotation)
-		points.append(center + point)
+		points.append(center + Vector2(cos(angle) * radius_x, sin(angle) * radius_y))
 	return points
+
 
 func _closed_points(points: PackedVector2Array) -> PackedVector2Array:
 	var closed := points.duplicate()
