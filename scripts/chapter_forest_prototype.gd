@@ -6,7 +6,6 @@ var _camera: Camera3D
 var _modal: Panel
 var _modal_title: Label
 var _modal_text: Label
-var _active_id := ""
 var _interactables: Array[Area3D] = []
 var _fireflies: Array[MeshInstance3D] = []
 var _firefly_origins: Array[Vector3] = []
@@ -97,8 +96,7 @@ func _build_glade() -> void:
 		_add_fern(Vector3(x, 0.06, z), 0.70 + 0.12 * float(plant_index % 3))
 
 	# A quiet pool sits behind the gate.
-	var pool := _add_cylinder("SpringPool", 1.32, 1.32, 0.065, Vector3(0.0, 0.04, -3.75), _mat(Color(0.15, 0.45, 0.50, 0.88), 0.10, 0.18))
-	pool.rotation_degrees.x = 0.0
+	_add_cylinder("SpringPool", 1.32, 1.32, 0.065, Vector3(0.0, 0.04, -3.75), _mat(Color(0.15, 0.45, 0.50, 0.88), 0.10, 0.18))
 	var pool_edge := _add_cylinder("SpringPoolEdge", 1.50, 1.50, 0.11, Vector3(0.0, 0.00, -3.75), _mat(Color(0.38, 0.42, 0.34)))
 	pool_edge.material_override = _mat(Color(0.38, 0.42, 0.34))
 
@@ -400,7 +398,6 @@ func _try_interaction(screen_position: Vector2) -> void:
 	if not collider is Area3D:
 		return
 	var area := collider as Area3D
-	_active_id = String(area.get_meta("interaction_id"))
 	_modal_title.text = String(area.get_meta("title"))
 	_modal_text.text = String(area.get_meta("description"))
 	_modal.visible = true
