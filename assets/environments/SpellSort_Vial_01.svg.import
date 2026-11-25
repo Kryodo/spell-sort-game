@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dojs5hxhxhy47"
-path="res://.godot/imported/bottles_sheet.png-e762dcbeecf67e2162562ebdf8e18c59.ctex"
+uid="uid://c3ai7mf1anjgx"
+path="res://.godot/imported/SpellSort_Vial_01.svg-50842e354c6eb28d8f651f5c20f7891d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bottles/bottles_sheet.png"
-dest_files=["res://.godot/imported/bottles_sheet.png-e762dcbeecf67e2162562ebdf8e18c59.ctex"]
+source_file="res://assets/environments/SpellSort_Vial_01.svg"
+dest_files=["res://.godot/imported/SpellSort_Vial_01.svg-50842e354c6eb28d8f651f5c20f7891d.ctex"]
 
 [params]
 
@@ -38,3 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false

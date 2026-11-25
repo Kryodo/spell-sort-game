@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://btegwk2hpaqpo"
-path="res://.godot/imported/ingredients_sheet.png-9438399217575c2d038d497446f2791b.ctex"
+uid="uid://2vtqw2h5kdnm"
+path="res://.godot/imported/SpellSort_Vial_02.svg-93bb8d0893df2c34870b3f8535d1490c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ingredients/ingredients_sheet.png"
-dest_files=["res://.godot/imported/ingredients_sheet.png-9438399217575c2d038d497446f2791b.ctex"]
+source_file="res://assets/environments/SpellSort_Vial_02.svg"
+dest_files=["res://.godot/imported/SpellSort_Vial_02.svg-93bb8d0893df2c34870b3f8535d1490c.ctex"]
 
 [params]
 
@@ -38,3 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false
