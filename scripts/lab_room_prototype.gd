@@ -145,14 +145,14 @@ func _build_props() -> void:
 	var green := _mat(Color(0.35, 0.62, 0.35), 0.0, 0.22)
 
 	# Main workbench in the foreground.
-	_add_box("WorkbenchTop", Vector3(2.75, 0.22, 1.42), Vector3(0.0, 1.12, 1.63), wood_light)
-	_add_box("WorkbenchFrontApron", Vector3(2.56, 0.32, 0.16), Vector3(0.0, 0.86, 2.25), wood)
-	_add_box("WorkbenchDrawer", Vector3(0.82, 0.21, 0.08), Vector3(0.0, 0.88, 2.34), wood_light)
-	_add_box("WorkbenchDrawerPull", Vector3(0.18, 0.045, 0.05), Vector3(0.0, 0.88, 2.405), brass)
-	for x in [-1.13, 1.13]:
-		for z in [1.12, 2.10]:
-			_add_box("WorkbenchLeg", Vector3(0.20, 0.98, 0.20), Vector3(x, 0.52, z), wood)
-	_add_box("WorkbenchLowerBrace", Vector3(2.30, 0.13, 0.14), Vector3(0.0, 0.34, 1.62), wood)
+	_add_box("WorkbenchTop", Vector3(5.70, 0.22, 4.20), Vector3(0.0, 1.12, 1.63), wood_light)
+	_add_box("WorkbenchFrontApron", Vector3(5.42, 0.32, 0.16), Vector3(0.0, 0.86, 3.67), wood)
+	_add_box("WorkbenchDrawer", Vector3(1.12, 0.21, 0.08), Vector3(0.0, 0.88, 3.76), wood_light)
+	_add_box("WorkbenchDrawerPull", Vector3(0.22, 0.045, 0.05), Vector3(0.0, 0.88, 3.82), brass)
+	for x in [-2.42, 2.42]:
+		for z in [-0.12, 3.34]:
+			_add_box("WorkbenchLeg", Vector3(0.22, 0.98, 0.22), Vector3(x, 0.52, z), wood)
+	_add_box("WorkbenchLowerBrace", Vector3(5.05, 0.13, 0.14), Vector3(0.0, 0.34, 1.62), wood)
 
 	# Grimoire resting on the workbench.
 	var book := _add_box("GrimoireCover", Vector3(0.80, 0.13, 0.92), Vector3(-0.48, 1.30, 1.62), _mat(Color(0.26, 0.25, 0.40)))
@@ -229,7 +229,7 @@ func _build_hub_areas() -> void:
 	main_lab.position = MAIN_LAB_OFFSET
 	add_child(main_lab)
 	_spawn_parent = main_lab
-	_add_box("WorkbenchRug", Vector3(4.05, 0.035, 2.75), Vector3(0.0, 0.025, 1.15), _mat(Color(0.23, 0.28, 0.22)))
+	_add_box("WorkbenchRug", Vector3(6.15, 0.035, 4.62), Vector3(0.0, 0.025, 1.15), _mat(Color(0.23, 0.28, 0.22)))
 	_build_props()
 	_build_main_interactables()
 
@@ -357,7 +357,7 @@ func _build_main_interactables() -> void:
 	_register_interactable(
 		"alchemy_table", "Alchemy Table",
 		"Your first experiment is ready. Separate the tangled tide, moon and ember essences by guiding each vial's open mouth into position.",
-		Vector3(0.0, 1.17, 1.72), Vector3(3.60, 0.42, 2.00)
+		Vector3(0.0, 1.17, 1.72), Vector3(5.80, 0.42, 4.40)
 	)
 	_register_interactable(
 		"grimoire", "The Grimoire",
