@@ -10,7 +10,7 @@ const RACK_PATH := "res://assets/environments/SpellSort_Vial_Rack.svg"
 const CAPACITY := 4
 const BOTTLE_SIZE := Vector2(116.0, 365.0)
 const BOTTLE_GAP := 18.0
-const BOTTLE_ROW_Y := 480.0
+const BOTTLE_ROW_Y := 390.0
 
 const ESSENCE_NAMES: Array[String] = ["tide", "moon", "ember"]
 const PALETTE: Dictionary = {
@@ -329,7 +329,7 @@ func _build_workbench() -> void:
 	var rack := TextureRect.new()
 	rack.name = "AlchemyVialRack"
 	rack.texture = load(RACK_PATH)
-	rack.position = Vector2(50.0, 778.0)
+	rack.position = Vector2(50.0, 688.0)
 	rack.size = Vector2(620.0, 110.0)
 	rack.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rack.stretch_mode = TextureRect.STRETCH_SCALE
