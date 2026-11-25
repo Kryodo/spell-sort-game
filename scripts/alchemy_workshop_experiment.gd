@@ -3,10 +3,22 @@ extends Node2D
 const CauldronScene = preload("res://scenes/alchemy_cauldron.tscn")
 const EffectsScript = preload("res://scripts/alchemy_workshop_effects.gd")
 
-const SHELVES_PATH := "res://assets/environments/Workshop_Shelves.svg"
+const BACK_SHELF_PATH := "res://assets/environments/Workshop_Back_Shelf.svg"
+const REAR_CABINET_PATH := "res://assets/environments/Workshop_Rear_Cabinet.svg"
+const LEFT_CABINET_PATH := "res://assets/environments/Workshop_Left_Cabinet.svg"
+const RIGHT_SHELF_PATH := "res://assets/environments/Workshop_Right_Shelf.svg"
 const BENCH_PATH := "res://assets/environments/Workshop_Bench.svg"
-const TABLETOP_PROPS_PATH := "res://assets/environments/Workshop_Tabletop_Props.svg"
-const FLOOR_PLANT_PATH := "res://assets/environments/Workshop_Floor_Plant.svg"
+const BOOK_PATH := "res://assets/environments/Workshop_Tabletop_Book.svg"
+const POTIONS_PATH := "res://assets/environments/Workshop_Tabletop_Potions.svg"
+const MORTAR_PATH := "res://assets/environments/Workshop_Tabletop_Mortar.svg"
+const PLANT_PATH := "res://assets/environments/Workshop_Floor_Plant.svg"
+
+# Corners of the visible tabletop, measured from the Qwen reference and
+# mapped into the 720 x 1280 preview viewport.
+const TABLE_REAR_LEFT := Vector2(150.0, 455.0)
+const TABLE_REAR_RIGHT := Vector2(570.0, 455.0)
+const TABLE_FRONT_RIGHT := Vector2(720.0, 755.0)
+const TABLE_FRONT_LEFT := Vector2(0.0, 755.0)
 
 var _wall_gradient: GradientTexture2D
 var _floor_gradient: GradientTexture2D
@@ -14,43 +26,48 @@ var _floor_gradient: GradientTexture2D
 
 func _ready() -> void:
 	_wall_gradient = _make_vertical_gradient(
-		Color("#40574e"),
-		Color("#22372f"),
-		1024
+		[Color("#142522"), Color("#1d302a"), Color("#263a31")],
+		[0.0, 0.58, 1.0],
+		1280
 	)
 	_floor_gradient = _make_vertical_gradient(
-		Color("#66503b"),
-		Color("#252528"),
-		512
+		[Color("#29332d"), Color("#222824"), Color("#151a1b")],
+		[0.0, 0.42, 1.0],
+		900
 	)
 
-	_add_room_sprite(SHELVES_PATH, Vector2(0.0, 92.0), 2)
-	_add_room_sprite(BENCH_PATH, Vector2(0.0, 595.0), 5)
-	_add_room_sprite(TABLETOP_PROPS_PATH, Vector2(220.0, 625.0), 7)
-
-	var cauldron := CauldronScene.instantiate() as Node2D
-	cauldron.name = "LivingCopperCauldron"
-	cauldron.position = Vector2(58.0, 624.0)
-	cauldron.scale = Vector2(0.60, 0.60)
-	cauldron.z_index = 8
-	add_child(cauldron)
+	# Back-to-front order follows the reference room: wall shelf, rear cabinet,
+	# left/right framing furniture, floor foliage, then the foreground bench.
+	_add_room_sprite(BACK_SHELF_PATH, Vector2(140.0, 28.0), 1)
+	_add_room_sprite(REAR_CABINET_PATH, Vector2(145.0, 270.0), 2)
+	_add_room_sprite(LEFT_CABINET_PATH, Vector2(-48.0, 208.0), 3, Vector2(0.92, 0.92))
+	_add_room_sprite(RIGHT_SHELF_PATH, Vector2(506.0, 58.0), 3, Vector2(0.94, 0.94))
 
 	var left_plant := _add_room_sprite(
-		FLOOR_PLANT_PATH,
-		Vector2(8.0, 965.0),
-		9,
-		Vector2(0.82, 0.82)
+		PLANT_PATH, Vector2(-32.0, 1006.0), 4, Vector2(0.78, 0.78)
 	)
-	left_plant.name = "LeftFloorHerb"
-
+	left_plant.name = "LeftForegroundHerb"
 	var right_plant := _add_room_sprite(
-		FLOOR_PLANT_PATH,
-		Vector2(570.0, 978.0),
-		9,
-		Vector2(0.72, 0.72)
+		PLANT_PATH, Vector2(584.0, 1004.0), 4, Vector2(0.72, 0.72)
 	)
-	right_plant.name = "RightFloorHerb"
+	right_plant.name = "RightForegroundHerb"
 	right_plant.flip_h = true
+
+	_add_room_sprite(BENCH_PATH, Vector2(0.0, 455.0), 5)
+
+	# Props are placed on the tabletop's projected surface, not at unrelated
+	# screen coordinates. Their scale and draw order follow surface depth.
+	_add_tabletop_prop(
+		CauldronScene,
+		0.19,
+		0.34,
+		0.58,
+		6,
+		"LivingCopperCauldron"
+	)
+	_add_tabletop_prop(BOOK_PATH, 0.48, 0.76, 0.88, 7, "OpenGrimoire")
+	_add_tabletop_prop(POTIONS_PATH, 0.81, 0.52, 0.80, 7, "TabletopPotionSet")
+	_add_tabletop_prop(MORTAR_PATH, 0.59, 0.39, 0.78, 6, "BrassMortar")
 
 	var effects := EffectsScript.new() as Node2D
 	effects.name = "LivingWorkshopLight"
@@ -60,10 +77,14 @@ func _ready() -> void:
 	queue_redraw()
 
 
-func _make_vertical_gradient(top_color: Color, bottom_color: Color, texture_height: int) -> GradientTexture2D:
+func _make_vertical_gradient(
+	colors: Array[Color],
+	offsets: Array[float],
+	texture_height: int
+) -> GradientTexture2D:
 	var gradient := Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.0, 1.0])
-	gradient.colors = PackedColorArray([top_color, bottom_color])
+	gradient.colors = PackedColorArray(colors)
+	gradient.offsets = PackedFloat32Array(offsets)
 
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
@@ -91,189 +112,205 @@ func _add_room_sprite(
 	return sprite
 
 
+func _project_tabletop(u: float, v: float) -> Vector2:
+	# Bilinear projection from normalized tabletop coordinates (0..1, 0..1)
+	# to the four measured screen-space corners.
+	var top_edge := TABLE_REAR_LEFT.lerp(TABLE_REAR_RIGHT, u)
+	var front_edge := TABLE_FRONT_LEFT.lerp(TABLE_FRONT_RIGHT, u)
+	return top_edge.lerp(front_edge, v)
+
+
+func _add_tabletop_prop(
+	resource_or_scene: Variant,
+	u: float,
+	v: float,
+	base_scale: float,
+	base_layer: int,
+	node_name: String
+) -> Node2D:
+	var depth_scale := lerpf(0.76, 1.0, clampf(v, 0.0, 1.0))
+	var final_scale := base_scale * depth_scale
+	var anchor := _project_tabletop(u, v)
+
+	if resource_or_scene is PackedScene:
+		var prop_scene := (resource_or_scene as PackedScene).instantiate() as Node2D
+		prop_scene.name = node_name
+		prop_scene.scale = Vector2.ONE * final_scale
+		# The cauldron's artwork has its ground-contact shadow centred at (120, 208).
+		prop_scene.position = anchor - Vector2(120.0, 208.0) * final_scale
+		prop_scene.z_index = base_layer + int(v * 3.0)
+		add_child(prop_scene)
+		return prop_scene
+
+	var sprite := Sprite2D.new()
+	sprite.name = node_name
+	sprite.texture = load(resource_or_scene as String) as Texture2D
+	sprite.centered = false
+	sprite.scale = Vector2.ONE * final_scale
+	var texture_size := sprite.texture.get_size()
+	# Every SVG uses a bottom-centre contact point, so its base sits on the
+	# projected tabletop instead of hovering above or sinking into it.
+	sprite.position = anchor - Vector2(
+		float(texture_size.x) * final_scale * 0.5,
+		float(texture_size.y) * final_scale
+	)
+	sprite.z_index = base_layer + int(v * 3.0)
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	add_child(sprite)
+	return sprite
+
+
 func _draw() -> void:
-	# Broad wall and floor planes are native Godot drawing, not a painted
-	# background image. Their gradients establish the room's lighting zones.
 	if _wall_gradient != null:
-		draw_texture_rect(_wall_gradient, Rect2(0.0, 0.0, 720.0, 1015.0), false)
+		draw_texture_rect(_wall_gradient, Rect2(0.0, 0.0, 720.0, 1280.0), false)
 	if _floor_gradient != null:
-		draw_texture_rect(_floor_gradient, Rect2(0.0, 965.0, 720.0, 315.0), false)
+		draw_texture_rect(_floor_gradient, Rect2(0.0, 475.0, 720.0, 805.0), false)
 
-	_draw_wall_masonry()
-	_draw_architecture()
+	_draw_room_architecture()
 	_draw_floor_tiles()
-	_draw_workshop_light_pools()
+	_draw_wall_light_and_shadow()
 
 
-func _draw_wall_masonry() -> void:
-	# Large quiet plaster/stone panels; low contrast keeps the shelves readable.
+func _draw_room_architecture() -> void:
+	# The central rear wall is recessed between two angled side returns.
 	draw_colored_polygon(
 		PackedVector2Array([
-			Vector2(50.0, 220.0), Vector2(334.0, 206.0),
-			Vector2(336.0, 560.0), Vector2(54.0, 576.0)
+			Vector2(74.0, 46.0), Vector2(646.0, 46.0),
+			Vector2(674.0, 476.0), Vector2(46.0, 476.0)
 		]),
-		Color(0.31, 0.43, 0.37, 0.20)
+		Color(0.20, 0.31, 0.27, 0.52)
 	)
 	draw_colored_polygon(
 		PackedVector2Array([
-			Vector2(382.0, 210.0), Vector2(665.0, 224.0),
-			Vector2(666.0, 570.0), Vector2(384.0, 560.0)
+			Vector2(0.0, 0.0), Vector2(76.0, 46.0),
+			Vector2(47.0, 476.0), Vector2(0.0, 530.0)
 		]),
-		Color(0.12, 0.25, 0.23, 0.22)
+		Color(0.055, 0.10, 0.095, 0.58)
+	)
+	draw_colored_polygon(
+		PackedVector2Array([
+			Vector2(644.0, 46.0), Vector2(720.0, 0.0),
+			Vector2(720.0, 530.0), Vector2(673.0, 476.0)
+		]),
+		Color(0.045, 0.09, 0.088, 0.66)
 	)
 
-	var mortar := Color(0.12, 0.23, 0.21, 0.34)
-	draw_polyline(
-		PackedVector2Array([Vector2(0.0, 286.0), Vector2(720.0, 286.0)]),
-		mortar, 2.0, true
+	# Heavy ceiling beam and side posts frame the room, but stay subdued.
+	draw_colored_polygon(
+		PackedVector2Array([
+			Vector2(0.0, 0.0), Vector2(720.0, 0.0),
+			Vector2(720.0, 48.0), Vector2(0.0, 64.0)
+		]),
+		Color(0.10, 0.16, 0.145, 0.96)
 	)
 	draw_polyline(
-		PackedVector2Array([Vector2(0.0, 470.0), Vector2(720.0, 470.0)]),
-		mortar, 2.0, true
+		PackedVector2Array([Vector2(0.0, 57.0), Vector2(360.0, 42.0), Vector2(720.0, 42.0)]),
+		Color(0.66, 0.48, 0.30, 0.34), 3.0, true
 	)
-	draw_polyline(
-		PackedVector2Array([Vector2(235.0, 210.0), Vector2(228.0, 286.0), Vector2(235.0, 470.0)]),
-		Color(0.12, 0.22, 0.20, 0.20), 2.0, true
+	draw_colored_polygon(
+		PackedVector2Array([
+			Vector2(0.0, 0.0), Vector2(27.0, 0.0),
+			Vector2(36.0, 520.0), Vector2(0.0, 552.0)
+		]),
+		Color(0.075, 0.115, 0.105, 0.82)
 	)
-	draw_polyline(
-		PackedVector2Array([Vector2(488.0, 210.0), Vector2(496.0, 286.0), Vector2(488.0, 470.0)]),
-		Color(0.12, 0.22, 0.20, 0.20), 2.0, true
+	draw_colored_polygon(
+		PackedVector2Array([
+			Vector2(693.0, 0.0), Vector2(720.0, 0.0),
+			Vector2(720.0, 552.0), Vector2(684.0, 520.0)
+		]),
+		Color(0.06, 0.105, 0.10, 0.88)
 	)
 
-	# A few broad, irregular plaster patches add age without visual noise.
+	# Broad, quiet wall-stone joints create scale without turning the wall into
+	# a grid of little hand-built polygons.
+	var joint := Color(0.07, 0.13, 0.12, 0.30)
+	draw_polyline(PackedVector2Array([Vector2(52.0, 274.0), Vector2(668.0, 274.0)]), joint, 2.0, true)
+	draw_polyline(PackedVector2Array([Vector2(80.0, 402.0), Vector2(640.0, 402.0)]), joint, 2.0, true)
+	draw_polyline(PackedVector2Array([Vector2(238.0, 48.0), Vector2(231.0, 274.0)]), joint, 2.0, true)
+	draw_polyline(PackedVector2Array([Vector2(482.0, 48.0), Vector2(491.0, 274.0)]), joint, 2.0, true)
+
+	# Softly worn plaster patches are broad tonal shapes, not small noisy marks.
 	draw_colored_polygon(
 		PackedVector2Array([
-			Vector2(8.0, 170.0), Vector2(92.0, 160.0),
-			Vector2(108.0, 195.0), Vector2(76.0, 221.0),
-			Vector2(14.0, 211.0)
+			Vector2(65.0, 85.0), Vector2(148.0, 72.0),
+			Vector2(164.0, 119.0), Vector2(121.0, 145.0),
+			Vector2(71.0, 129.0)
 		]),
-		Color(0.66, 0.62, 0.46, 0.055)
+		Color(0.69, 0.59, 0.42, 0.055)
 	)
 	draw_colored_polygon(
 		PackedVector2Array([
-			Vector2(610.0, 488.0), Vector2(704.0, 470.0),
-			Vector2(716.0, 515.0), Vector2(671.0, 548.0),
-			Vector2(619.0, 535.0)
+			Vector2(540.0, 414.0), Vector2(641.0, 397.0),
+			Vector2(660.0, 448.0), Vector2(594.0, 466.0),
+			Vector2(548.0, 451.0)
 		]),
-		Color(0.74, 0.57, 0.39, 0.055)
+		Color(0.64, 0.53, 0.38, 0.045)
 	)
 
-
-func _draw_architecture() -> void:
-	# Dark timber uprights and a ceiling crossbeam frame the little room.
+	# A low wall rail visually separates wall and floor behind the furniture.
 	draw_colored_polygon(
 		PackedVector2Array([
-			Vector2(0.0, 0.0), Vector2(39.0, 0.0),
-			Vector2(48.0, 575.0), Vector2(0.0, 594.0)
+			Vector2(0.0, 466.0), Vector2(720.0, 466.0),
+			Vector2(720.0, 500.0), Vector2(0.0, 500.0)
 		]),
-		Color(0.15, 0.20, 0.18, 0.95)
-	)
-	draw_colored_polygon(
-		PackedVector2Array([
-			Vector2(681.0, 0.0), Vector2(720.0, 0.0),
-			Vector2(720.0, 594.0), Vector2(672.0, 575.0)
-		]),
-		Color(0.13, 0.18, 0.17, 0.96)
-	)
-	draw_colored_polygon(
-		PackedVector2Array([
-			Vector2(0.0, 76.0), Vector2(720.0, 57.0),
-			Vector2(720.0, 112.0), Vector2(0.0, 133.0)
-		]),
-		Color(0.20, 0.25, 0.21, 0.96)
+		Color(0.09, 0.14, 0.13, 0.88)
 	)
 	draw_polyline(
-		PackedVector2Array([Vector2(0.0, 111.0), Vector2(360.0, 94.0), Vector2(720.0, 111.0)]),
-		Color(0.80, 0.57, 0.34, 0.34), 3.0, true
-	)
-
-	# A simple old-world alchemy medallion, partly visible above the shelving.
-	draw_circle(Vector2(360.0, 158.0), 61.0, Color(0.10, 0.22, 0.21, 0.28))
-	draw_arc(Vector2(360.0, 158.0), 55.0, 0.0, TAU, 80, Color(0.78, 0.60, 0.36, 0.54), 2.0, true)
-	draw_arc(Vector2(360.0, 158.0), 43.0, 0.0, TAU, 80, Color(0.78, 0.60, 0.36, 0.24), 1.0, true)
-	draw_colored_polygon(
-		PackedVector2Array([
-			Vector2(360.0, 113.0), Vector2(386.0, 158.0),
-			Vector2(360.0, 203.0), Vector2(334.0, 158.0)
-		]),
-		Color(0.65, 0.51, 0.33, 0.12)
-	)
-	draw_polyline(
-		PackedVector2Array([Vector2(360.0, 126.0), Vector2(360.0, 190.0)]),
-		Color(0.90, 0.72, 0.46, 0.42), 1.5, true
-	)
-
-	# Heavy lower wall rail and shallow floor skirting.
-	draw_colored_polygon(
-		PackedVector2Array([
-			Vector2(0.0, 552.0), Vector2(720.0, 552.0),
-			Vector2(720.0, 605.0), Vector2(0.0, 605.0)
-		]),
-		Color(0.18, 0.22, 0.19, 0.94)
-	)
-	draw_polyline(
-		PackedVector2Array([Vector2(0.0, 560.0), Vector2(720.0, 560.0)]),
-		Color(0.82, 0.59, 0.36, 0.48), 3.0, true
-	)
-	draw_polyline(
-		PackedVector2Array([Vector2(0.0, 599.0), Vector2(720.0, 599.0)]),
-		Color(0.08, 0.12, 0.11, 0.85), 4.0, true
+		PackedVector2Array([Vector2(0.0, 468.0), Vector2(720.0, 468.0)]),
+		Color(0.62, 0.43, 0.28, 0.30), 2.0, true
 	)
 
 
 func _draw_floor_tiles() -> void:
-	# Broad staggered stone slabs with perspective expansion toward the viewer.
-	draw_colored_polygon(
-		PackedVector2Array([
-			Vector2(0.0, 966.0), Vector2(720.0, 966.0),
-			Vector2(720.0, 1280.0), Vector2(0.0, 1280.0)
-		]),
-		Color(0.31, 0.27, 0.23, 0.42)
-	)
-
+	# A restrained perspective floor: broad slabs expand toward the viewer.
+	var row_count := 7
+	var column_count := 6
 	var tile_colors: Array[Color] = [
-		Color("#665542"), Color("#5b4b3d"), Color("#70604a"),
-		Color("#594a3d"), Color("#786449"), Color("#625241")
+		Color("#3a3e36"), Color("#343a34"), Color("#424138"),
+		Color("#353831"), Color("#3e4038"), Color("#303732")
 	]
-	for row in range(5):
-		var depth := float(row) / 4.0
-		var tile_width := lerpf(98.0, 143.0, depth)
-		var tile_height := lerpf(51.0, 75.0, depth)
-		var start_y := 972.0 + float(row) * 68.0
-		var skew := lerpf(8.0, 19.0, depth)
-		var offset_x := -tile_width * 0.5 if row % 2 == 1 else 0.0
-
-		for column in range(-1, 8):
-			var x := offset_x + float(column) * tile_width
+	for row in range(row_count):
+		var near_top := float(row) / float(row_count)
+		var near_bottom := float(row + 1) / float(row_count)
+		var top_y := 480.0 + pow(near_top, 1.55) * 800.0
+		var bottom_y := 480.0 + pow(near_bottom, 1.55) * 800.0
+		var top_half := lerpf(300.0, 520.0, near_top)
+		var bottom_half := lerpf(350.0, 610.0, near_bottom)
+		for column in range(column_count):
+			var left_fraction := float(column) / float(column_count)
+			var right_fraction := float(column + 1) / float(column_count)
+			var top_left_x := 360.0 - top_half + 2.0 * top_half * left_fraction
+			var top_right_x := 360.0 - top_half + 2.0 * top_half * right_fraction
+			var bottom_left_x := 360.0 - bottom_half + 2.0 * bottom_half * left_fraction
+			var bottom_right_x := 360.0 - bottom_half + 2.0 * bottom_half * right_fraction
 			var points := PackedVector2Array([
-				Vector2(x, start_y),
-				Vector2(x + tile_width, start_y + 2.0),
-				Vector2(x + tile_width + skew, start_y + tile_height),
-				Vector2(x + skew, start_y + tile_height - 2.0)
+				Vector2(top_left_x, top_y),
+				Vector2(top_right_x, top_y),
+				Vector2(bottom_right_x, bottom_y),
+				Vector2(bottom_left_x, bottom_y)
 			])
-			var shade := tile_colors[(row * 3 + column + 12) % tile_colors.size()]
+			var shade := tile_colors[(row * 3 + column * 2) % tile_colors.size()]
 			draw_colored_polygon(points, shade)
 			draw_polyline(
 				PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]),
-				Color(0.16, 0.14, 0.13, 0.62), 2.0, true
+				Color(0.085, 0.095, 0.09, 0.52), 2.0, true
 			)
 			draw_polyline(
-				PackedVector2Array([
-					points[3] + Vector2(5.0, -3.0),
-					points[2] + Vector2(-7.0, -3.0)
-				]),
-				Color(0.88, 0.72, 0.52, 0.13), 1.0, true
+				PackedVector2Array([points[3], points[2]]),
+				Color(0.82, 0.68, 0.49, 0.075), 1.5, true
 			)
 
 
-func _draw_workshop_light_pools() -> void:
-	# Large translucent warm pools unify native surfaces with the illustrated props.
-	for layer in range(8):
-		var radius := 240.0 - float(layer) * 23.0
-		var alpha := 0.012 + float(layer) * 0.002
-		draw_circle(
-			Vector2(360.0, 610.0),
-			radius,
-			Color(0.95, 0.63, 0.34, alpha)
-		)
-	draw_circle(Vector2(360.0, 720.0), 220.0, Color(0.78, 0.47, 0.25, 0.025))
+func _draw_wall_light_and_shadow() -> void:
+	# The rear stays noticeably darker than the foreground tabletop.
+	for layer in range(9, 0, -1):
+		var radius := float(layer) * 31.0
+		var alpha := 0.006 + float(9 - layer) * 0.0012
+		draw_circle(Vector2(356.0, 258.0), radius, Color(0.54, 0.55, 0.33, alpha))
+
+	# Gentle floor bounce just below the bench, plus a broad contact shadow.
+	for layer in range(8, 0, -1):
+		var radius := float(layer) * 34.0
+		var alpha := 0.005 + float(8 - layer) * 0.0012
+		draw_circle(Vector2(360.0, 1040.0), radius, Color(0.72, 0.43, 0.23, alpha))
