@@ -1,7 +1,5 @@
 extends Node2D
 
-signal activated
-
 @export_range(0.0, 1.0, 0.01) var fill_level: float = 0.62
 @export var animate_liquid: bool = true
 @export var liquid_color: Color = Color(0.12, 0.72, 0.55, 1.0)
