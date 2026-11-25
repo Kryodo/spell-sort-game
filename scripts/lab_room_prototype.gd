@@ -55,12 +55,14 @@ func _build_world() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "RoomCamera"
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_camera.size = 11.1
-	_camera.position = Vector3(1.75, 7.0, 11.4)
+	# View into the open front-left corner, looking diagonally across both interior walls.
+	# The wider orthographic frame compensates for the portrait viewport.
+	_camera.size = 15.5
+	_camera.position = Vector3(-7.8, 10.5, 11.0)
 	_camera.near = 0.05
 	_camera.far = 60.0
 	add_child(_camera)
-	_camera.look_at(Vector3(0.0, 2.0, 0.0), Vector3.UP)
+	_camera.look_at(Vector3(0.15, 1.95, 0.0), Vector3.UP)
 	_camera.make_current()
 
 
