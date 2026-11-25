@@ -3,7 +3,7 @@ extends Node3D
 const PUZZLE_SCENE := "res://scenes/alchemy_interaction_test.tscn"
 const CHAPTER_SCENE := "res://scenes/chapter_forest_prototype.tscn"
 const ROOM_WIDTH := 17.0
-const ROOM_DEPTH := 14.5
+const ROOM_DEPTH := 17.0
 const WALL_HEIGHT := 5.0
 const MAIN_LAB_OFFSET := Vector3(4.0, 0.0, 3.0)
 
@@ -94,8 +94,8 @@ func _build_room() -> void:
 	# One enclosed square-ish room. The four work areas sit in its quadrants;
 	# the crossing paths and hearth keep it feeling like one shared place.
 	_add_box("Floor", Vector3(ROOM_WIDTH, 0.24, ROOM_DEPTH), Vector3(0.0, -0.12, 0.0), floor_material)
-	for index in range(28):
-		var z := -6.72 + float(index) * 0.49
+	for index in range(34):
+		var z := -8.25 + float(index) * 0.49
 		_add_box("FloorPlankSeam_%02d" % index, Vector3(ROOM_WIDTH - 0.06, 0.018, 0.018), Vector3(0.0, 0.012, z), plank_material)
 	_add_box("CrossHall_NS", Vector3(1.18, 0.035, ROOM_DEPTH - 0.25), Vector3(0.0, 0.025, 0.0), _mat(Color(0.25, 0.22, 0.17)))
 	_add_box("CrossHall_EW", Vector3(ROOM_WIDTH - 0.25, 0.035, 1.18), Vector3(0.0, 0.028, 0.0), _mat(Color(0.25, 0.22, 0.17)))
@@ -111,16 +111,16 @@ func _build_room() -> void:
 	_add_box("RightSkirting", Vector3(0.24, 0.28, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.24, 0.18, 0.0), trim_material)
 
 	# A fireplace anchors the room and provides a warm focal point between its four areas.
-	_add_box("HearthStoneSurround", Vector3(2.65, 2.45, 0.56), Vector3(0.0, 1.48, -6.62), stone_material)
-	_add_box("HearthOpening", Vector3(1.70, 1.52, 0.12), Vector3(0.0, 1.30, -6.30), _mat(Color(0.045, 0.036, 0.030)))
-	_add_box("HearthMantle", Vector3(3.05, 0.20, 0.76), Vector3(0.0, 2.78, -6.30), _mat(Color(0.41, 0.34, 0.26)))
-	_add_box("HearthBase", Vector3(2.85, 0.28, 0.82), Vector3(0.0, 0.24, -6.18), _mat(Color(0.38, 0.31, 0.24)))
-	var hearth_flame := _add_sphere("HearthFlame", 0.42, Vector3(0.0, 1.04, -6.10), _mat(Color(1.0, 0.43, 0.17), 0.0, 1.7))
+	_add_box("HearthStoneSurround", Vector3(2.65, 2.45, 0.56), Vector3(0.0, 1.48, -7.87), stone_material)
+	_add_box("HearthOpening", Vector3(1.70, 1.52, 0.12), Vector3(0.0, 1.30, -7.55), _mat(Color(0.045, 0.036, 0.030)))
+	_add_box("HearthMantle", Vector3(3.05, 0.20, 0.76), Vector3(0.0, 2.78, -7.55), _mat(Color(0.41, 0.34, 0.26)))
+	_add_box("HearthBase", Vector3(2.85, 0.28, 0.82), Vector3(0.0, 0.24, -7.43), _mat(Color(0.38, 0.31, 0.24)))
+	var hearth_flame := _add_sphere("HearthFlame", 0.42, Vector3(0.0, 1.04, -7.35), _mat(Color(1.0, 0.43, 0.17), 0.0, 1.7))
 	hearth_flame.scale = Vector3(0.78, 1.45, 0.70)
 	_flames.append(hearth_flame)
 	_flame_base_positions.append(hearth_flame.position)
 	var hearth_light := OmniLight3D.new()
-	hearth_light.position = Vector3(0.0, 1.30, -5.85)
+	hearth_light.position = Vector3(0.0, 1.30, -7.10)
 	hearth_light.light_color = Color(1.0, 0.48, 0.20)
 	hearth_light.light_energy = 1.35
 	hearth_light.omni_range = 7.0
@@ -677,8 +677,8 @@ func _pan_camera(screen_delta: Vector2) -> void:
 	requested_shift.y = 0.0
 
 	var next_target := _camera_look_target + requested_shift
-	next_target.x = clampf(next_target.x, -4.0, 4.0)
-	next_target.z = clampf(next_target.z, -2.85, 2.85)
+	next_target.x = clampf(next_target.x, -3.8, 3.8)
+	next_target.z = clampf(next_target.z, -3.2, 3.2)
 	var actual_shift := next_target - _camera_look_target
 	actual_shift.y = 0.0
 	if actual_shift.length_squared() < 0.000001:
