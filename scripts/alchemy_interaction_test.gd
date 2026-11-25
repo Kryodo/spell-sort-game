@@ -1,5 +1,9 @@
 extends Control
 
+signal return_to_hub_requested
+
+@export var in_world_presentation := false
+
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 const BACKGROUND_PATH := "res://assets/environments/laboratory_background.png"
 const CAPACITY := 4
@@ -63,18 +67,30 @@ var _stream_highlight: Line2D
 var _stream_drops: Array[Polygon2D] = []
 var _splash_ring: Line2D
 var _transition_overlay: ColorRect
+var _bottle_size := BOTTLE_SIZE
+var _bottle_gap := BOTTLE_GAP
+var _bottle_row_y := BOTTLE_ROW_Y
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	if in_world_presentation:
+		_bottle_size = Vector2(116.0, 365.0)
+		_bottle_gap = 18.0
+		_bottle_row_y = 422.0
 	_build_interface()
 	_build_bottles()
 	_build_stream_layers()
 	_reset_test()
-	_build_transition_overlay()
+	if not in_world_presentation:
+		_build_transition_overlay()
 
 
 func _build_interface() -> void:
+	if in_world_presentation:
+		_build_in_world_interface()
+		return
+
 	var background := TextureRect.new()
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	background.texture = load(BACKGROUND_PATH)
@@ -92,6 +108,47 @@ func _build_interface() -> void:
 	_build_header()
 	_build_experiment_card()
 	_build_instruction_bar()
+	_build_workbench()
+	_build_status_panel()
+	_build_completion_panel()
+
+
+func _build_in_world_interface() -> void:
+	var header := _make_panel(
+		Rect2(22.0, 20.0, 676.0, 86.0),
+		Color(0.035, 0.052, 0.048, 0.72),
+		Color(0.78, 0.61, 0.36, 0.58),
+		18
+	)
+	add_child(header)
+
+	var kicker := _make_label("THE LOST ALCHEMY LAB  /  EXPERIMENT 01", 10, Color(0.84, 0.68, 0.45, 1.0))
+	kicker.position = Vector2(20.0, 9.0)
+	kicker.size = Vector2(390.0, 18.0)
+	header.add_child(kicker)
+
+	var heading := _make_label("Separation of Essences", 23, Color(0.98, 0.93, 0.82, 1.0))
+	heading.position = Vector2(18.0, 29.0)
+	heading.size = Vector2(390.0, 36.0)
+	header.add_child(heading)
+
+	var back_button := _make_action_button("BACK TO LAB", false)
+	back_button.position = Vector2(520.0, 19.0)
+	back_button.size = Vector2(142.0, 45.0)
+	back_button.pressed.connect(_return_to_lab)
+	header.add_child(back_button)
+
+	var essence_bar := _make_panel(
+		Rect2(22.0, 118.0, 676.0, 48.0),
+		Color(0.035, 0.052, 0.048, 0.50),
+		Color(0.70, 0.60, 0.43, 0.32),
+		14
+	)
+	add_child(essence_bar)
+	_add_essence_reference_chip(essence_bar, Rect2(12.0, 7.0, 204.0, 34.0), "TIDE", PALETTE["tide"])
+	_add_essence_reference_chip(essence_bar, Rect2(230.0, 7.0, 204.0, 34.0), "MOON", PALETTE["moon"])
+	_add_essence_reference_chip(essence_bar, Rect2(448.0, 7.0, 204.0, 34.0), "EMBER", PALETTE["ember"])
+
 	_build_workbench()
 	_build_status_panel()
 	_build_completion_panel()
@@ -233,12 +290,10 @@ func _build_instruction_bar() -> void:
 
 
 func _build_workbench() -> void:
-	var bench := _make_panel(
-		Rect2(18.0, 382.0, 684.0, 498.0),
-		Color(0.025, 0.040, 0.047, 0.62),
-		Color(0.72, 0.60, 0.42, 0.50),
-		24
-	)
+	var bench_background := Color(0.025, 0.040, 0.047, 0.62) if not in_world_presentation else Color(0.10, 0.065, 0.038, 0.10)
+	var bench_border := Color(0.72, 0.60, 0.42, 0.50) if not in_world_presentation else Color(0.82, 0.67, 0.43, 0.20)
+	var bench_rect := Rect2(18.0, 382.0, 684.0, 498.0) if not in_world_presentation else Rect2(18.0, 350.0, 684.0, 520.0)
+	var bench := _make_panel(bench_rect, bench_background, bench_border, 24)
 	add_child(bench)
 
 	var bench_label := _make_label("THE WORKBENCH", 11, Color(0.84, 0.72, 0.52, 0.96))
@@ -254,9 +309,10 @@ func _build_workbench() -> void:
 
 
 func _build_status_panel() -> void:
+	var status_background := Color(0.026, 0.047, 0.059, 0.94) if not in_world_presentation else Color(0.026, 0.047, 0.059, 0.86)
 	var panel := _make_panel(
 		Rect2(24.0, 897.0, 672.0, 272.0),
-		Color(0.026, 0.047, 0.059, 0.94),
+		status_background,
 		Color(0.76, 0.61, 0.40, 0.73),
 		20
 	)
@@ -361,14 +417,14 @@ func _build_completion_panel() -> void:
 
 
 func _build_bottles() -> void:
-	var total_width: float = BOTTLE_SIZE.x * 4.0 + BOTTLE_GAP * 3.0
+	var total_width: float = _bottle_size.x * 4.0 + _bottle_gap * 3.0
 	var start_x: float = (720.0 - total_width) * 0.5
 	var labels: Array[String] = ["VIAL I", "VIAL II", "VIAL III", "VIAL IV"]
 
 	for index in range(4):
-		var slot_position := Vector2(start_x + float(index) * (BOTTLE_SIZE.x + BOTTLE_GAP), BOTTLE_ROW_Y)
+		var slot_position := Vector2(start_x + float(index) * (_bottle_size.x + _bottle_gap), _bottle_row_y)
 		var slot := _make_panel(
-			Rect2(slot_position.x + 5.0, slot_position.y + 30.0, BOTTLE_SIZE.x - 10.0, 376.0),
+			Rect2(slot_position.x + 5.0, slot_position.y + 30.0, _bottle_size.x - 10.0, _bottle_size.y - 54.0),
 			Color(0.020, 0.037, 0.044, 0.30),
 			Color(0.77, 0.66, 0.47, 0.20),
 			17
@@ -376,7 +432,7 @@ func _build_bottles() -> void:
 		add_child(slot)
 
 		var pedestal := _make_panel(
-			Rect2(slot_position.x + 12.0, slot_position.y + 389.0, BOTTLE_SIZE.x - 24.0, 35.0),
+			Rect2(slot_position.x + 12.0, slot_position.y + _bottle_size.y - 41.0, _bottle_size.x - 24.0, 35.0),
 			Color(0.075, 0.073, 0.060, 0.70),
 			Color(0.75, 0.61, 0.41, 0.30),
 			10
@@ -385,7 +441,7 @@ func _build_bottles() -> void:
 
 		var vial = BottleScript.new()
 		vial.position = slot_position
-		vial.size = BOTTLE_SIZE
+		vial.size = _bottle_size
 		vial.z_index = 2
 		vial.setup(index, labels[index], index, PALETTE, INITIAL_CONTENTS[index])
 		add_child(vial)
@@ -1015,6 +1071,9 @@ func _reset_test() -> void:
 
 func _return_to_lab() -> void:
 	if _is_animating:
+		return
+	if in_world_presentation:
+		return_to_hub_requested.emit()
 		return
 	await _transition_to_scene("res://scenes/lab_room_prototype.tscn")
 
