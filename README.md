@@ -70,16 +70,14 @@ The scene is configured for a 720 × 1280 portrait viewport. The background sour
 Godot 4.7 was not available in the editing environment, so a runtime launch and interaction pass have not been performed here.
 
 
-## Cauldron prototype
+## Workbench cauldron
 
-A separate layered cauldron asset is being tested against the same workbench artwork before it is placed into the sorting screen.
+The layered cauldron is now part of the main sorting gameplay screen, positioned on the upper-right tabletop above the vial row. It is a visual workshop prop and does not cover or intercept bottle interactions.
 
 - `assets/environments/SpellSort_Cauldron_Rear.svg` — copper body, handles, feet, dark inner bowl and rear rim.
-- `scripts/alchemy_cauldron.gd` — independently animated liquid surface, soft reflections and rising bubbles.
+- `scripts/alchemy_cauldron.gd` — animated liquid with a full oval fill, moving wave bands, a drifting sheen and continuously moving bubbles.
 - `assets/environments/SpellSort_Cauldron_Front.svg` — foreground rolled rim and front-metal highlights.
 - `scenes/alchemy_cauldron.tscn` — reusable layered Godot cauldron scene.
-- `scenes/alchemy_cauldron_preview.tscn` — development preview using the existing workbench background.
+- `scenes/alchemy_cauldron_preview.tscn` — isolated development preview using the same workbench background.
 
-To preview it, open `scenes/alchemy_cauldron_preview.tscn` in Godot and use **Run Current Scene (F6)**. The main sorting scene remains unchanged while the cauldron's material, scale and placement are evaluated. It is not a separate player-facing room or HUB.
-
-The current prototype uses a teal-green liquid at a 62% fill level. `fill_level`, `liquid_color` and `animate_liquid` are exported on the cauldron node for easy tuning. Brewing interaction and ingredient inputs are deliberately not implemented in this visual study yet.
+The separate preview remains available through **Run Current Scene (F6)**. `fill_level`, `liquid_color` and `animate_liquid` are exported on the cauldron's liquid node for tuning. Brewing interaction and ingredient inputs are not implemented yet.
