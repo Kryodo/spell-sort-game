@@ -177,7 +177,7 @@ func _add_rune_station(rune_name: String, origin: Vector3, tint: Color) -> void:
 func _build_interactions() -> void:
 	_register_interaction("altar", "The Verdant Altar", "The altar is dormant. Restore the three rune stones first, then return here to claim the seed.", Vector3(0.0, 1.45, 0.10), Vector3(1.75, 2.20, 1.50))
 	_register_interaction("gate", "The Ancient Gate", "The gate preserves a short sequence: MOON → EMBER → TIDE. Memorize the order, begin the trial, then touch the three matching rune stones around the clearing.", Vector3(0.0, 3.00, -2.32), Vector3(3.95, 2.80, 0.92))
-	_register_interaction("spring", "The Moonlit Spring", "The spring carries a low, steady hum. Its water brightens each time one of the ancient runes is restored.", Vector3(0.0, 0.28, -3.75), Vector3(2.90, 0.65, 2.90))
+	_register_interaction("spring", "The Moonlit Spring", "The spring carries a low, steady hum. Its water mirrors the ancient light held by the rune stones.", Vector3(0.0, 0.28, -3.75), Vector3(2.90, 0.65, 2.90))
 	_register_interaction("rune_moon", "Moon Rune", "A cool violet light shimmers within the carved stone.", Vector3(-3.85, 1.05, 1.25), Vector3(1.35, 1.70, 1.25))
 	_register_interaction("rune_ember", "Ember Rune", "A warm orange spark turns slowly beneath the stone surface.", Vector3(3.85, 1.05, 1.25), Vector3(1.35, 1.70, 1.25))
 	_register_interaction("rune_tide", "Tide Rune", "A clear blue-green ripple circles the old rune.", Vector3(0.0, 1.05, 4.15), Vector3(1.35, 1.70, 1.25))
