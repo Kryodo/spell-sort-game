@@ -83,12 +83,23 @@ The layered cauldron is now part of the main sorting gameplay screen, positioned
 The separate preview remains available through **Run Current Scene (F6)**. `fill_level`, `liquid_color` and `animate_liquid` are exported on the cauldron's liquid node for tuning. Brewing interaction and ingredient inputs are not implemented yet.
 
 
-## Hybrid alchemy workshop visual experiment
+## Reference-first 2.5D alchemy workshop experiment
 
-A separate proof-of-concept room is available at:
+A separate room reconstruction is available at:
 
 `scenes/alchemy_workshop_experiment.tscn`
 
-Open that scene and use **Run Current Scene (F6)** to review it. It experiments with Godot-native wall/floor drawing and animated light effects alongside layered SVG furnishings and the existing animated cauldron. The sorting prototype's main scene is unchanged.
+Open that scene and use **Run Current Scene (F6)**. This is a standalone visual experiment and does not replace the configured sorting gameplay scene.
 
-See `docs/alchemy-workshop-hybrid-experiment.md` for the construction split and current scope. Runtime validation still needs to be performed locally in Godot 4.7.
+The room is now built around the spatial composition of `assets/environments/SpellSort_Workbench.png`:
+
+- A dark recessed wall with angled side returns and a perspective-drawn stone floor.
+- A rear wall shelf, storage counter and separate side furniture placed in depth layers.
+- A broad, shallow trapezoidal tabletop with a thick near edge and a deep front workbench body.
+- Independent book, potion, mortar and cauldron props projected onto the tabletop using shared four-corner surface geometry.
+- Reusable walnut, aged-brass, dark-teal, parchment and glass material treatments.
+- Godot-drawn candle flames, ambient light, crystal glow and floating motes.
+
+The root scene exports `show_tabletop_guides`. Enable it in the Inspector to display the tabletop corners, diagonals and prop anchors during layout review.
+
+See `docs/alchemy-workshop-hybrid-experiment.md` for the reference landmarks, projection method, construction split and visual review checklist. Godot 4.7 runtime validation remains to be performed locally.
