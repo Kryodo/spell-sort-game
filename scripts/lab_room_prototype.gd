@@ -22,6 +22,7 @@ var _gesture_start := Vector2.ZERO
 var _gesture_last := Vector2.ZERO
 var _gesture_active := false
 var _gesture_moved := false
+var _transition_overlay: ColorRect
 
 
 func _ready() -> void:
@@ -31,6 +32,7 @@ func _ready() -> void:
 	_build_hub_wings()
 	_build_interactables()
 	_build_hud()
+	_build_transition_overlay()
 
 
 func _build_world() -> void:
@@ -627,11 +629,37 @@ func _update_hover(screen_position: Vector2) -> void:
 
 func _on_primary_pressed() -> void:
 	if _active_interaction == "alchemy_table":
-		get_tree().change_scene_to_file(PUZZLE_SCENE)
+		_transition_to_scene(PUZZLE_SCENE, true)
 	elif _active_interaction == "world_map" or _active_interaction == "chapter_gate":
-		get_tree().change_scene_to_file(CHAPTER_SCENE)
+		_transition_to_scene(CHAPTER_SCENE)
 	else:
 		_close_modal()
+
+
+func _build_transition_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+	_transition_overlay = ColorRect.new()
+	_transition_overlay.color = Color.BLACK
+	_transition_overlay.modulate.a = 1.0
+	_transition_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_transition_overlay)
+	var fade_in := create_tween()
+	fade_in.tween_property(_transition_overlay, "modulate:a", 0.0, 0.34)
+
+
+func _transition_to_scene(scene_path: String, zoom_to_bench: bool = false) -> void:
+	if _transition_overlay == null:
+		get_tree().change_scene_to_file(scene_path)
+		return
+	var fade_out := create_tween().set_parallel(true)
+	fade_out.tween_property(_transition_overlay, "modulate:a", 1.0, 0.30)
+	if zoom_to_bench and _camera != null:
+		fade_out.tween_property(_camera, "size", 9.2, 0.30)
+	await fade_out.finished
+	get_tree().change_scene_to_file(scene_path)
 
 
 func _close_modal() -> void:
