@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="84" height="140" viewBox="0 0 84 140">
+<defs>
+ <linearGradient id="wax" x1="0" y1="0" x2="1" y2=".2">
+  <stop stop-color="#8e7452"/>
+  <stop offset=".22" stop-color="#ead9ae"/>
+  <stop offset=".58" stop-color="#d7c394"/>
+  <stop offset="1" stop-color="#786044"/>
+ </linearGradient>
+ <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+  <stop stop-color="#f0d39a"/>
+  <stop offset=".42" stop-color="#b37b43"/>
+  <stop offset="1" stop-color="#5f3d23"/>
+ </linearGradient>
+</defs>
+<!-- The shadow and holder base share the lower-centre contact point at (42,132). -->
+<ellipse cx="42" cy="134" rx="35" ry="5" fill="#090706" opacity=".35"/>
+<path d="M9 113 Q42 127 75 113 L71 128 Q42 138 13 128Z" fill="url(#brass)" stroke="#51351f" stroke-width="2"/>
+<path d="M15 113 Q42 125 69 113" fill="none" stroke="#f2cf91" stroke-width="2" opacity=".65"/>
+<path d="M33 116 L36 94 L48 94 L51 116Z" fill="url(#brass)" stroke="#55391f" stroke-width="1.5"/>
+<path d="M26 98 Q24 92 28 88 L56 88 Q60 92 58 98 Q42 108 26 98Z" fill="url(#brass)" stroke="#54371e" stroke-width="1.7"/>
+<path d="M31 89 L31 50 Q42 44 53 50 L53 89 Q42 96 31 89Z" fill="url(#wax)" stroke="#8c744f" stroke-width="1.5"/>
+<path d="M31 54 Q42 61 53 54" fill="none" stroke="#fff0c9" stroke-width="2" opacity=".55"/>
+<path d="M34 60 L34 82" stroke="#fff4d7" stroke-width="2.4" opacity=".34" stroke-linecap="round"/>
+<path d="M42 51 L42 44" stroke="#292018" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M42 44 Q39 40 42 34" fill="none" stroke="#e1b577" stroke-width="1.2" opacity=".55"/>
+</svg>
