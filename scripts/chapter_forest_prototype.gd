@@ -139,6 +139,11 @@ func _build_landmarks() -> void:
 
 	_add_crystal_cluster(Vector3(-2.65, 0.08, -1.05), Color(0.36, 0.79, 0.78))
 	_add_crystal_cluster(Vector3(2.85, 0.08, -0.45), Color(0.66, 0.56, 0.91))
+	_add_firefly(Vector3(-1.75, 1.55, 1.85))
+	_add_firefly(Vector3(1.85, 2.10, 0.35))
+	_add_firefly(Vector3(-2.75, 1.35, -2.25))
+	_add_firefly(Vector3(2.70, 1.65, -2.65))
+	_add_firefly(Vector3(0.85, 2.35, -3.10))
 
 
 func _build_interactions() -> void:
@@ -236,12 +241,27 @@ func _add_tree(origin: Vector3, scale_value: float) -> void:
 
 
 func _add_fern(origin: Vector3, scale_value: float) -> void:
-	var pot := _add_cylinder("FernBase", 0.18 * scale_value, 0.22 * scale_value, 0.20 * scale_value, origin, _mat(Color(0.35, 0.31, 0.22)))
+	_add_cylinder("FernBase", 0.18 * scale_value, 0.22 * scale_value, 0.20 * scale_value, origin, _mat(Color(0.35, 0.31, 0.22)))
 	for index in range(5):
 		var angle := TAU * float(index) / 5.0
 		var leaf := _add_sphere("FernLeaf_%d" % index, 0.27 * scale_value, origin + Vector3(cos(angle) * 0.24 * scale_value, 0.36 * scale_value, sin(angle) * 0.24 * scale_value), _mat(Color(0.34, 0.59, 0.35)))
 		leaf.scale = Vector3(0.56, 1.25, 0.42)
 		leaf.rotation_degrees.z = -18.0 + float(index) * 7.0
+
+
+
+func _add_firefly(origin: Vector3) -> void:
+	var orb := _add_sphere("Firefly", 0.075, origin, _mat(Color(0.74, 0.98, 0.69), 0.0, 1.8))
+	orb.scale = Vector3(0.82, 0.82, 0.82)
+	_fireflies.append(orb)
+	_firefly_origins.append(origin)
+	var light := OmniLight3D.new()
+	light.position = origin
+	light.light_color = Color(0.60, 0.94, 0.65)
+	light.light_energy = 0.48
+	light.omni_range = 1.8
+	add_child(light)
+	_firefly_lights.append(light)
 
 
 func _add_crystal_cluster(origin: Vector3, tint: Color) -> void:
