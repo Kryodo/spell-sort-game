@@ -194,7 +194,7 @@ func _build_interactables() -> void:
 	_register_interactable(
 		"alchemy_table", "Alchemy Table",
 		"Your first experiment is ready. Separate the tangled tide, moon and ember essences by guiding each vial's open mouth into position.",
-		Vector3(0.0, 1.32, 1.72), Vector3(2.72, 0.78, 1.52)
+		Vector3(0.0, 1.17, 1.72), Vector3(2.72, 0.30, 1.52)
 	)
 	_register_interactable(
 		"grimoire", "The Grimoire",
