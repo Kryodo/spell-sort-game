@@ -202,6 +202,63 @@ func _build_props() -> void:
 		leaf.scale = Vector3(0.68, 1.0, 0.48)
 
 
+
+func _build_hub_wings() -> void:
+	var wood := _mat(Color(0.27, 0.18, 0.12))
+	var wood_light := _mat(Color(0.48, 0.32, 0.20))
+	var brass := _mat(Color(0.70, 0.52, 0.27), 0.35)
+	var floor_material := _mat(Color(0.31, 0.25, 0.18))
+
+	# Storage wing to the left of the central laboratory.
+	var storage_x := -7.8
+	_add_box("StorageFloor", Vector3(5.45, 0.24, ROOM_DEPTH), Vector3(storage_x, -0.12, 0.75), floor_material)
+	_add_box("StorageBackWall", Vector3(5.45, WALL_HEIGHT, 0.20), Vector3(storage_x, 2.5, -2.62), _mat(Color(0.39, 0.43, 0.36)))
+	_add_box("StorageBackTrim", Vector3(5.45, 0.20, 0.28), Vector3(storage_x, 4.94, -2.48), wood)
+	for shelf_index in range(3):
+		var shelf_x := storage_x - 1.65 + float(shelf_index) * 1.55
+		_add_box("StorageShelf_%d" % shelf_index, Vector3(1.25, 0.13, 0.52), Vector3(shelf_x, 2.55, -2.06), wood_light)
+		_add_box("StorageShelfUpper_%d" % shelf_index, Vector3(1.25, 0.13, 0.52), Vector3(shelf_x, 3.66, -2.06), wood_light)
+		for item_index in range(4):
+			var colors: Array[Color] = [Color(0.37, 0.69, 0.56), Color(0.69, 0.53, 0.82), Color(0.89, 0.50, 0.28), Color(0.40, 0.62, 0.77)]
+			var potion_x := shelf_x - 0.43 + float(item_index) * 0.28
+			_make_potion(Vector3(potion_x, 2.72, -2.06), colors[(shelf_index + item_index) % 4], 0.82)
+			_make_potion(Vector3(potion_x, 3.83, -2.06), colors[(shelf_index + item_index + 1) % 4], 0.72)
+	_add_box("StorageIslandTop", Vector3(2.45, 0.20, 1.35), Vector3(storage_x, 1.06, 1.55), wood_light)
+	for leg_x in [storage_x - 0.98, storage_x + 0.98]:
+		for leg_z in [1.08, 2.02]:
+			_add_box("StorageIslandLeg", Vector3(0.16, 0.92, 0.16), Vector3(leg_x, 0.48, leg_z), wood)
+	for crate_index in range(3):
+		var crate_x := storage_x - 0.72 + float(crate_index) * 0.72
+		_add_box("IngredientCrate_%d" % crate_index, Vector3(0.54, 0.48, 0.52), Vector3(crate_x, 1.40, 1.50), _mat(Color(0.39, 0.29, 0.18)))
+		_add_box("IngredientCrateBand_%d" % crate_index, Vector3(0.56, 0.07, 0.055), Vector3(crate_x, 1.43, 1.77), brass)
+
+	# Research archive to the right of the central laboratory.
+	var archive_x := 7.8
+	_add_box("ArchiveFloor", Vector3(5.45, 0.24, ROOM_DEPTH), Vector3(archive_x, -0.12, 0.75), floor_material)
+	_add_box("ArchiveBackWall", Vector3(5.45, WALL_HEIGHT, 0.20), Vector3(archive_x, 2.5, -2.62), _mat(Color(0.34, 0.39, 0.40)))
+	_add_box("ArchiveBackTrim", Vector3(5.45, 0.20, 0.28), Vector3(archive_x, 4.94, -2.48), wood)
+	for shelf_index in range(2):
+		var shelf_x := archive_x - 1.65 + float(shelf_index) * 1.55
+		_add_box("ArchiveBookcase_%d" % shelf_index, Vector3(1.24, 3.42, 0.48), Vector3(shelf_x, 1.91, -2.18), wood)
+		for level in range(3):
+			var shelf_y := 0.82 + float(level) * 1.05
+			_add_box("ArchiveShelf_%d_%d" % [shelf_index, level], Vector3(1.10, 0.10, 0.55), Vector3(shelf_x, shelf_y, -1.87), wood_light)
+			for book_index in range(4):
+				var book_colors: Array[Color] = [Color(0.30, 0.39, 0.52), Color(0.52, 0.31, 0.34), Color(0.43, 0.48, 0.32), Color(0.65, 0.50, 0.29)]
+				var book := _add_box("ArchiveBook_%d_%d_%d" % [shelf_index, level, book_index], Vector3(0.16, 0.46, 0.32), Vector3(shelf_x - 0.40 + float(book_index) * 0.26, shelf_y + 0.26, -1.92), _mat(book_colors[book_index]))
+				book.rotation_degrees.z = -3.0 * float(book_index % 2)
+	_add_box("ArchiveMapFrame", Vector3(1.72, 2.05, 0.16), Vector3(archive_x + 1.52, 2.83, -2.43), brass)
+	_add_box("ArchiveMap", Vector3(1.52, 1.85, 0.06), Vector3(archive_x + 1.52, 2.83, -2.32), _mat(Color(0.29, 0.42, 0.39)))
+	_add_box("ArchiveDeskTop", Vector3(2.35, 0.18, 1.30), Vector3(archive_x, 1.05, 1.52), wood_light)
+	for leg_x in [archive_x - 0.92, archive_x + 0.92]:
+		for leg_z in [1.02, 2.00]:
+			_add_box("ArchiveDeskLeg", Vector3(0.16, 0.94, 0.16), Vector3(leg_x, 0.48, leg_z), wood)
+	_add_box("ArchiveOpenBook", Vector3(1.10, 0.08, 0.72), Vector3(archive_x - 0.32, 1.19, 1.50), _mat(Color(0.78, 0.68, 0.49)))
+	_add_cylinder("ArchiveCrystalBase", 0.35, 0.27, 0.22, Vector3(archive_x + 0.70, 1.20, 1.48), brass)
+	var archive_crystal := _add_sphere("ArchiveCrystal", 0.34, Vector3(archive_x + 0.70, 1.58, 1.48), _mat(Color(0.38, 0.78, 0.76), 0.0, 1.1))
+	archive_crystal.scale = Vector3(0.70, 1.35, 0.70)
+
+
 func _build_interactables() -> void:
 	_register_interactable(
 		"alchemy_table", "Alchemy Table",
