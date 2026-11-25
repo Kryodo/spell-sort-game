@@ -344,11 +344,20 @@ func _build_hud() -> void:
 	_lab_button.pressed.connect(func(): _set_hub_page(1))
 	root.add_child(_lab_button)
 
+	_page_label = _make_label("MAIN LAB  ·  02 / 03", 10, Color(0.90, 0.83, 0.68))
+	_page_label.position = Vector2(206.0, navigation_y + 5.0)
+	_page_label.size = Vector2(310.0, 38.0)
+	_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(_page_label)
+
 	_archive_button = _make_button("ARCHIVE  ›", false)
 	_archive_button.position = Vector2(528.0, navigation_y)
 	_archive_button.size = Vector2(170.0, 48.0)
 	_archive_button.pressed.connect(func(): _set_hub_page(2))
 	root.add_child(_archive_button)
+	_storage_button.disabled = false
+	_lab_button.disabled = true
+	_archive_button.disabled = false
 
 	_modal = _make_panel(Rect2(76.0, 492.0, 568.0, 292.0), Color(0.055, 0.078, 0.075, 0.97), Color(0.86, 0.69, 0.43, 0.92), 22)
 	_modal.visible = false
