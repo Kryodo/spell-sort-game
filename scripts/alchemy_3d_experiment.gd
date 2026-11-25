@@ -395,11 +395,13 @@ func _pick_vial(screen_position: Vector2) -> int:
 func _screen_to_table(screen_position: Vector2) -> Vector3:
 	var ray_origin := _camera.project_ray_origin(screen_position)
 	var ray_direction := _camera.project_ray_normal(screen_position)
-	var plane := Plane(Vector3.UP, TABLE_TOP_Y)
-	var intersection: Variant = plane.intersects_ray(ray_origin, ray_direction)
-	if intersection == null:
+	if absf(ray_direction.y) < 0.0001:
 		return Vector3(0.0, TABLE_TOP_Y, 0.0)
-	return Vector3(intersection)
+	var distance := (TABLE_TOP_Y - ray_origin.y) / ray_direction.y
+	if distance < 0.0:
+		return Vector3(0.0, TABLE_TOP_Y, 0.0)
+	var table_point := ray_origin + ray_direction * distance
+	return Vector3(table_point.x, TABLE_TOP_Y, table_point.z)
 
 
 func _find_target(source_index: int) -> int:
