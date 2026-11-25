@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c3a0om8sv5q4f"
-path="res://.godot/imported/laboratory_props_sheet.png-f379bc4620f5f120b1c0ebc53330cfa8.ctex"
+uid="uid://bg87x1l03i57e"
+path="res://.godot/imported/SpellSort_Workbench.png-f3250bc52e4881b2021286918a2478b5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/laboratory_props/laboratory_props_sheet.png"
-dest_files=["res://.godot/imported/laboratory_props_sheet.png-f379bc4620f5f120b1c0ebc53330cfa8.ctex"]
+source_file="res://assets/environments/SpellSort_Workbench.png"
+dest_files=["res://.godot/imported/SpellSort_Workbench.png-f3250bc52e4881b2021286918a2478b5.ctex"]
 
 [params]
 
