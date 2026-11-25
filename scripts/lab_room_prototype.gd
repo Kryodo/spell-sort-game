@@ -57,11 +57,11 @@ func _build_world() -> void:
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_camera.size = 11.1
 	_camera.position = Vector3(1.75, 7.0, 11.4)
-	_camera.look_at(Vector3(0.0, 2.0, 0.0), Vector3.UP)
 	_camera.near = 0.05
 	_camera.far = 60.0
-	_camera.current = true
 	add_child(_camera)
+	_camera.look_at(Vector3(0.0, 2.0, 0.0), Vector3.UP)
+	_camera.make_current()
 
 
 func _build_room() -> void:
@@ -70,7 +70,6 @@ func _build_room() -> void:
 	var back_wall_material := _mat(Color(0.47, 0.48, 0.37))
 	var side_wall_material := _mat(Color(0.34, 0.40, 0.34))
 	var trim_material := _mat(Color(0.20, 0.15, 0.11))
-	var stone_material := _mat(Color(0.43, 0.43, 0.36))
 
 	_add_box("Floor", Vector3(ROOM_WIDTH, 0.24, ROOM_DEPTH), Vector3(0.0, -0.12, 0.75), floor_material)
 	for index in range(14):
@@ -111,7 +110,6 @@ func _build_props() -> void:
 	var wood_light := _mat(Color(0.49, 0.33, 0.20))
 	var wood_edge := _mat(Color(0.61, 0.43, 0.27))
 	var brass := _mat(Color(0.72, 0.52, 0.25), 0.45)
-	var stone := _mat(Color(0.37, 0.40, 0.35))
 	var ceramic := _mat(Color(0.23, 0.32, 0.29))
 	var page := _mat(Color(0.79, 0.68, 0.48))
 	var green := _mat(Color(0.35, 0.62, 0.35), 0.0, 0.22)
@@ -316,22 +314,22 @@ func _register_interactable(id: String, title: String, description: String, cent
 	_interactables.append(area)
 
 
-func _make_potion(position: Vector3, tint: Color, scale_value: float) -> void:
+func _make_potion(world_position: Vector3, tint: Color, scale_value: float) -> void:
 	var glass := _mat(Color(tint.r, tint.g, tint.b, 0.92), 0.0, 0.08)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_add_cylinder("PotionBody", 0.095 * scale_value, 0.095 * scale_value, 0.30 * scale_value, position, glass)
-	_add_cylinder("PotionNeck", 0.046 * scale_value, 0.046 * scale_value, 0.12 * scale_value, position + Vector3(0.0, 0.21 * scale_value, 0.0), glass)
-	_add_cylinder("PotionCork", 0.052 * scale_value, 0.052 * scale_value, 0.07 * scale_value, position + Vector3(0.0, 0.30 * scale_value, 0.0), _mat(Color(0.57, 0.38, 0.22)))
+	_add_cylinder("PotionBody", 0.095 * scale_value, 0.095 * scale_value, 0.30 * scale_value, world_position, glass)
+	_add_cylinder("PotionNeck", 0.046 * scale_value, 0.046 * scale_value, 0.12 * scale_value, world_position + Vector3(0.0, 0.21 * scale_value, 0.0), glass)
+	_add_cylinder("PotionCork", 0.052 * scale_value, 0.052 * scale_value, 0.07 * scale_value, world_position + Vector3(0.0, 0.30 * scale_value, 0.0), _mat(Color(0.57, 0.38, 0.22)))
 
 
-func _add_candle(position: Vector3) -> void:
-	_add_cylinder("Candle", 0.09, 0.09, 0.30, position, _mat(Color(0.79, 0.69, 0.49)))
-	var flame := _add_sphere("CandleFlame", 0.075, position + Vector3(0.0, 0.20, 0.0), _mat(Color(1.0, 0.64, 0.29), 0.0, 1.4))
+func _add_candle(world_position: Vector3) -> void:
+	_add_cylinder("Candle", 0.09, 0.09, 0.30, world_position, _mat(Color(0.79, 0.69, 0.49)))
+	var flame := _add_sphere("CandleFlame", 0.075, world_position + Vector3(0.0, 0.20, 0.0), _mat(Color(1.0, 0.64, 0.29), 0.0, 1.4))
 	flame.scale = Vector3(0.72, 1.25, 0.72)
 	_flames.append(flame)
-	_flame_base_positions.append(flame.position)
+	_flame_base_positions.append(flame.world_position)
 	var light := OmniLight3D.new()
-	light.position = position + Vector3(0.0, 0.28, 0.0)
+	light.world_position = world_position + Vector3(0.0, 0.28, 0.0)
 	light.light_color = Color(1.0, 0.59, 0.30)
 	light.light_energy = 0.72
 	light.omni_range = 2.2
@@ -339,19 +337,19 @@ func _add_candle(position: Vector3) -> void:
 	_flame_lights.append(light)
 
 
-func _add_box(node_name: String, dimensions: Vector3, position: Vector3, material: Material) -> MeshInstance3D:
+func _add_box(node_name: String, dimensions: Vector3, world_position: Vector3, material: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	var mesh := BoxMesh.new()
 	mesh.size = dimensions
 	instance.mesh = mesh
-	instance.position = position
+	instance.position = world_position
 	instance.material_override = material
 	add_child(instance)
 	return instance
 
 
-func _add_cylinder(node_name: String, top_radius: float, bottom_radius: float, height: float, position: Vector3, material: Material) -> MeshInstance3D:
+func _add_cylinder(node_name: String, top_radius: float, bottom_radius: float, height: float, world_position: Vector3, material: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	var mesh := CylinderMesh.new()
@@ -360,13 +358,13 @@ func _add_cylinder(node_name: String, top_radius: float, bottom_radius: float, h
 	mesh.height = height
 	mesh.radial_segments = 16
 	instance.mesh = mesh
-	instance.position = position
+	instance.position = world_position
 	instance.material_override = material
 	add_child(instance)
 	return instance
 
 
-func _add_sphere(node_name: String, radius: float, position: Vector3, material: Material) -> MeshInstance3D:
+func _add_sphere(node_name: String, radius: float, world_position: Vector3, material: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	var mesh := SphereMesh.new()
@@ -375,7 +373,7 @@ func _add_sphere(node_name: String, radius: float, position: Vector3, material: 
 	mesh.radial_segments = 12
 	mesh.rings = 8
 	instance.mesh = mesh
-	instance.position = position
+	instance.position = world_position
 	instance.material_override = material
 	add_child(instance)
 	return instance
