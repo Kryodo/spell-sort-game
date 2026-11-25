@@ -22,6 +22,9 @@ const TABLE_REAR_RIGHT := Vector2(570.0, 455.0)
 const TABLE_FRONT_RIGHT := Vector2(720.0, 742.0)
 const TABLE_FRONT_LEFT := Vector2(0.0, 742.0)
 
+var _wall_gradient: GradientTexture2D
+var _floor_gradient: GradientTexture2D
+
 
 func _ready() -> void:
 	_wall_gradient = _make_vertical_gradient(
