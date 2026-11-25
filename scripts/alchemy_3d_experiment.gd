@@ -133,7 +133,7 @@ func _build_vials() -> void:
 		_home_positions.append(vial.position)
 		_contents.append(INITIAL_CONTENTS[index].duplicate())
 
-		var body := _add_cylinder_child(vial, "GlassBody", 0.40, 0.33, 1.10, Vector3(0.0, 0.64, 0.0), glass, 28)
+		_add_cylinder_child(vial, "GlassBody", 0.40, 0.33, 1.10, Vector3(0.0, 0.64, 0.0), glass, 28)
 		var shoulder := _add_sphere_child(vial, "Shoulder", 0.34, Vector3(0.0, 1.18, 0.0), glass)
 		shoulder.scale = Vector3(1.0, 0.55, 1.0)
 		_add_cylinder_child(vial, "Neck", 0.205, 0.205, 0.38, Vector3(0.0, 1.39, 0.0), neck_glass, 24)
@@ -390,7 +390,7 @@ func _screen_to_table(screen_position: Vector2) -> Vector3:
 	var intersection: Variant = plane.intersects_ray(ray_origin, ray_direction)
 	if intersection == null:
 		return Vector3(0.0, TABLE_TOP_Y, 0.0)
-	return intersection as Vector3
+	return Vector3(intersection)
 
 
 func _find_target(source_index: int) -> int:
