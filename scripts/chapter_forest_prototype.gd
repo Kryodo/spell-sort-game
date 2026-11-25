@@ -6,7 +6,6 @@ var _camera: Camera3D
 var _modal: Panel
 var _modal_title: Label
 var _modal_text: Label
-var _interactables: Array[Area3D] = []
 var _fireflies: Array[MeshInstance3D] = []
 var _firefly_origins: Array[Vector3] = []
 var _firefly_lights: Array[OmniLight3D] = []
@@ -97,8 +96,7 @@ func _build_glade() -> void:
 
 	# A quiet pool sits behind the gate.
 	_add_cylinder("SpringPool", 1.32, 1.32, 0.065, Vector3(0.0, 0.04, -3.75), _mat(Color(0.15, 0.45, 0.50, 0.88), 0.10, 0.18))
-	var pool_edge := _add_cylinder("SpringPoolEdge", 1.50, 1.50, 0.11, Vector3(0.0, 0.00, -3.75), _mat(Color(0.38, 0.42, 0.34)))
-	pool_edge.material_override = _mat(Color(0.38, 0.42, 0.34))
+	_add_cylinder("SpringPoolEdge", 1.50, 1.50, 0.11, Vector3(0.0, 0.00, -3.75), _mat(Color(0.38, 0.42, 0.34)))
 
 
 func _build_landmarks() -> void:
@@ -223,7 +221,6 @@ func _register_interaction(id: String, title: String, description: String, cente
 	collision.shape = shape
 	area.add_child(collision)
 	add_child(area)
-	_interactables.append(area)
 
 
 func _add_tree(origin: Vector3, scale_value: float) -> void:
