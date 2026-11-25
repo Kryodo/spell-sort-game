@@ -113,12 +113,12 @@ func _build_interface() -> void:
 
 
 func _build_cauldron() -> void:
-	# Keep the cauldron on the clear tabletop area above the rightmost vial.
-	# Its base ends above the bottle row, so it never blocks sorting or dragging.
+	# Place the cauldron on the open front-right tabletop, below the vial row.
+	# The smaller scale keeps its feet within the visible tabletop surface.
 	var cauldron := CauldronScene.instantiate() as Node2D
 	cauldron.name = "WorkbenchCauldron"
-	cauldron.position = Vector2(506.0, 184.0)
-	cauldron.scale = Vector2(0.80, 0.80)
+	cauldron.position = Vector2(532.0, 760.0)
+	cauldron.scale = Vector2(0.62, 0.62)
 	cauldron.z_index = 1
 	add_child(cauldron)
 
