@@ -39,14 +39,11 @@ The 2D bottle renderer is in `scripts/alchemy_bottle.gd`; the puzzle presentatio
 
 ## Early painterly-stylized material and silhouette study
 
-The new `shaders/painterly_surface.gdshader` adds restrained procedural pigment variation, soft surface noise, roughness and controlled emission to both the hub and Verdant Hollow chapter materials. The study also begins moving key props away from primitive silhouettes:
+The shared `shaders/painterly_surface.gdshader` now uses a visibly stronger pigment variation pass while keeping opaque room surfaces in the opaque depth pipeline. Box-like props and architecture use custom rounded-bevel meshes rather than unmodified BoxMesh cubes. The forest tree study now includes exposed branch limbs, uneven overlapping canopy masses and roots that meet the ground.
 
-- The cauldron uses a rounded body, foot and softer handles.
-- Potion props use rounded bodies, shoulders and corks.
-- The restoration corner uses clustered plant forms and a seed tray.
-- A shared warm fireplace focal point contrasts with the cooler ambient lighting.
+The hub map has an in-world `CHAPTER 01 / VERDANT HOLLOW` label, and Verdant Hollow has a physical rune-order field board showing `MOON > EMBER > TIDE`. Hub candles have been repositioned onto actual shelf, desk and crate surfaces.
 
-This is an initial material/silhouette direction test, not finished painterly art. The assets still use procedural placeholder geometry; they do not yet have hand-authored painted textures or production-ready silhouettes. The purpose is to assess the direction at the actual hub camera scale before creating a larger asset set.
+These are still procedural placeholder assets, not finished painterly art. The added bevels and canopy clusters make the silhouettes less mechanical, but they do not replace hand-authored or generated production assets. Potion glass is temporarily rendered opaque while the room's opaque depth behaviour is being stabilized; a dedicated glass material remains a separate task.
 
 ## Verdant Hollow — chapter prototype
 
