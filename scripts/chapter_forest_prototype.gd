@@ -23,6 +23,7 @@ var _rune_progress := 0
 var _ritual_started := false
 var _ritual_complete := false
 var _chapter_complete := false
+var _transition_overlay: ColorRect
 
 
 func _ready() -> void:
@@ -31,6 +32,7 @@ func _ready() -> void:
 	_build_landmarks()
 	_build_interactions()
 	_build_hud()
+	_build_transition_overlay()
 
 
 func _build_world() -> void:
@@ -205,7 +207,7 @@ func _build_hud() -> void:
 	var back := _button("BACK TO LAB", false)
 	back.position = Vector2(496.0, 26.0)
 	back.size = Vector2(164.0, 48.0)
-	back.pressed.connect(func(): get_tree().change_scene_to_file(HUB_SCENE))
+	back.pressed.connect(_return_to_hub)
 	header.add_child(back)
 
 	var footer := _panel(Rect2(52.0, 1178.0, 616.0, 72.0), Color(0.035, 0.058, 0.064, 0.82), Color(0.71, 0.76, 0.62, 0.48), 18)
@@ -535,9 +537,37 @@ func _on_modal_action_pressed() -> void:
 
 func _on_modal_close_pressed() -> void:
 	if _chapter_complete:
-		get_tree().change_scene_to_file(HUB_SCENE)
+		_return_to_hub()
 	else:
 		_modal.visible = false
+
+
+func _return_to_hub() -> void:
+	await _transition_to_scene(HUB_SCENE)
+
+
+func _build_transition_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+	_transition_overlay = ColorRect.new()
+	_transition_overlay.color = Color.BLACK
+	_transition_overlay.modulate.a = 1.0
+	_transition_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_transition_overlay)
+	var fade_in := create_tween()
+	fade_in.tween_property(_transition_overlay, "modulate:a", 0.0, 0.34)
+
+
+func _transition_to_scene(scene_path: String) -> void:
+	if _transition_overlay == null:
+		get_tree().change_scene_to_file(scene_path)
+		return
+	var fade_out := create_tween()
+	fade_out.tween_property(_transition_overlay, "modulate:a", 1.0, 0.30)
+	await fade_out.finished
+	get_tree().change_scene_to_file(scene_path)
 
 
 func _process(delta: float) -> void:
