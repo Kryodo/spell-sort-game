@@ -2,7 +2,7 @@ extends Node3D
 
 const HUB_SCENE := "res://scenes/lab_room_prototype.tscn"
 const TABLE_TOP_Y := 0.90
-const VIAL_BASE_Y := 0.94
+const VIAL_BASE_Y := 0.84
 const VIAL_SPACING := 1.12
 const CAPACITY := 4
 const ESSENCES: Array[String] = ["tide", "moon", "ember"]
