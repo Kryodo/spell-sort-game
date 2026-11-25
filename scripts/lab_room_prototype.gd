@@ -2,11 +2,19 @@ extends Node3D
 
 const PUZZLE_SCENE := "res://scenes/alchemy_interaction_test.tscn"
 const CHAPTER_SCENE := "res://scenes/chapter_forest_prototype.tscn"
-const ROOM_WIDTH := 21.5
-const ROOM_DEPTH := 6.75
+const ROOM_WIDTH := 17.0
+const ROOM_DEPTH := 14.5
 const WALL_HEIGHT := 5.0
+const MAIN_LAB_OFFSET := Vector3(4.0, 0.0, 3.0)
 
 var _camera: Camera3D
+var _spawn_parent: Node3D
+var _hub_hud_root: Control
+var _puzzle_layer: CanvasLayer
+var _puzzle_overlay: Control
+var _camera_home_position := Vector3.ZERO
+var _camera_home_target := Vector3.ZERO
+var _camera_home_size := 10.0
 var _modal: Panel
 var _modal_title: Label
 var _modal_body: Label
@@ -17,7 +25,7 @@ var _flames: Array[MeshInstance3D] = []
 var _flame_lights: Array[OmniLight3D] = []
 var _flame_base_positions: Array[Vector3] = []
 var _elapsed := 0.0
-var _camera_look_target := Vector3(0.45, 1.55, 0.0)
+var _camera_look_target := Vector3(0.0, 1.55, 0.0)
 var _gesture_start := Vector2.ZERO
 var _gesture_last := Vector2.ZERO
 var _gesture_active := false
@@ -26,11 +34,11 @@ var _transition_overlay: ColorRect
 
 
 func _ready() -> void:
+	_spawn_parent = self
 	_build_world()
 	_build_room()
-	_build_props()
-	_build_hub_wings()
-	_build_interactables()
+	_build_hub_areas()
+	_spawn_parent = self
 	_build_hud()
 	_build_transition_overlay()
 
@@ -66,56 +74,65 @@ func _build_world() -> void:
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	# View into the open front-left corner, looking diagonally across both interior walls.
 	# The wider orthographic frame compensates for the portrait viewport.
-	_camera.size = 10.7
-	_camera.position = Vector3(4.2, 8.1, 10.8)
+	_camera.size = 10.0
+	_camera.position = Vector3(5.8, 8.8, 10.8)
 	_camera.near = 0.05
 	_camera.far = 60.0
 	add_child(_camera)
 	_camera.look_at(_camera_look_target, Vector3.UP)
 	_camera.make_current()
+	_camera_home_position = _camera.position
+	_camera_home_target = _camera_look_target
+	_camera_home_size = _camera.size
 
 
 func _build_room() -> void:
 	var floor_material := _mat(Color(0.36, 0.25, 0.16))
 	var plank_material := _mat(Color(0.43, 0.30, 0.19))
-	var back_wall_material := _mat(Color(0.47, 0.48, 0.37))
-	var side_wall_material := _mat(Color(0.34, 0.40, 0.34))
+	var back_wall_material := _mat(Color(0.45, 0.45, 0.36))
+	var side_wall_material := _mat(Color(0.31, 0.37, 0.33))
 	var trim_material := _mat(Color(0.20, 0.15, 0.11))
+	var stone_material := _mat(Color(0.32, 0.35, 0.31))
 
-	# One continuous shell replaces the old three-room strip. The side areas
-	# remain part of the same laboratory and are reached by free camera panning.
-	_add_box("Floor", Vector3(ROOM_WIDTH, 0.24, ROOM_DEPTH), Vector3(0.0, -0.12, 0.75), floor_material)
-	for index in range(14):
-		var z := -2.48 + float(index) * 0.48
+	# One enclosed square-ish room. The four work areas sit in its quadrants;
+	# the crossing paths and hearth keep it feeling like one shared place.
+	_add_box("Floor", Vector3(ROOM_WIDTH, 0.24, ROOM_DEPTH), Vector3(0.0, -0.12, 0.0), floor_material)
+	for index in range(28):
+		var z := -6.72 + float(index) * 0.49
 		_add_box("FloorPlankSeam_%02d" % index, Vector3(ROOM_WIDTH - 0.06, 0.018, 0.018), Vector3(0.0, 0.012, z), plank_material)
+	_add_box("CrossHall_NS", Vector3(1.18, 0.035, ROOM_DEPTH - 0.25), Vector3(0.0, 0.025, 0.0), _mat(Color(0.25, 0.22, 0.17)))
+	_add_box("CrossHall_EW", Vector3(ROOM_WIDTH - 0.25, 0.035, 1.18), Vector3(0.0, 0.028, 0.0), _mat(Color(0.25, 0.22, 0.17)))
 
-	_add_box("BackWall", Vector3(ROOM_WIDTH, WALL_HEIGHT, 0.20), Vector3(0.0, WALL_HEIGHT * 0.5, -2.62), back_wall_material)
-	_add_box("LeftWall", Vector3(0.20, WALL_HEIGHT, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5, WALL_HEIGHT * 0.5, 0.70), side_wall_material)
-	_add_box("RightWall", Vector3(0.20, WALL_HEIGHT, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5, WALL_HEIGHT * 0.5, 0.70), side_wall_material)
+	_add_box("BackWall", Vector3(ROOM_WIDTH, WALL_HEIGHT, 0.20), Vector3(0.0, WALL_HEIGHT * 0.5, -ROOM_DEPTH * 0.5 + 0.10), back_wall_material)
+	_add_box("LeftWall", Vector3(0.20, WALL_HEIGHT, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5 + 0.10, WALL_HEIGHT * 0.5, 0.0), side_wall_material)
+	_add_box("RightWall", Vector3(0.20, WALL_HEIGHT, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.10, WALL_HEIGHT * 0.5, 0.0), side_wall_material)
+	_add_box("BackWallTopTrim", Vector3(ROOM_WIDTH, 0.22, 0.30), Vector3(0.0, WALL_HEIGHT - 0.05, -ROOM_DEPTH * 0.5 + 0.10), trim_material)
+	_add_box("LeftWallTopTrim", Vector3(0.30, 0.22, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5 + 0.05, WALL_HEIGHT - 0.05, 0.0), trim_material)
+	_add_box("RightWallTopTrim", Vector3(0.30, 0.22, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.05, WALL_HEIGHT - 0.05, 0.0), trim_material)
+	_add_box("BackSkirting", Vector3(ROOM_WIDTH, 0.28, 0.24), Vector3(0.0, 0.18, -ROOM_DEPTH * 0.5 + 0.24), trim_material)
+	_add_box("LeftSkirting", Vector3(0.24, 0.28, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5 + 0.24, 0.18, 0.0), trim_material)
+	_add_box("RightSkirting", Vector3(0.24, 0.28, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.24, 0.18, 0.0), trim_material)
 
-	_add_box("BackWallTopTrim", Vector3(ROOM_WIDTH, 0.22, 0.30), Vector3(0.0, WALL_HEIGHT - 0.05, -2.48), trim_material)
-	_add_box("LeftWallTopTrim", Vector3(0.30, 0.22, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5 + 0.05, WALL_HEIGHT - 0.05, 0.70), trim_material)
-	_add_box("RightWallTopTrim", Vector3(0.30, 0.22, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.05, WALL_HEIGHT - 0.05, 0.70), trim_material)
-	_add_box("BackSkirting", Vector3(ROOM_WIDTH, 0.28, 0.24), Vector3(0.0, 0.18, -2.45), trim_material)
-	_add_box("LeftSkirting", Vector3(0.24, 0.28, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5 + 0.16, 0.18, 0.70), trim_material)
-	_add_box("RightSkirting", Vector3(0.24, 0.28, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.16, 0.18, 0.70), trim_material)
+	# A fireplace anchors the room and provides a warm focal point between its four areas.
+	_add_box("HearthStoneSurround", Vector3(2.65, 2.45, 0.56), Vector3(0.0, 1.48, -6.62), stone_material)
+	_add_box("HearthOpening", Vector3(1.70, 1.52, 0.12), Vector3(0.0, 1.30, -6.30), _mat(Color(0.045, 0.036, 0.030)))
+	_add_box("HearthMantle", Vector3(3.05, 0.20, 0.76), Vector3(0.0, 2.78, -6.30), _mat(Color(0.41, 0.34, 0.26)))
+	_add_box("HearthBase", Vector3(2.85, 0.28, 0.82), Vector3(0.0, 0.24, -6.18), _mat(Color(0.38, 0.31, 0.24)))
+	var hearth_flame := _add_sphere("HearthFlame", 0.42, Vector3(0.0, 1.04, -6.10), _mat(Color(1.0, 0.43, 0.17), 0.0, 1.7))
+	hearth_flame.scale = Vector3(0.78, 1.45, 0.70)
+	_flames.append(hearth_flame)
+	_flame_base_positions.append(hearth_flame.position)
+	var hearth_light := OmniLight3D.new()
+	hearth_light.position = Vector3(0.0, 1.30, -5.85)
+	hearth_light.light_color = Color(1.0, 0.48, 0.20)
+	hearth_light.light_energy = 1.35
+	hearth_light.omni_range = 7.0
+	add_child(hearth_light)
+	_flame_lights.append(hearth_light)
 
-	var window_glass := _mat(Color(0.29, 0.57, 0.61), 0.0, 0.18)
-	_add_box("WindowGlass", Vector3(1.55, 1.55, 0.055), Vector3(0.0, 3.05, -2.475), window_glass)
-	_add_box("WindowFrameLeft", Vector3(0.13, 1.82, 0.16), Vector3(-0.84, 3.05, -2.40), trim_material)
-	_add_box("WindowFrameRight", Vector3(0.13, 1.82, 0.16), Vector3(0.84, 3.05, -2.40), trim_material)
-	_add_box("WindowFrameTop", Vector3(1.80, 0.13, 0.16), Vector3(0.0, 3.91, -2.40), trim_material)
-	_add_box("WindowFrameBottom", Vector3(1.80, 0.13, 0.16), Vector3(0.0, 2.19, -2.40), trim_material)
-	_add_box("WindowCrossbar", Vector3(1.58, 0.075, 0.12), Vector3(0.0, 3.05, -2.35), trim_material)
-	_add_box("WindowSill", Vector3(2.02, 0.15, 0.42), Vector3(0.0, 2.14, -2.25), plank_material)
-
-	_add_box("BackPostLeft", Vector3(0.20, WALL_HEIGHT, 0.22), Vector3(-ROOM_WIDTH * 0.5 + 0.12, 2.5, -2.43), trim_material)
-	_add_box("BackPostRight", Vector3(0.20, WALL_HEIGHT, 0.22), Vector3(ROOM_WIDTH * 0.5 - 0.12, 2.5, -2.43), trim_material)
-
-	var rug_material := _mat(Color(0.23, 0.28, 0.22))
-	_add_box("WorkbenchRug", Vector3(3.85, 0.035, 2.65), Vector3(0.0, 0.025, 1.15), rug_material)
-	_add_box("RugBorderFront", Vector3(3.72, 0.018, 0.055), Vector3(0.0, 0.05, 2.43), _mat(Color(0.61, 0.43, 0.24)))
-	_add_box("RugBorderBack", Vector3(3.72, 0.018, 0.055), Vector3(0.0, 0.05, -0.13), _mat(Color(0.61, 0.43, 0.24)))
+	for corner_x in [-7.7, 7.7]:
+		for corner_z in [-6.7, 6.7]:
+			_add_box("RoomCornerPost", Vector3(0.34, WALL_HEIGHT, 0.34), Vector3(corner_x, WALL_HEIGHT * 0.5, corner_z), trim_material)
 
 
 func _build_props() -> void:
@@ -161,13 +178,17 @@ func _build_props() -> void:
 	_add_box("CauldronStandTop", Vector3(1.30, 0.15, 1.12), Vector3(1.78, 0.78, 0.42), wood_light)
 	for x in [1.32, 2.24]:
 		_add_box("CauldronStandLeg", Vector3(0.14, 0.76, 0.14), Vector3(x, 0.39, 0.42), wood)
-	_add_cylinder("CauldronBody", 0.56, 0.40, 0.76, Vector3(1.78, 1.27, 0.42), ceramic)
-	_add_cylinder("CauldronRim", 0.61, 0.61, 0.13, Vector3(1.78, 1.67, 0.42), brass)
-	_add_cylinder("CauldronLiquid", 0.51, 0.51, 0.055, Vector3(1.78, 1.62, 0.42), green)
+	var cauldron_body := _add_sphere("CauldronBody", 0.60, Vector3(1.78, 1.25, 0.42), ceramic)
+	cauldron_body.scale = Vector3(1.06, 0.82, 1.02)
+	_add_cylinder("CauldronFoot", 0.37, 0.43, 0.16, Vector3(1.78, 0.79, 0.42), _mat(Color(0.19, 0.27, 0.25)))
+	_add_cylinder("CauldronRim", 0.61, 0.56, 0.15, Vector3(1.78, 1.66, 0.42), brass)
+	_add_cylinder("CauldronLiquid", 0.50, 0.50, 0.045, Vector3(1.78, 1.61, 0.42), green)
 	_add_sphere("CauldronBubbleA", 0.075, Vector3(1.56, 1.72, 0.32), _mat(Color(0.58, 0.85, 0.53), 0.0, 0.32))
 	_add_sphere("CauldronBubbleB", 0.055, Vector3(1.91, 1.73, 0.50), _mat(Color(0.58, 0.85, 0.53), 0.0, 0.32))
-	_add_box("CauldronHandleLeft", Vector3(0.10, 0.16, 0.15), Vector3(1.18, 1.54, 0.42), brass)
-	_add_box("CauldronHandleRight", Vector3(0.10, 0.16, 0.15), Vector3(2.38, 1.54, 0.42), brass)
+	var cauldron_handle_left := _add_sphere("CauldronHandleLeft", 0.16, Vector3(1.18, 1.54, 0.42), brass)
+	cauldron_handle_left.scale = Vector3(0.60, 0.34, 0.86)
+	var cauldron_handle_right := _add_sphere("CauldronHandleRight", 0.16, Vector3(2.38, 1.54, 0.42), brass)
+	cauldron_handle_right.scale = Vector3(0.60, 0.34, 0.86)
 
 	# Wall shelves with readable, simple silhouettes.
 	_add_box("BackShelf", Vector3(1.95, 0.14, 0.52), Vector3(-1.72, 2.16, -2.05), wood_light)
@@ -202,15 +223,64 @@ func _build_props() -> void:
 
 
 
-func _build_hub_wings() -> void:
+func _build_hub_areas() -> void:
+	var main_lab := Node3D.new()
+	main_lab.name = "MainLaboratoryArea"
+	main_lab.position = MAIN_LAB_OFFSET
+	add_child(main_lab)
+	_spawn_parent = main_lab
+	_add_box("WorkbenchRug", Vector3(4.05, 0.035, 2.75), Vector3(0.0, 0.025, 1.15), _mat(Color(0.23, 0.28, 0.22)))
+	_build_props()
+	_build_main_interactables()
+
+	var storage := Node3D.new()
+	storage.name = "IngredientStorageArea"
+	storage.position = Vector3(-4.0, 0.0, -3.0)
+	add_child(storage)
+	_spawn_parent = storage
+	_build_storage_area()
+	_register_interactable(
+		"ingredient_store", "Ingredient Stores",
+		"Collected herbs, minerals and curious ingredients are kept here. The shelves and work surfaces will gradually fill as new ingredients are discovered.",
+		Vector3(0.0, 1.35, 1.50), Vector3(2.70, 1.25, 1.70)
+	)
+
+	var archive := Node3D.new()
+	archive.name = "ResearchArchiveArea"
+	archive.position = Vector3(4.0, 0.0, -3.0)
+	add_child(archive)
+	_spawn_parent = archive
+	_build_archive_area()
+	_register_interactable(
+		"research_archive", "Research Archive",
+		"Books, field notes and discovered recipes gather here. The Grimoire will grow as the laboratory is restored.",
+		Vector3(0.0, 1.70, 1.35), Vector3(3.10, 2.45, 2.20)
+	)
+
+	var restoration := Node3D.new()
+	restoration.name = "RestorationArea"
+	restoration.position = Vector3(-4.0, 0.0, 3.0)
+	add_child(restoration)
+	_spawn_parent = restoration
+	_build_restoration_area()
+	_register_interactable(
+		"chapter_gate", "Verdant Hollow",
+		"A passage to the first chapter has been discovered. Explore the glade and its forgotten magic.",
+		Vector3(0.0, 1.45, -1.55), Vector3(2.60, 2.50, 1.20)
+	)
+
+	# The four sections remain open to one another, with the central hall acting
+	# as the shared circulation space rather than a fifth room or a corridor strip.
+	_spawn_parent = self
+
+
+func _build_storage_area() -> void:
 	var wood := _mat(Color(0.27, 0.18, 0.12))
 	var wood_light := _mat(Color(0.48, 0.32, 0.20))
 	var brass := _mat(Color(0.70, 0.52, 0.27), 0.35)
-
-	# Storage wing to the left of the central laboratory.
-	var storage_x := -7.8
+	_add_box("StorageBackboard", Vector3(6.6, 4.75, 0.18), Vector3(0.0, 2.40, -2.66), _mat(Color(0.35, 0.39, 0.31)))
 	for shelf_index in range(3):
-		var shelf_x := storage_x - 1.65 + float(shelf_index) * 1.55
+		var shelf_x := -1.65 + float(shelf_index) * 1.55
 		_add_box("StorageShelf_%d" % shelf_index, Vector3(1.25, 0.13, 0.52), Vector3(shelf_x, 2.55, -2.06), wood_light)
 		_add_box("StorageShelfUpper_%d" % shelf_index, Vector3(1.25, 0.13, 0.52), Vector3(shelf_x, 3.66, -2.06), wood_light)
 		for item_index in range(4):
@@ -218,19 +288,25 @@ func _build_hub_wings() -> void:
 			var potion_x := shelf_x - 0.43 + float(item_index) * 0.28
 			_make_potion(Vector3(potion_x, 2.72, -2.06), colors[(shelf_index + item_index) % 4], 0.82)
 			_make_potion(Vector3(potion_x, 3.83, -2.06), colors[(shelf_index + item_index + 1) % 4], 0.72)
-	_add_box("StorageIslandTop", Vector3(2.45, 0.20, 1.35), Vector3(storage_x, 1.06, 1.55), wood_light)
-	for leg_x in [storage_x - 0.98, storage_x + 0.98]:
+	_add_box("StorageIslandTop", Vector3(2.45, 0.20, 1.35), Vector3(0.0, 1.06, 1.55), wood_light)
+	for leg_x in [-0.98, 0.98]:
 		for leg_z in [1.08, 2.02]:
 			_add_box("StorageIslandLeg", Vector3(0.16, 0.92, 0.16), Vector3(leg_x, 0.48, leg_z), wood)
 	for crate_index in range(3):
-		var crate_x := storage_x - 0.72 + float(crate_index) * 0.72
+		var crate_x := -0.72 + float(crate_index) * 0.72
 		_add_box("IngredientCrate_%d" % crate_index, Vector3(0.54, 0.48, 0.52), Vector3(crate_x, 1.40, 1.50), _mat(Color(0.39, 0.29, 0.18)))
 		_add_box("IngredientCrateBand_%d" % crate_index, Vector3(0.56, 0.07, 0.055), Vector3(crate_x, 1.43, 1.77), brass)
+	_add_candle(Vector3(-2.35, 2.38, -2.00))
+	_add_candle(Vector3(2.32, 2.38, -2.00))
 
-	# Research archive to the right of the central laboratory.
-	var archive_x := 7.8
+
+func _build_archive_area() -> void:
+	var wood := _mat(Color(0.27, 0.18, 0.12))
+	var wood_light := _mat(Color(0.48, 0.32, 0.20))
+	var brass := _mat(Color(0.70, 0.52, 0.27), 0.35)
+	_add_box("ArchiveBackboard", Vector3(6.6, 4.75, 0.18), Vector3(0.0, 2.40, -2.66), _mat(Color(0.34, 0.36, 0.34)))
 	for shelf_index in range(2):
-		var shelf_x := archive_x - 1.65 + float(shelf_index) * 1.55
+		var shelf_x := -1.65 + float(shelf_index) * 1.55
 		_add_box("ArchiveBookcase_%d" % shelf_index, Vector3(1.24, 3.42, 0.48), Vector3(shelf_x, 1.91, -2.18), wood)
 		for level in range(3):
 			var shelf_y := 0.82 + float(level) * 1.05
@@ -239,23 +315,49 @@ func _build_hub_wings() -> void:
 				var book_colors: Array[Color] = [Color(0.30, 0.39, 0.52), Color(0.52, 0.31, 0.34), Color(0.43, 0.48, 0.32), Color(0.65, 0.50, 0.29)]
 				var book := _add_box("ArchiveBook_%d_%d_%d" % [shelf_index, level, book_index], Vector3(0.16, 0.46, 0.32), Vector3(shelf_x - 0.40 + float(book_index) * 0.26, shelf_y + 0.26, -1.92), _mat(book_colors[book_index]))
 				book.rotation_degrees.z = -3.0 * float(book_index % 2)
-	_add_box("ArchiveMapFrame", Vector3(1.72, 2.05, 0.16), Vector3(archive_x + 1.52, 2.83, -2.43), brass)
-	_add_box("ArchiveMap", Vector3(1.52, 1.85, 0.06), Vector3(archive_x + 1.52, 2.83, -2.32), _mat(Color(0.29, 0.42, 0.39)))
-	_add_box("ArchiveDeskTop", Vector3(2.35, 0.18, 1.30), Vector3(archive_x, 1.05, 1.52), wood_light)
-	for leg_x in [archive_x - 0.92, archive_x + 0.92]:
+	_add_box("ArchiveMapFrame", Vector3(1.72, 2.05, 0.16), Vector3(1.52, 2.83, -2.43), brass)
+	_add_box("ArchiveMap", Vector3(1.52, 1.85, 0.06), Vector3(1.52, 2.83, -2.32), _mat(Color(0.29, 0.42, 0.39)))
+	_add_box("ArchiveDeskTop", Vector3(2.35, 0.18, 1.30), Vector3(0.0, 1.05, 1.52), wood_light)
+	for leg_x in [-0.92, 0.92]:
 		for leg_z in [1.02, 2.00]:
 			_add_box("ArchiveDeskLeg", Vector3(0.16, 0.94, 0.16), Vector3(leg_x, 0.48, leg_z), wood)
-	_add_box("ArchiveOpenBook", Vector3(1.10, 0.08, 0.72), Vector3(archive_x - 0.32, 1.19, 1.50), _mat(Color(0.78, 0.68, 0.49)))
-	_add_cylinder("ArchiveCrystalBase", 0.35, 0.27, 0.22, Vector3(archive_x + 0.70, 1.20, 1.48), brass)
-	var archive_crystal := _add_sphere("ArchiveCrystal", 0.34, Vector3(archive_x + 0.70, 1.58, 1.48), _mat(Color(0.38, 0.78, 0.76), 0.0, 1.1))
+	_add_box("ArchiveOpenBook", Vector3(1.10, 0.08, 0.72), Vector3(-0.32, 1.19, 1.50), _mat(Color(0.78, 0.68, 0.49)))
+	_add_cylinder("ArchiveCrystalBase", 0.35, 0.27, 0.22, Vector3(0.70, 1.20, 1.48), brass)
+	var archive_crystal := _add_sphere("ArchiveCrystal", 0.34, Vector3(0.70, 1.58, 1.48), _mat(Color(0.38, 0.78, 0.76), 0.0, 1.1))
 	archive_crystal.scale = Vector3(0.70, 1.35, 0.70)
+	_add_candle(Vector3(-2.40, 2.30, -2.02))
 
 
-func _build_interactables() -> void:
+func _build_restoration_area() -> void:
+	var wood := _mat(Color(0.29, 0.20, 0.14))
+	var wood_light := _mat(Color(0.48, 0.34, 0.22))
+	var leaf_green := _mat(Color(0.35, 0.58, 0.33))
+	var leaf_light := _mat(Color(0.55, 0.72, 0.39))
+	var stone := _mat(Color(0.40, 0.43, 0.36))
+	_add_box("RestorationBackboard", Vector3(6.6, 4.75, 0.18), Vector3(0.0, 2.40, -2.66), _mat(Color(0.31, 0.39, 0.33)))
+	_add_box("RestorationBenchTop", Vector3(3.55, 0.18, 1.25), Vector3(0.0, 1.05, 1.65), wood_light)
+	for x in [-1.40, 1.40]:
+		for z in [1.20, 2.08]:
+			_add_box("RestorationBenchLeg", Vector3(0.17, 0.94, 0.17), Vector3(x, 0.47, z), wood)
+	_add_box("SeedTray", Vector3(1.05, 0.12, 0.76), Vector3(-0.85, 1.20, 1.60), stone)
+	_add_sphere("SeedGlow", 0.22, Vector3(-0.85, 1.42, 1.60), _mat(Color(0.71, 0.83, 0.49), 0.0, 0.7))
+	for plant_index in range(5):
+		var plant_x := -2.45 + float(plant_index) * 1.20
+		var plant_z := 0.25 if plant_index % 2 == 0 else 0.65
+		_add_cylinder("HerbPot_%d" % plant_index, 0.25, 0.32, 0.40, Vector3(plant_x, 0.22, plant_z), _mat(Color(0.51, 0.34, 0.24)))
+		for leaf_index in range(5):
+			var angle := TAU * float(leaf_index) / 5.0
+			var leaf := _add_sphere("HerbLeaf_%d_%d" % [plant_index, leaf_index], 0.21, Vector3(plant_x + cos(angle) * 0.18, 0.62 + 0.08 * float(leaf_index % 2), plant_z + sin(angle) * 0.18), leaf_green if leaf_index % 2 == 0 else leaf_light)
+			leaf.scale = Vector3(0.44, 1.28, 0.36)
+	_add_box("RestorationCrate", Vector3(0.82, 0.70, 0.74), Vector3(2.18, 0.38, 1.30), wood)
+	_add_candle(Vector3(2.52, 1.45, -2.08))
+
+
+func _build_main_interactables() -> void:
 	_register_interactable(
 		"alchemy_table", "Alchemy Table",
 		"Your first experiment is ready. Separate the tangled tide, moon and ember essences by guiding each vial's open mouth into position.",
-		Vector3(0.0, 1.17, 1.72), Vector3(2.72, 0.30, 1.52)
+		Vector3(0.0, 1.17, 1.72), Vector3(3.60, 0.42, 2.00)
 	)
 	_register_interactable(
 		"grimoire", "The Grimoire",
@@ -273,21 +375,10 @@ func _build_interactables() -> void:
 		Vector3(1.78, 1.42, 0.42), Vector3(1.38, 1.42, 1.18)
 	)
 	_register_interactable(
-		"ingredient_store", "Ingredient Stores",
-		"Collected herbs, minerals and curious ingredients are kept here. The shelves and work surfaces will gradually fill as new ingredients are discovered.",
-		Vector3(-7.8, 1.42, 1.50), Vector3(2.55, 1.10, 1.50)
-	)
-	_register_interactable(
-		"chapter_gate", "Verdant Hollow",
-		"A first place beyond the laboratory has been discovered. Explore a quiet glade of ancient stones, luminous plants and forgotten magic.",
-		Vector3(9.32, 2.80, -2.25), Vector3(1.80, 2.30, 0.70)
-	)
-	_register_interactable(
 		"world_map", "World Map",
 		"Unknown places lie beyond the laboratory. Discoveries will gradually reveal new environments and experiments.",
 		Vector3(1.83, 2.95, -2.27), Vector3(1.16, 1.42, 0.42)
 	)
-
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
@@ -298,6 +389,7 @@ func _build_hud() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
+	_hub_hud_root = root
 
 	var header := _make_panel(Rect2(22.0, 22.0, 430.0, 78.0), Color(0.045, 0.067, 0.068, 0.80), Color(0.78, 0.61, 0.36, 0.56), 17)
 	root.add_child(header)
@@ -384,13 +476,12 @@ func _register_interactable(id: String, title: String, description: String, cent
 	marker.material_override = _mat(Color(0.98, 0.78, 0.43), 0.0, 0.65)
 	area.add_child(marker)
 
-	add_child(area)
+	_spawn_parent.add_child(area)
 	_interactables.append(area)
 
 
 func _make_potion(world_position: Vector3, tint: Color, scale_value: float) -> void:
 	var glass := _mat(Color(tint.r, tint.g, tint.b, 0.92), 0.0, 0.08)
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_add_cylinder("PotionBody", 0.095 * scale_value, 0.095 * scale_value, 0.30 * scale_value, world_position, glass)
 	_add_cylinder("PotionNeck", 0.046 * scale_value, 0.046 * scale_value, 0.12 * scale_value, world_position + Vector3(0.0, 0.21 * scale_value, 0.0), glass)
 	_add_cylinder("PotionCork", 0.052 * scale_value, 0.052 * scale_value, 0.07 * scale_value, world_position + Vector3(0.0, 0.30 * scale_value, 0.0), _mat(Color(0.57, 0.38, 0.22)))
@@ -407,7 +498,7 @@ func _add_candle(world_position: Vector3) -> void:
 	light.light_color = Color(1.0, 0.59, 0.30)
 	light.light_energy = 0.72
 	light.omni_range = 2.2
-	add_child(light)
+	_spawn_parent.add_child(light)
 	_flame_lights.append(light)
 
 
@@ -419,7 +510,7 @@ func _add_box(node_name: String, dimensions: Vector3, world_position: Vector3, m
 	instance.mesh = mesh
 	instance.position = world_position
 	instance.material_override = material
-	add_child(instance)
+	_spawn_parent.add_child(instance)
 	return instance
 
 
@@ -434,7 +525,7 @@ func _add_cylinder(node_name: String, top_radius: float, bottom_radius: float, h
 	instance.mesh = mesh
 	instance.position = world_position
 	instance.material_override = material
-	add_child(instance)
+	_spawn_parent.add_child(instance)
 	return instance
 
 
@@ -449,21 +540,20 @@ func _add_sphere(node_name: String, radius: float, world_position: Vector3, mate
 	instance.mesh = mesh
 	instance.position = world_position
 	instance.material_override = material
-	add_child(instance)
+	_spawn_parent.add_child(instance)
 	return instance
 
 
-func _mat(color: Color, metallic: float = 0.0, emission_strength: float = 0.0) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 0.86
-	material.metallic = metallic
-	if emission_strength > 0.0:
-		material.emission_enabled = true
-		material.emission = Color(color.r, color.g, color.b, 1.0)
-		material.emission_energy_multiplier = emission_strength
-	if color.a < 1.0:
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+func _mat(color: Color, metallic: float = 0.0, emission_strength: float = 0.0) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = load("res://shaders/painterly_surface.gdshader") as Shader
+	material.set_shader_parameter("base_color", color)
+	material.set_shader_parameter("metallic_amount", metallic)
+	material.set_shader_parameter("roughness_amount", 0.88)
+	material.set_shader_parameter("grain_scale", 8.0)
+	material.set_shader_parameter("grain_strength", 0.055)
+	material.set_shader_parameter("emission_color", Color(color.r, color.g, color.b, 1.0))
+	material.set_shader_parameter("emission_strength", emission_strength)
 	return material
 
 
@@ -518,6 +608,8 @@ func _button_style(background: Color, border: Color) -> StyleBoxFlat:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _puzzle_overlay != null:
+		return
 	if _modal != null and _modal.visible:
 		return
 	if event is InputEventScreenTouch:
@@ -581,8 +673,8 @@ func _pan_camera(screen_delta: Vector2) -> void:
 	requested_shift.y = 0.0
 
 	var next_target := _camera_look_target + requested_shift
-	next_target.x = clampf(next_target.x, -6.4, 6.4)
-	next_target.z = clampf(next_target.z, -0.8, 0.8)
+	next_target.x = clampf(next_target.x, -4.0, 4.0)
+	next_target.z = clampf(next_target.z, -2.85, 2.85)
 	var actual_shift := next_target - _camera_look_target
 	actual_shift.y = 0.0
 	if actual_shift.length_squared() < 0.000001:
@@ -629,11 +721,60 @@ func _update_hover(screen_position: Vector2) -> void:
 
 func _on_primary_pressed() -> void:
 	if _active_interaction == "alchemy_table":
-		_transition_to_scene(PUZZLE_SCENE, true)
+		_open_workbench_puzzle()
 	elif _active_interaction == "world_map" or _active_interaction == "chapter_gate":
 		_transition_to_scene(CHAPTER_SCENE)
 	else:
 		_close_modal()
+
+
+func _open_workbench_puzzle() -> void:
+	var packed_scene := load(PUZZLE_SCENE) as PackedScene
+	if packed_scene == null:
+		push_error("Could not load the 2D alchemy puzzle scene: " + PUZZLE_SCENE)
+		return
+
+	_close_modal()
+	_hub_hud_root.visible = false
+	_puzzle_layer = CanvasLayer.new()
+	_puzzle_layer.layer = 20
+	add_child(_puzzle_layer)
+
+	var puzzle_instance: Node = packed_scene.instantiate()
+	puzzle_instance.set("in_world_presentation", true)
+	puzzle_instance.connect("return_to_hub_requested", Callable(self, "_close_workbench_puzzle"))
+	_puzzle_overlay = puzzle_instance as Control
+	_puzzle_overlay.modulate.a = 0.0
+	_puzzle_layer.add_child(_puzzle_overlay)
+
+	var focus_target := MAIN_LAB_OFFSET + Vector3(0.0, 1.22, 1.63)
+	var focus_position := focus_target + Vector3(3.45, 5.25, 8.25)
+	var focus_tween := create_tween().set_parallel(true)
+	focus_tween.tween_property(_camera, "position", focus_position, 0.58).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	focus_tween.tween_property(_camera, "size", 8.1, 0.58).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	focus_tween.tween_method(Callable(self, "_set_camera_look_target"), _camera_look_target, focus_target, 0.58)
+	focus_tween.tween_property(_puzzle_overlay, "modulate:a", 1.0, 0.48).set_delay(0.10)
+
+
+func _close_workbench_puzzle() -> void:
+	if _puzzle_overlay == null:
+		return
+	var close_tween := create_tween().set_parallel(true)
+	close_tween.tween_property(_puzzle_overlay, "modulate:a", 0.0, 0.22)
+	close_tween.tween_property(_camera, "position", _camera_home_position, 0.50).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	close_tween.tween_property(_camera, "size", _camera_home_size, 0.50).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	close_tween.tween_method(Callable(self, "_set_camera_look_target"), _camera_look_target, _camera_home_target, 0.50)
+	await close_tween.finished
+	if is_instance_valid(_puzzle_layer):
+		_puzzle_layer.queue_free()
+	_puzzle_layer = null
+	_puzzle_overlay = null
+	_hub_hud_root.visible = true
+
+
+func _set_camera_look_target(value: Vector3) -> void:
+	_camera_look_target = value
+	_camera.look_at(_camera_look_target, Vector3.UP)
 
 
 func _build_transition_overlay() -> void:
@@ -650,14 +791,12 @@ func _build_transition_overlay() -> void:
 	fade_in.tween_property(_transition_overlay, "modulate:a", 0.0, 0.34)
 
 
-func _transition_to_scene(scene_path: String, zoom_to_bench: bool = false) -> void:
+func _transition_to_scene(scene_path: String) -> void:
 	if _transition_overlay == null:
 		get_tree().change_scene_to_file(scene_path)
 		return
-	var fade_out := create_tween().set_parallel(true)
+	var fade_out := create_tween()
 	fade_out.tween_property(_transition_overlay, "modulate:a", 1.0, 0.30)
-	if zoom_to_bench and _camera != null:
-		fade_out.tween_property(_camera, "size", 9.2, 0.30)
 	await fade_out.finished
 	get_tree().change_scene_to_file(scene_path)
 
