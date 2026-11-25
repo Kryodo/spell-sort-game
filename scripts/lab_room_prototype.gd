@@ -1,8 +1,8 @@
 extends Node3D
 
-const PUZZLE_SCENE := "res://scenes/alchemy_3d_experiment.tscn"
+const PUZZLE_SCENE := "res://scenes/alchemy_interaction_test.tscn"
 const CHAPTER_SCENE := "res://scenes/chapter_forest_prototype.tscn"
-const ROOM_WIDTH := 5.45
+const ROOM_WIDTH := 21.5
 const ROOM_DEPTH := 6.75
 const WALL_HEIGHT := 5.0
 
@@ -17,15 +17,11 @@ var _flames: Array[MeshInstance3D] = []
 var _flame_lights: Array[OmniLight3D] = []
 var _flame_base_positions: Array[Vector3] = []
 var _elapsed := 0.0
-var _hub_page := 1
-var _camera_home_position := Vector3.ZERO
-var _camera_tween: Tween
-var _page_label: Label
-var _storage_button: Button
-var _lab_button: Button
-var _archive_button: Button
-var _swipe_start := Vector2.ZERO
-var _swipe_active := false
+var _camera_look_target := Vector3(0.45, 1.55, 0.0)
+var _gesture_start := Vector2.ZERO
+var _gesture_last := Vector2.ZERO
+var _gesture_active := false
+var _gesture_moved := false
 
 
 func _ready() -> void:
@@ -68,14 +64,13 @@ func _build_world() -> void:
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	# View into the open front-left corner, looking diagonally across both interior walls.
 	# The wider orthographic frame compensates for the portrait viewport.
-	_camera.size = 16.2
-	_camera.position = Vector3(-7.8, 10.5, 11.0)
+	_camera.size = 10.7
+	_camera.position = Vector3(4.2, 8.1, 10.8)
 	_camera.near = 0.05
 	_camera.far = 60.0
 	add_child(_camera)
-	_camera.look_at(Vector3(0.45, 1.95, 0.0), Vector3.UP)
+	_camera.look_at(_camera_look_target, Vector3.UP)
 	_camera.make_current()
-	_camera_home_position = _camera.position
 
 
 func _build_room() -> void:
@@ -85,20 +80,24 @@ func _build_room() -> void:
 	var side_wall_material := _mat(Color(0.34, 0.40, 0.34))
 	var trim_material := _mat(Color(0.20, 0.15, 0.11))
 
+	# One continuous shell replaces the old three-room strip. The side areas
+	# remain part of the same laboratory and are reached by free camera panning.
 	_add_box("Floor", Vector3(ROOM_WIDTH, 0.24, ROOM_DEPTH), Vector3(0.0, -0.12, 0.75), floor_material)
 	for index in range(14):
 		var z := -2.48 + float(index) * 0.48
 		_add_box("FloorPlankSeam_%02d" % index, Vector3(ROOM_WIDTH - 0.06, 0.018, 0.018), Vector3(0.0, 0.012, z), plank_material)
 
 	_add_box("BackWall", Vector3(ROOM_WIDTH, WALL_HEIGHT, 0.20), Vector3(0.0, WALL_HEIGHT * 0.5, -2.62), back_wall_material)
+	_add_box("LeftWall", Vector3(0.20, WALL_HEIGHT, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5, WALL_HEIGHT * 0.5, 0.70), side_wall_material)
 	_add_box("RightWall", Vector3(0.20, WALL_HEIGHT, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5, WALL_HEIGHT * 0.5, 0.70), side_wall_material)
 
 	_add_box("BackWallTopTrim", Vector3(ROOM_WIDTH, 0.22, 0.30), Vector3(0.0, WALL_HEIGHT - 0.05, -2.48), trim_material)
+	_add_box("LeftWallTopTrim", Vector3(0.30, 0.22, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5 + 0.05, WALL_HEIGHT - 0.05, 0.70), trim_material)
 	_add_box("RightWallTopTrim", Vector3(0.30, 0.22, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.05, WALL_HEIGHT - 0.05, 0.70), trim_material)
 	_add_box("BackSkirting", Vector3(ROOM_WIDTH, 0.28, 0.24), Vector3(0.0, 0.18, -2.45), trim_material)
+	_add_box("LeftSkirting", Vector3(0.24, 0.28, ROOM_DEPTH), Vector3(-ROOM_WIDTH * 0.5 + 0.16, 0.18, 0.70), trim_material)
 	_add_box("RightSkirting", Vector3(0.24, 0.28, ROOM_DEPTH), Vector3(ROOM_WIDTH * 0.5 - 0.16, 0.18, 0.70), trim_material)
 
-	# Window and frame on the rear wall.
 	var window_glass := _mat(Color(0.29, 0.57, 0.61), 0.0, 0.18)
 	_add_box("WindowGlass", Vector3(1.55, 1.55, 0.055), Vector3(0.0, 3.05, -2.475), window_glass)
 	_add_box("WindowFrameLeft", Vector3(0.13, 1.82, 0.16), Vector3(-0.84, 3.05, -2.40), trim_material)
@@ -108,11 +107,9 @@ func _build_room() -> void:
 	_add_box("WindowCrossbar", Vector3(1.58, 0.075, 0.12), Vector3(0.0, 3.05, -2.35), trim_material)
 	_add_box("WindowSill", Vector3(2.02, 0.15, 0.42), Vector3(0.0, 2.14, -2.25), plank_material)
 
-	# Architectural posts give the room a simple, readable frame.
-	_add_box("BackPostLeft", Vector3(0.20, WALL_HEIGHT, 0.22), Vector3(-2.56, 2.5, -2.43), trim_material)
-	_add_box("BackPostRight", Vector3(0.20, WALL_HEIGHT, 0.22), Vector3(2.56, 2.5, -2.43), trim_material)
+	_add_box("BackPostLeft", Vector3(0.20, WALL_HEIGHT, 0.22), Vector3(-ROOM_WIDTH * 0.5 + 0.12, 2.5, -2.43), trim_material)
+	_add_box("BackPostRight", Vector3(0.20, WALL_HEIGHT, 0.22), Vector3(ROOM_WIDTH * 0.5 - 0.12, 2.5, -2.43), trim_material)
 
-	# A restrained floor rug anchors the central work area.
 	var rug_material := _mat(Color(0.23, 0.28, 0.22))
 	_add_box("WorkbenchRug", Vector3(3.85, 0.035, 2.65), Vector3(0.0, 0.025, 1.15), rug_material)
 	_add_box("RugBorderFront", Vector3(3.72, 0.018, 0.055), Vector3(0.0, 0.05, 2.43), _mat(Color(0.61, 0.43, 0.24)))
@@ -207,13 +204,9 @@ func _build_hub_wings() -> void:
 	var wood := _mat(Color(0.27, 0.18, 0.12))
 	var wood_light := _mat(Color(0.48, 0.32, 0.20))
 	var brass := _mat(Color(0.70, 0.52, 0.27), 0.35)
-	var floor_material := _mat(Color(0.31, 0.25, 0.18))
 
 	# Storage wing to the left of the central laboratory.
 	var storage_x := -7.8
-	_add_box("StorageFloor", Vector3(5.45, 0.24, ROOM_DEPTH), Vector3(storage_x, -0.12, 0.75), floor_material)
-	_add_box("StorageBackWall", Vector3(5.45, WALL_HEIGHT, 0.20), Vector3(storage_x, 2.5, -2.62), _mat(Color(0.39, 0.43, 0.36)))
-	_add_box("StorageBackTrim", Vector3(5.45, 0.20, 0.28), Vector3(storage_x, 4.94, -2.48), wood)
 	for shelf_index in range(3):
 		var shelf_x := storage_x - 1.65 + float(shelf_index) * 1.55
 		_add_box("StorageShelf_%d" % shelf_index, Vector3(1.25, 0.13, 0.52), Vector3(shelf_x, 2.55, -2.06), wood_light)
@@ -234,9 +227,6 @@ func _build_hub_wings() -> void:
 
 	# Research archive to the right of the central laboratory.
 	var archive_x := 7.8
-	_add_box("ArchiveFloor", Vector3(5.45, 0.24, ROOM_DEPTH), Vector3(archive_x, -0.12, 0.75), floor_material)
-	_add_box("ArchiveBackWall", Vector3(5.45, WALL_HEIGHT, 0.20), Vector3(archive_x, 2.5, -2.62), _mat(Color(0.34, 0.39, 0.40)))
-	_add_box("ArchiveBackTrim", Vector3(5.45, 0.20, 0.28), Vector3(archive_x, 4.94, -2.48), wood)
 	for shelf_index in range(2):
 		var shelf_x := archive_x - 1.65 + float(shelf_index) * 1.55
 		_add_box("ArchiveBookcase_%d" % shelf_index, Vector3(1.24, 3.42, 0.48), Vector3(shelf_x, 1.91, -2.18), wood)
@@ -320,44 +310,17 @@ func _build_hud() -> void:
 
 	var footer := _make_panel(Rect2(65.0, 1188.0, 590.0, 62.0), Color(0.045, 0.067, 0.068, 0.78), Color(0.78, 0.61, 0.36, 0.40), 16)
 	root.add_child(footer)
-	var instruction := _make_label("SWIPE BETWEEN AREAS  ·  TAP OBJECTS TO EXPLORE", 13, Color(0.98, 0.91, 0.77))
+	var instruction := _make_label("SWIPE TO LOOK AROUND  ·  TAP OBJECTS TO INTERACT", 13, Color(0.98, 0.91, 0.77))
 	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	instruction.position = Vector2(12.0, 8.0)
 	instruction.size = Vector2(566.0, 22.0)
 	footer.add_child(instruction)
-	var footer_note := _make_label("ROOM STUDY 01  ·  RESTORATION BEGINS HERE", 9, Color(0.71, 0.80, 0.76))
+	var footer_note := _make_label("ONE CONTINUOUS LABORATORY  ·  EXPLORE FREELY", 9, Color(0.71, 0.80, 0.76))
 	footer_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	footer_note.position = Vector2(12.0, 32.0)
 	footer_note.size = Vector2(566.0, 18.0)
 	footer.add_child(footer_note)
 
-	var navigation_y := 1108.0
-	_storage_button = _make_button("‹  STORAGE", false)
-	_storage_button.position = Vector2(22.0, navigation_y)
-	_storage_button.size = Vector2(170.0, 48.0)
-	_storage_button.pressed.connect(func(): _set_hub_page(0))
-	root.add_child(_storage_button)
-
-	_lab_button = _make_button("MAIN LAB", false)
-	_lab_button.position = Vector2(265.0, navigation_y)
-	_lab_button.size = Vector2(190.0, 48.0)
-	_lab_button.pressed.connect(func(): _set_hub_page(1))
-	root.add_child(_lab_button)
-
-	_page_label = _make_label("MAIN LAB  ·  02 / 03", 10, Color(0.90, 0.83, 0.68))
-	_page_label.position = Vector2(190.0, navigation_y - 34.0)
-	_page_label.size = Vector2(340.0, 26.0)
-	_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	root.add_child(_page_label)
-
-	_archive_button = _make_button("ARCHIVE  ›", false)
-	_archive_button.position = Vector2(528.0, navigation_y)
-	_archive_button.size = Vector2(170.0, 48.0)
-	_archive_button.pressed.connect(func(): _set_hub_page(2))
-	root.add_child(_archive_button)
-	_storage_button.disabled = false
-	_lab_button.disabled = true
-	_archive_button.disabled = false
 
 	_modal = _make_panel(Rect2(76.0, 492.0, 568.0, 292.0), Color(0.055, 0.078, 0.075, 0.97), Color(0.86, 0.69, 0.43, 0.92), 22)
 	_modal.visible = false
@@ -555,57 +518,76 @@ func _button_style(background: Color, border: Color) -> StyleBoxFlat:
 func _unhandled_input(event: InputEvent) -> void:
 	if _modal != null and _modal.visible:
 		return
-
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			_swipe_start = event.position
-			_swipe_active = true
+			_begin_hub_gesture(event.position)
 		else:
 			_finish_hub_gesture(event.position)
+	elif event is InputEventScreenDrag:
+		_update_hub_gesture(event.position)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			_swipe_start = event.position
-			_swipe_active = true
+			_begin_hub_gesture(event.position)
 		else:
 			_finish_hub_gesture(event.position)
-	elif event is InputEventMouseMotion and not _swipe_active:
-		_update_hover(event.position)
+	elif event is InputEventMouseMotion:
+		if _gesture_active and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			_update_hub_gesture(event.position)
+		elif not _gesture_active:
+			_update_hover(event.position)
+
+
+func _begin_hub_gesture(screen_position: Vector2) -> void:
+	_gesture_active = true
+	_gesture_moved = false
+	_gesture_start = screen_position
+	_gesture_last = screen_position
+
+
+func _update_hub_gesture(screen_position: Vector2) -> void:
+	if not _gesture_active:
+		return
+	var delta := screen_position - _gesture_last
+	if delta.length() > 1.0:
+		_pan_camera(delta)
+		_gesture_last = screen_position
+	if screen_position.distance_to(_gesture_start) > 12.0:
+		_gesture_moved = true
 
 
 func _finish_hub_gesture(screen_position: Vector2) -> void:
-	if not _swipe_active:
+	if not _gesture_active:
 		return
-	var delta := screen_position - _swipe_start
-	_swipe_active = false
-	if absf(delta.x) > 86.0 and absf(delta.x) > absf(delta.y) * 1.2:
-		_set_hub_page(_hub_page + (1 if delta.x < 0.0 else -1))
-	elif delta.length() < 30.0:
+	_update_hub_gesture(screen_position)
+	_gesture_active = false
+	if not _gesture_moved and screen_position.distance_to(_gesture_start) < 24.0:
 		_try_interact(screen_position)
 
 
-func _set_hub_page(page: int) -> void:
-	var next_page := clampi(page, 0, 2)
-	if next_page == _hub_page:
+func _pan_camera(screen_delta: Vector2) -> void:
+	if _camera == null:
 		return
-	_hub_page = next_page
-	if is_instance_valid(_camera_tween):
-		_camera_tween.kill()
-	var target_position := _camera_home_position + Vector3(float(_hub_page - 1) * 8.0, 0.0, 0.0)
-	_camera_tween = create_tween()
-	_camera_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.tween_property(_camera, "position", target_position, 0.55)
+	var viewport_height := maxf(1.0, get_viewport().get_visible_rect().size.y)
+	var world_per_pixel := _camera.size / viewport_height
+	var screen_right := _camera.global_basis.x
+	screen_right.y = 0.0
+	screen_right = screen_right.normalized()
+	var screen_up := _camera.global_basis.y
+	screen_up.y = 0.0
+	screen_up = screen_up.normalized()
+	var requested_shift := (-screen_right * screen_delta.x + screen_up * screen_delta.y) * world_per_pixel
+	requested_shift.y = 0.0
 
-	if is_instance_valid(_page_label):
-		match _hub_page:
-			0:
-				_page_label.text = "INGREDIENT STORES  ·  01 / 03"
-			1:
-				_page_label.text = "MAIN LAB  ·  02 / 03"
-			2:
-				_page_label.text = "RESEARCH ARCHIVE  ·  03 / 03"
-	_storage_button.disabled = _hub_page == 0
-	_lab_button.disabled = _hub_page == 1
-	_archive_button.disabled = _hub_page == 2
+	var next_target := _camera_look_target + requested_shift
+	next_target.x = clampf(next_target.x, -6.4, 6.4)
+	next_target.z = clampf(next_target.z, -0.8, 0.8)
+	var actual_shift := next_target - _camera_look_target
+	actual_shift.y = 0.0
+	if actual_shift.length_squared() < 0.000001:
+		return
+	_camera_look_target = next_target
+	_camera.position += actual_shift
+	_camera.look_at(_camera_look_target, Vector3.UP)
 
 
 func _try_interact(screen_position: Vector2) -> void:
