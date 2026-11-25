@@ -1,6 +1,7 @@
 extends Node3D
 
-const PUZZLE_SCENE := "res://scenes/alchemy_interaction_test.tscn"
+const PUZZLE_SCENE := "res://scenes/alchemy_3d_experiment.tscn"
+const CHAPTER_SCENE := "res://scenes/chapter_forest_prototype.tscn"
 const ROOM_WIDTH := 5.45
 const ROOM_DEPTH := 6.75
 const WALL_HEIGHT := 5.0
@@ -16,12 +17,22 @@ var _flames: Array[MeshInstance3D] = []
 var _flame_lights: Array[OmniLight3D] = []
 var _flame_base_positions: Array[Vector3] = []
 var _elapsed := 0.0
+var _hub_page := 1
+var _camera_home_position := Vector3.ZERO
+var _camera_tween: Tween
+var _page_label: Label
+var _storage_button: Button
+var _lab_button: Button
+var _archive_button: Button
+var _swipe_start := Vector2.ZERO
+var _swipe_active := false
 
 
 func _ready() -> void:
 	_build_world()
 	_build_room()
 	_build_props()
+	_build_hub_wings()
 	_build_interactables()
 	_build_hud()
 
@@ -64,6 +75,7 @@ func _build_world() -> void:
 	add_child(_camera)
 	_camera.look_at(Vector3(0.45, 1.95, 0.0), Vector3.UP)
 	_camera.make_current()
+	_camera_home_position = _camera.position
 
 
 func _build_room() -> void:
