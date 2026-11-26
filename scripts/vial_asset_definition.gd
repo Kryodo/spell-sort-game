@@ -13,6 +13,7 @@ class_name VialAssetDefinition
 
 @export_group("Artwork")
 @export var source_size: Vector2i = Vector2i(1024, 1024)
+@export_enum("Contain", "Cover") var scale_mode: String = "Cover"
 @export var mouth_position: Vector2 = Vector2(0.5, 0.065)
 @export var mouth_hit_radius: Vector2 = Vector2(0.105, 0.04)
 
@@ -35,10 +36,17 @@ func is_valid() -> bool:
 	return true
 
 func get_artwork_rect(control_size: Vector2) -> Rect2:
-	var scale_factor: float = minf(
-		control_size.x / float(source_size.x),
-		control_size.y / float(source_size.y)
-	)
+	var scale_factor: float
+	if scale_mode == "Cover":
+		scale_factor = maxf(
+			control_size.x / float(source_size.x),
+			control_size.y / float(source_size.y)
+		)
+	else:
+		scale_factor = minf(
+			control_size.x / float(source_size.x),
+			control_size.y / float(source_size.y)
+		)
 	var draw_size := Vector2(source_size) * scale_factor
 	return Rect2((control_size - draw_size) * 0.5, draw_size)
 
