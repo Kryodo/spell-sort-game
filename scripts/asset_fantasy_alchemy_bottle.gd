@@ -19,8 +19,8 @@ const LIQUID_SURFACE_SAMPLES := 64
 const LIQUID_SIDE_SAMPLES := 48
 const LIQUID_WALL_INSET := 1.8
 
-# A shared tint tones down the very bright glass without dimming the liquid,
-# which is drawn underneath the PNG and remains visible through its alpha.
+# Preserve the generated vessel artwork exactly; reflections are added as a
+# separate liquid-aware Godot pass after the illustration and liquid.
 const GLASS_MODULATE := Color.WHITE
 
 static var _texture_analysis_cache: Dictionary = {}
