@@ -6,13 +6,10 @@ const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 # Scale the whole control to the approved guide footprint instead of resizing
 # its internal drawing area, which would offset the liquid geometry.
 const VIAL_SOURCE_SIZE := Vector2(116.0, 365.0)
-const VIAL_DISPLAY_SCALE := 0.685
-const SLOT_BOTTOM_CENTERS: Array[Vector2] = [
-	Vector2(207.0, 860.0),
-	Vector2(309.0, 860.0),
-	Vector2(411.0, 860.0),
-	Vector2(513.0, 860.0)
-]
+const VIAL_GAP := 18.0
+const VIAL_TOP_Y := 520.0
+const VIAL_ROW_WIDTH := VIAL_SOURCE_SIZE.x * 4.0 + VIAL_GAP * 3.0
+const VIAL_ROW_START_X := (720.0 - VIAL_ROW_WIDTH) * 0.5
 const VIAL_LABELS: Array[String] = ["VIAL I", "VIAL II", "VIAL III", "VIAL IV"]
 
 const PALETTE: Dictionary = {
@@ -36,18 +33,17 @@ func _ready() -> void:
 
 
 func _build_vials() -> void:
-	for index in range(SLOT_BOTTOM_CENTERS.size()):
+	for index in range(4):
 		var vial := Control.new()
 		vial.name = "SortingVial%d" % (index + 1)
 		vial.set_script(BottleScript)
 		vial.size = VIAL_SOURCE_SIZE
-		vial.scale = Vector2.ONE * VIAL_DISPLAY_SCALE
-
-		var visual_size := VIAL_SOURCE_SIZE * VIAL_DISPLAY_SCALE
-		var bottom_center: Vector2 = SLOT_BOTTOM_CENTERS[index]
+		# Match the original in-world sorting prototype: full native vial size
+		# and the same 18 px gap. The tall objects deliberately occupy the
+		# foreground and may overlap a little with rear tabletop props.
 		vial.position = Vector2(
-			bottom_center.x - visual_size.x * 0.5,
-			bottom_center.y - visual_size.y
+			VIAL_ROW_START_X + float(index) * (VIAL_SOURCE_SIZE.x + VIAL_GAP),
+			VIAL_TOP_Y
 		)
 		vial.z_index = 10
 		vial.mouse_filter = Control.MOUSE_FILTER_IGNORE
