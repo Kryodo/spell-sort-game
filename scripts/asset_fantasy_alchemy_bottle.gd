@@ -44,7 +44,7 @@ func _build_inner_window_profile() -> void:
 	# Flood-fill from that component instead of stopping at the first bright
 	# reflection on every scan line. This prevents front highlights from being
 	# mistaken for the left/right liquid walls.
-	var seed := Vector2i(image_width / 2, image_height / 2)
+	var seed := Vector2i(int(image_width / 2), int(image_height / 2))
 	if source_image.get_pixel(seed.x, seed.y).a > WINDOW_ALPHA_THRESHOLD:
 		var found_seed := false
 		for radius in range(2, 49, 2):
@@ -435,9 +435,12 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			bubble_y
 		)
 		var bubble_size: float = 1.1 + fposmod(float(bubble_index) * 0.47, 1.0)
-		var bubble_alpha: float = 0.07 + 0.045 * (
-			0.5 + 0.5 * sin(_wave_time * 0.85 + float(bubble_index))
-		)
+		var travel_fade: float = sin(PI * phase)
+		var bubble_alpha: float = (
+			0.07 + 0.045 * (0.5 + 0.5 * sin(_wave_time * 0.85 + float(bubble_index)))
+		) * travel_fade
+		if bubble_alpha <= 0.005:
+			continue
 		draw_circle(
 			bubble_position,
 			bubble_size * 1.8,
