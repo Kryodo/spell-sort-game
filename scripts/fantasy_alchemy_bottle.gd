@@ -9,6 +9,12 @@ var _scale_target: float = 1.0
 var _scale_velocity: float = 0.0
 
 
+func setup(index: int, _label: String, variant: int, palette: Dictionary, contents: Array) -> void:
+    # Numbers are useful while debugging, but they are not part of the vessel's
+    # fantasy identity or the player's sorting decision.
+    super.setup(index, "", variant, palette, contents)
+
+
 func set_pose(pose: Vector2) -> void:
     _pose_target = Vector2(
         clampf(pose.x, 0.0, 32.0),
