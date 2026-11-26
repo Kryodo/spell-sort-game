@@ -685,7 +685,7 @@ func _save_history() -> void:
 func _undo_move() -> void:
 	if is_animating or move_history.is_empty():
 		return
-	var snapshot := move_history.pop_back()
+	var snapshot: Dictionary = move_history.pop_back()
 	bottle_contents = _copy_layout(snapshot["contents"])
 	move_count = int(snapshot["moves"])
 	precision_armed = bool(snapshot["precision_armed"])
