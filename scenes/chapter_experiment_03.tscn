@@ -16,3 +16,4 @@ launch_track = "B"
 launch_level = 3
 
 [node name="Environment" parent="." instance=ExtResource("2_environment")]
+experiment_backdrop = true
