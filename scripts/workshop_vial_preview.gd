@@ -5,7 +5,7 @@ const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 # Keep the bottle script at its native 116 x 365 drawing dimensions.
 const VIAL_SOURCE_SIZE := Vector2(116.0, 365.0)
 const VIAL_GAP := 18.0
-const VIAL_TOP_Y := 520.0
+const VIAL_TOP_Y := 500.0
 const VIAL_ROW_WIDTH := VIAL_SOURCE_SIZE.x * 4.0 + VIAL_GAP * 3.0
 const VIAL_ROW_START_X := (720.0 - VIAL_ROW_WIDTH) * 0.5
 const VIAL_LABELS: Array[String] = ["VIAL I", "VIAL II", "VIAL III", "VIAL IV"]
@@ -37,8 +37,8 @@ func _build_vials() -> void:
 		vial.set_script(BottleScript)
 		vial.size = VIAL_SOURCE_SIZE
 		# Match the original in-world sorting prototype: full native vial size
-		# and the same 18 px gap. The tall objects deliberately occupy the
-		# foreground and may overlap a little with rear tabletop props.
+		# and the same 18 px gap. The row sits slightly higher so the vials
+		# overlap the rear tabletop props as deliberate foreground objects.
 		vial.position = Vector2(
 			VIAL_ROW_START_X + float(index) * (VIAL_SOURCE_SIZE.x + VIAL_GAP),
 			VIAL_TOP_Y
