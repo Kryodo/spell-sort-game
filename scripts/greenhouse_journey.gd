@@ -4,7 +4,7 @@ extends Control
 # The environment is an independent scene layer; all navigation and experiment
 # content is built above it and does not assume a fixed vial count.
 
-const EXPERIMENT_SCENE := "res://scenes/sorting_direction_prototype.tscn"
+const EXPERIMENT_SCENE := "res://scenes/chapter_experiment_03.tscn"
 
 var _active_page: Control
 var _codex_category := "INGREDIENTS"
