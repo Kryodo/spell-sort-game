@@ -21,7 +21,7 @@ const LIQUID_WALL_INSET := 1.8
 
 # A shared tint tones down the very bright glass without dimming the liquid,
 # which is drawn underneath the PNG and remains visible through its alpha.
-const GLASS_MODULATE := Color(0.76, 0.81, 0.79, 1.0)
+const GLASS_MODULATE := Color.WHITE
 
 static var _texture_analysis_cache: Dictionary = {}
 
@@ -566,4 +566,107 @@ func _draw_glass_back(_rect: Rect2) -> void:
 func _draw_glass_overlay() -> void:
 	if vial_art == null:
 		return
-	draw_texture_rect(vial_art, _get_vessel_rect(), false, GLASS_MODULATE)
+	var rect := _get_vessel_rect()
+	# Keep the Qwen artwork at its original colour. It supplies the vessel's
+	# identity and ornaments; Godot adds the live optical response afterwards.
+	draw_texture_rect(vial_art, rect, false, GLASS_MODULATE)
+	_draw_chamber_reflections(rect)
+
+
+func _draw_chamber_reflections(rect: Rect2) -> void:
+	if _window_profile.size() < 8:
+		return
+
+	var reflection_color: Color = _get_liquid_reflection_color()
+
+	# Broad, low-alpha bounce light gives the inner wall some volume without
+	# painting over the liquid or introducing fixed white streaks.
+	var left_glow := _chamber_edge_points(rect, true, 0.07, 0.64, 8.0)
+	var left_reflection := _chamber_edge_points(rect, true, 0.09, 0.61, 4.5)
+	var left_core := _chamber_edge_points(rect, true, 0.13, 0.56, 3.0)
+	draw_polyline(left_glow, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.075), 8.0, true)
+	draw_polyline(left_reflection, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.17), 2.8, true)
+	draw_polyline(left_core, Color(0.92, 0.97, 0.96, 0.34), 0.9, true)
+
+	# The opposite wall gets a shorter and softer response, avoiding a
+	# symmetrical neon outline around the whole chamber.
+	var right_glow := _chamber_edge_points(rect, false, 0.37, 0.94, 7.0)
+	var right_reflection := _chamber_edge_points(rect, false, 0.43, 0.88, 3.8)
+	draw_polyline(right_glow, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.045), 7.0, true)
+	draw_polyline(right_reflection, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.13), 1.8, true)
+
+	# A faint coloured sheen follows the liquid surface, so its reflection
+	# changes naturally as the topmost essence changes.
+	if _liquid_level > 0.001 and not _visual_contents.is_empty():
+		var chamber_span: float = _window_bottom_ratio - _window_top_ratio
+		var surface_ratio: float = _window_bottom_ratio - chamber_span / float(CAPACITY) * clampf(
+			_liquid_level,
+			0.0,
+			float(CAPACITY)
+		)
+		var surface_bounds := _window_bounds_at(surface_ratio)
+		var surface_left := Vector2(
+			rect.position.x + rect.size.x * surface_bounds.x + 5.0,
+			rect.position.y + rect.size.y * surface_ratio - 1.0
+		)
+		var surface_right := Vector2(
+			rect.position.x + rect.size.x * surface_bounds.y - 5.0,
+			rect.position.y + rect.size.y * surface_ratio - 1.0
+		)
+		var surface_color: Color = _get_top_liquid_color().lightened(0.42)
+		surface_color.a = 0.19
+		draw_line(surface_left, surface_right, surface_color, 1.35, true)
+
+
+func _chamber_edge_points(
+	rect: Rect2,
+	left_side: bool,
+	start_ratio: float,
+	end_ratio: float,
+	inset: float
+) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	const SAMPLE_COUNT := 36
+	for index in range(SAMPLE_COUNT):
+		var amount: float = float(index) / float(SAMPLE_COUNT - 1)
+		var profile_ratio: float = lerpf(start_ratio, end_ratio, amount)
+		var y_ratio: float = lerpf(_window_top_ratio, _window_bottom_ratio, profile_ratio)
+		var bounds: Vector2 = _window_bounds_at(y_ratio)
+		var edge_ratio: float = bounds.x if left_side else bounds.y
+		var x: float = rect.position.x + rect.size.x * edge_ratio
+		x += inset if left_side else -inset
+		var y: float = rect.position.y + rect.size.y * y_ratio
+		points.append(Vector2(x, y))
+	return points
+
+
+func _get_liquid_reflection_color() -> Color:
+	if _liquid_level <= 0.001 or _visual_contents.is_empty():
+		return Color(0.58, 0.78, 0.82, 1.0)
+
+	var accumulated := Vector3.ZERO
+	var total_weight: float = 0.0
+	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
+	for layer_index in range(visible_layers):
+		var weight: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
+		if weight <= 0.001:
+			continue
+		var essence: String = String(_visual_contents[layer_index])
+		var essence_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
+		accumulated += Vector3(essence_color.r, essence_color.g, essence_color.b) * weight
+		total_weight += weight
+
+	if total_weight <= 0.001:
+		return Color(0.58, 0.78, 0.82, 1.0)
+
+	var average := accumulated / total_weight
+	var liquid_tint := Color(average.x, average.y, average.z, 1.0).lightened(0.34)
+	return Color(0.68, 0.84, 0.88, 1.0).lerp(liquid_tint, 0.32)
+
+
+func _get_top_liquid_color() -> Color:
+	if _visual_contents.is_empty():
+		return Color(0.45, 0.78, 0.75, 1.0)
+	var top_index: int = clampi(int(floor(_liquid_level - 0.0001)), 0, _visual_contents.size() - 1)
+	var essence: String = String(_visual_contents[top_index])
+	return _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
