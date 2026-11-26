@@ -626,12 +626,12 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 		draw_polyline(left_core, Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
 		draw_polyline(right_bounce, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.34), maxf(1.4, rect.size.x * 0.014), true)
 
-	# Short specular glints make the glass read as polished instead of outlined.
-	if amount > 0.25:
-		var glint_start: float = lerpf(section_top, section_bottom, 0.18)
-		var glint_end: float = lerpf(section_top, section_bottom, 0.48)
-		var glint := _chamber_edge_points(rect, true, glint_start, glint_end, core_inset + 1.5)
-		draw_polyline(glint, Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
+		# Short specular glints make the glass read as polished instead of outlined.
+		if amount > 0.25:
+			var glint_start: float = lerpf(section_top, section_bottom, 0.18)
+			var glint_end: float = lerpf(section_top, section_bottom, 0.48)
+			var glint := _chamber_edge_points(rect, true, glint_start, glint_end, core_inset + 1.5)
+			draw_polyline(glint, Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
 
 	_draw_liquid_surface_reflection(rect)
 
