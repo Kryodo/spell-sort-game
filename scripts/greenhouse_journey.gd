@@ -176,7 +176,7 @@ func _draw_pot(base: Vector2, scale_value: float, tint: Color) -> void:
 		base + Vector2(-w, -h), base + Vector2(w, -h),
 		base + Vector2(w * 0.76, 0.0), base + Vector2(-w * 0.76, 0.0)
 	]), tint)
-	draw_ellipse(base + Vector2(0.0, -h), w, 6.0 * scale_value, tint.lightened(0.2))
+	_draw_ellipse(base + Vector2(0.0, -h), w, 6.0 * scale_value, tint.lightened(0.2))
 	draw_line(base + Vector2(-w * 0.65, -h * 0.35), base + Vector2(w * 0.65, -h * 0.35), tint.darkened(0.22), 2.0, true)
 	draw_line(base + Vector2(-w * 0.72, -4.0), base + Vector2(w * 0.72, -4.0), tint.darkened(0.28), 2.0, true)
 
