@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bm3kvrl6vqtbq"
-path="res://.godot/imported/laboratory_background.png-244d0f8796e58551ba843d88d7617bf0.ctex"
+uid="uid://dtqw3m02qtura"
+path="res://.godot/imported/Workshop_Bench_Spatial.svg-af4b1fda56a821db54abd6281bf32d8a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/environments/laboratory_background.png"
-dest_files=["res://.godot/imported/laboratory_background.png-244d0f8796e58551ba843d88d7617bf0.ctex"]
+source_file="res://assets/environments/Workshop_Bench_Spatial.svg"
+dest_files=["res://.godot/imported/Workshop_Bench_Spatial.svg-af4b1fda56a821db54abd6281bf32d8a.ctex"]
 
 [params]
 
@@ -38,3 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false
