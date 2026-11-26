@@ -663,7 +663,6 @@ func _build_static_reflection_geometry() -> void:
 		return
 
 	var rect := _get_vessel_rect()
-	var top_cap_inset: float = rect.size.x * 0.016
 	# Recreate the earlier layered reflection style for every fixed capacity
 	# section. The original paths were tied to the changing liquid bands; these
 	# copies use the same shapes and insets but are anchored to the vessel.
