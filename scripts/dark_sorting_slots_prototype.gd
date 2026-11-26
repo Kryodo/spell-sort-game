@@ -263,7 +263,7 @@ func _build_interface() -> void:
 		Color(0.42, 0.58, 0.52, 0.34),
 		14
 	)
-	 action_panel.z_index = 12
+	action_panel.z_index = 12
 	add_child(action_panel)
 
 	restart_button = _make_button(
