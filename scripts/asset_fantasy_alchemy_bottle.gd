@@ -96,25 +96,40 @@ func _build_inner_window_profile() -> void:
 
 		# Four-connected flood fill preserves the narrow antialiased glass wall
 		# instead of leaking diagonally into the fully transparent background.
-		var neighbours := PackedInt32Array()
+		# Inline the four neighbours to avoid allocating a temporary array for
+		# every pixel visited in the flood fill.
 		if pixel_x > roi_left:
-			neighbours.append(pixel_index - 1)
+			var left_index: int = pixel_index - 1
+			if visited[left_index] == 0:
+				if source_image.get_pixel(pixel_x - 1, pixel_y).a <= WINDOW_ALPHA_THRESHOLD:
+					visited[left_index] = 1
+					queue.append(left_index)
+				else:
+					visited[left_index] = 2
 		if pixel_x < roi_right:
-			neighbours.append(pixel_index + 1)
+			var right_index: int = pixel_index + 1
+			if visited[right_index] == 0:
+				if source_image.get_pixel(pixel_x + 1, pixel_y).a <= WINDOW_ALPHA_THRESHOLD:
+					visited[right_index] = 1
+					queue.append(right_index)
+				else:
+					visited[right_index] = 2
 		if pixel_y > roi_top:
-			neighbours.append(pixel_index - image_width)
+			var up_index: int = pixel_index - image_width
+			if visited[up_index] == 0:
+				if source_image.get_pixel(pixel_x, pixel_y - 1).a <= WINDOW_ALPHA_THRESHOLD:
+					visited[up_index] = 1
+					queue.append(up_index)
+				else:
+					visited[up_index] = 2
 		if pixel_y < roi_bottom:
-			neighbours.append(pixel_index + image_width)
-
-		for neighbour_index in neighbours:
-			if visited[neighbour_index] != 0:
-				continue
-			var neighbour_x: int = neighbour_index % image_width
-			var neighbour_y: int = int(neighbour_index / image_width)
-			if source_image.get_pixel(neighbour_x, neighbour_y).a > WINDOW_ALPHA_THRESHOLD:
-				continue
-			visited[neighbour_index] = 1
-			queue.append(neighbour_index)
+			var down_index: int = pixel_index + image_width
+			if visited[down_index] == 0:
+				if source_image.get_pixel(pixel_x, pixel_y + 1).a <= WINDOW_ALPHA_THRESHOLD:
+					visited[down_index] = 1
+					queue.append(down_index)
+				else:
+					visited[down_index] = 2
 
 		if queue.size() > maximum_pixels:
 			component_overflow = true
@@ -434,73 +449,6 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			10,
 			Color(1.0, 1.0, 1.0, bubble_alpha * 0.50),
 			0.75,
-			true
-		)
-
-
-func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
-	if visible_layers <= 0 or _window_profile.is_empty():
-		return
-
-	var surface_ratio: float = _window_bottom_ratio - (
-		(_window_bottom_ratio - _window_top_ratio)
-		/ float(CAPACITY)
-		* clampf(_liquid_level, 0.0, float(CAPACITY))
-	)
-	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
-	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
-	var layer_span: float = (_window_bottom_ratio - _window_top_ratio) / float(CAPACITY)
-
-	for bubble_index in range(8):
-		var phase: float = fposmod(
-			_wave_time * (0.13 + float(bubble_index) * 0.011)
-			+ float(bubble_index) * 0.137,
-			1.0
-		)
-		var bubble_y: float = lerpf(bottom_y - 5.0, surface_y + 4.0, phase)
-		var normalized_y: float = clampf(
-			(bubble_y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		)
-		var bounds := _window_bounds_at(normalized_y)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + 5.0
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - 5.0
-		if right_x - left_x <= 5.0:
-			continue
-
-		var sway: float = sin(_wave_time * 0.72 + float(bubble_index) * 1.71)
-		var bubble_position := Vector2(
-			lerpf(left_x, right_x, 0.5 + sway * 0.28),
-			bubble_y
-		)
-		var bubble_size: float = 1.15 + fposmod(float(bubble_index) * 0.73, 1.8)
-		var bubble_alpha: float = 0.13 + 0.09 * (
-			0.5 + 0.5 * sin(_wave_time * 1.6 + float(bubble_index))
-		)
-		var fill_depth: float = (_window_bottom_ratio - normalized_y) / maxf(0.001, layer_span)
-		var layer_index: int = clampi(int(floor(fill_depth)), 0, _visual_contents.size() - 1)
-		var bubble_essence: String = String(_visual_contents[layer_index])
-		var bubble_color: Color = _palette.get(bubble_essence, Color.WHITE)
-
-		draw_circle(
-			bubble_position,
-			bubble_size * 2.0,
-			Color(bubble_color.r, bubble_color.g, bubble_color.b, bubble_alpha * 0.15)
-		)
-		draw_circle(
-			bubble_position,
-			bubble_size,
-			Color(0.91, 1.0, 0.98, bubble_alpha * 0.52)
-		)
-		draw_arc(
-			bubble_position + Vector2(-0.2, -0.2),
-			bubble_size,
-			deg_to_rad(205.0),
-			deg_to_rad(325.0),
-			12,
-			Color(1.0, 1.0, 1.0, bubble_alpha * 0.80),
-			0.85,
 			true
 		)
 
