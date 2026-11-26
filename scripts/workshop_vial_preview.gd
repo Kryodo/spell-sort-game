@@ -6,12 +6,12 @@ const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 # Scale the whole control to the approved guide footprint instead of resizing
 # its internal drawing area, which would offset the liquid geometry.
 const VIAL_SOURCE_SIZE := Vector2(116.0, 365.0)
-const VIAL_DISPLAY_SCALE := 0.55
+const VIAL_DISPLAY_SCALE := 0.685
 const SLOT_BOTTOM_CENTERS: Array[Vector2] = [
-	Vector2(207.0, 826.0),
-	Vector2(309.0, 826.0),
-	Vector2(411.0, 826.0),
-	Vector2(513.0, 826.0)
+	Vector2(207.0, 860.0),
+	Vector2(309.0, 860.0),
+	Vector2(411.0, 860.0),
+	Vector2(513.0, 860.0)
 ]
 const VIAL_LABELS: Array[String] = ["VIAL I", "VIAL II", "VIAL III", "VIAL IV"]
 
