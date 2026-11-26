@@ -161,6 +161,9 @@ const TRACK_B_LEVELS := [
 	}
 ]
 
+@export var launch_track: String = "A"
+@export_range(0, 9, 1) var launch_level: int = 0
+
 var current_track := "A"
 var current_level := 0
 var level_data: Dictionary = {}
@@ -203,6 +206,8 @@ var locked_label: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	current_track = "B" if launch_track == "B" else "A"
+	current_level = clampi(launch_level, 0, 9)
 	_build_interface()
 	_load_level()
 
