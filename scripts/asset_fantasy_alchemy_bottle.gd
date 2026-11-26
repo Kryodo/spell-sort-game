@@ -11,8 +11,10 @@ const SCAN_BOTTOM_RATIO := 0.88
 const SCAN_LEFT_RATIO := 0.28
 const SCAN_RIGHT_RATIO := 0.72
 const CHAMBER_WIDTH_RATIO := 0.62
-const PROFILE_SAMPLES := 112
-const PROFILE_SMOOTH_RADIUS := 4
+const PROFILE_SAMPLES := 160
+const PROFILE_SMOOTH_RADIUS := 14
+const REFLECTION_BRIDGE_RATIO := 0.035
+const CENTRE_SEED_SEARCH_RATIO := 0.12
 const LIQUID_SURFACE_SAMPLES := 64
 const LIQUID_SIDE_SAMPLES := 48
 const LIQUID_WALL_INSET := 1.8
@@ -87,7 +89,7 @@ func _build_inner_window_profile() -> void:
 	var peak_width: int = 0
 	var peak_row: int = -1
 	for row in range(top_scan, bottom_scan + 1):
-		var run := _find_centre_transparent_run(
+		var run := _find_centre_transparent_span(
 			source_image,
 			row,
 			centre_x,
@@ -113,12 +115,13 @@ func _build_inner_window_profile() -> void:
 	# The neck and foot are also transparent, but narrower than the main body.
 	# Keeping only the broad central region prevents liquid from climbing into
 	# the neck or appearing in the narrow decorative base.
-	var minimum_chamber_width: int = maxi(12, int(round(float(peak_width) * CHAMBER_WIDTH_RATIO)))
+	var top_chamber_width: int = maxi(12, int(round(float(peak_width) * CHAMBER_WIDTH_RATIO)))
+	var bottom_chamber_width: int = maxi(10, int(round(float(peak_width) * 0.18)))
 	var chamber_top: int = peak_row
 	var chamber_bottom: int = peak_row
-	while chamber_top > top_scan and row_width[chamber_top - 1] >= minimum_chamber_width:
+	while chamber_top > top_scan and row_width[chamber_top - 1] >= top_chamber_width:
 		chamber_top -= 1
-	while chamber_bottom < bottom_scan and row_width[chamber_bottom + 1] >= minimum_chamber_width:
+	while chamber_bottom < bottom_scan and row_width[chamber_bottom + 1] >= bottom_chamber_width:
 		chamber_bottom += 1
 
 	if float(chamber_bottom - chamber_top) < float(image_height) * 0.22:
@@ -213,6 +216,80 @@ func _find_centre_transparent_run(
 			break
 		right_x += 1
 
+	return Vector2i(left_x, right_x)
+
+
+func _find_centre_transparent_span(
+	source_image: Image,
+	row: int,
+	centre_x: int,
+	x_min: int,
+	x_max: int,
+	search_radius: int
+) -> Vector2i:
+	# Short opaque interruptions are glass reflections, not chamber walls.
+	# Bridge those gaps and stop only at the thicker continuous glass wall.
+	var seed_x: int = -1
+	var seed_radius: int = maxi(
+		search_radius,
+		int(round(float(source_image.get_width()) * CENTRE_SEED_SEARCH_RATIO))
+	)
+	for offset in range(seed_radius + 1):
+		var left_candidate: int = centre_x - offset
+		if left_candidate >= x_min and source_image.get_pixel(left_candidate, row).a <= ALPHA_CUTOFF:
+			seed_x = left_candidate
+			break
+		if offset > 0:
+			var right_candidate: int = centre_x + offset
+			if right_candidate <= x_max and source_image.get_pixel(right_candidate, row).a <= ALPHA_CUTOFF:
+				seed_x = right_candidate
+				break
+
+	if seed_x < 0:
+		return Vector2i(-1, -1)
+
+	var bridge_limit: int = maxi(
+		8,
+		int(round(float(source_image.get_width()) * REFLECTION_BRIDGE_RATIO))
+	)
+	var left_x: int = seed_x
+	var cursor: int = seed_x - 1
+	while cursor >= x_min:
+		if source_image.get_pixel(cursor, row).a <= ALPHA_CUTOFF:
+			left_x = cursor
+			cursor -= 1
+			continue
+		var gap_start: int = cursor
+		while cursor >= x_min and source_image.get_pixel(cursor, row).a > ALPHA_CUTOFF:
+			cursor -= 1
+		var gap_width: int = gap_start - cursor
+		if gap_width > bridge_limit or cursor < x_min:
+			break
+		if source_image.get_pixel(cursor, row).a > ALPHA_CUTOFF:
+			break
+		left_x = cursor
+		cursor -= 1
+
+	var right_x: int = seed_x
+	cursor = seed_x + 1
+	while cursor <= x_max:
+		if source_image.get_pixel(cursor, row).a <= ALPHA_CUTOFF:
+			right_x = cursor
+			cursor += 1
+			continue
+		var gap_start: int = cursor
+		while cursor <= x_max and source_image.get_pixel(cursor, row).a > ALPHA_CUTOFF:
+			cursor += 1
+		var gap_width: int = cursor - gap_start
+		if gap_width > bridge_limit or cursor > x_max:
+			break
+		if source_image.get_pixel(cursor, row).a > ALPHA_CUTOFF:
+			break
+		right_x = cursor
+		cursor += 1
+
+	if right_x - left_x < 8:
+		return Vector2i(-1, -1)
 	return Vector2i(left_x, right_x)
 
 
