@@ -7,9 +7,6 @@ extends Control
 const EXPERIMENT_SCENE := "res://scenes/sorting_direction_prototype.tscn"
 
 var _active_page: Control
-var _hotspot_hint: Label
-var _world_title: Label
-var _nav_buttons: Array[Button] = []
 var _codex_category := "INGREDIENTS"
 
 
@@ -336,7 +333,6 @@ func _build_bottom_navigation() -> void:
 		var subtitle := _make_label(String(item["subtitle"]), Vector2(14.0 + float(index) * 168.0, 67.0), Vector2(154.0, 26.0), 10, Color("#aebdb0"))
 		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		dock.add_child(subtitle)
-		_nav_buttons.append(button)
 
 
 func _open_page(page_key: String) -> void:
