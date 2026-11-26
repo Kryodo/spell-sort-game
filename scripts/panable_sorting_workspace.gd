@@ -488,6 +488,13 @@ func _build_vial_layout() -> void:
 
 
 func _clear_level_nodes() -> void:
+	_arrange_mode = false
+	_drag_started_in_arrange_mode = false
+	_pan_active = false
+	_active_pointer_source = ""
+	_active_touch_index = -1
+	_touch_points.clear()
+	_pinch_active = false
 	for vial in bottle_nodes:
 		if is_instance_valid(vial):
 			var vial_parent := vial.get_parent()
