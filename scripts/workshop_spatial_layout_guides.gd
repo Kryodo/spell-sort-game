@@ -3,20 +3,6 @@ extends Control
 # Coordinates are mapped from the 720 x 1280 screenshot of the generated
 # workshop background. These are development guides, not final gameplay UI.
 
-const TABLETOP := PackedVector2Array([
-	Vector2(125.0, 480.0),
-	Vector2(597.0, 480.0),
-	Vector2(708.0, 902.0),
-	Vector2(9.0, 902.0)
-])
-
-const SORTING_AREA := PackedVector2Array([
-	Vector2(158.0, 610.0),
-	Vector2(562.0, 610.0),
-	Vector2(640.0, 860.0),
-	Vector2(80.0, 860.0)
-])
-
 const SLOT_CENTERS: Array[Vector2] = [
 	Vector2(190.0, 826.0),
 	Vector2(303.0, 826.0),
@@ -32,19 +18,32 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	# Outline the entire visible tabletop so its perspective is explicit.
+	# PackedVector2Array values are constructed here at runtime. GDScript
+	# does not accept PackedVector2Array constructors as constant expressions.
+	var tabletop := PackedVector2Array([
+		Vector2(125.0, 480.0),
+		Vector2(597.0, 480.0),
+		Vector2(708.0, 902.0),
+		Vector2(9.0, 902.0)
+	])
 	var tabletop_closed := PackedVector2Array([
-		TABLETOP[0], TABLETOP[1], TABLETOP[2], TABLETOP[3], TABLETOP[0]
+		tabletop[0], tabletop[1], tabletop[2], tabletop[3], tabletop[0]
 	])
 	draw_polyline(tabletop_closed, Color(1.0, 0.72, 0.28, 0.95), 3.0, true)
 
 	# The provisional sorting footprint deliberately begins below the book,
 	# mortar and potion props, then widens toward the front of the table.
-	draw_colored_polygon(SORTING_AREA, Color(0.20, 0.88, 0.69, 0.075))
+	var sorting_area := PackedVector2Array([
+		Vector2(158.0, 610.0),
+		Vector2(562.0, 610.0),
+		Vector2(640.0, 860.0),
+		Vector2(80.0, 860.0)
+	])
+	draw_colored_polygon(sorting_area, Color(0.20, 0.88, 0.69, 0.075))
 	var sorting_closed := PackedVector2Array([
-		SORTING_AREA[0], SORTING_AREA[1],
-		SORTING_AREA[2], SORTING_AREA[3],
-		SORTING_AREA[0]
+		sorting_area[0], sorting_area[1],
+		sorting_area[2], sorting_area[3],
+		sorting_area[0]
 	])
 	draw_polyline(sorting_closed, Color(0.26, 0.96, 0.77, 0.92), 2.0, true)
 
