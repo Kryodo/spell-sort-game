@@ -170,6 +170,7 @@ var bottle_contents: Array = []
 var move_history: Array[Dictionary] = []
 
 var selected_vial := -1
+var tool_selected_vial := -1
 var drag_origin := Vector2.ZERO
 var grab_offset := Vector2.ZERO
 var is_dragging := false
@@ -346,6 +347,7 @@ func _load_level() -> void:
 	bottle_contents = _copy_layout(level_data["contents"])
 	move_history.clear()
 	selected_vial = -1
+	tool_selected_vial = -1
 	is_dragging = false
 	is_animating = false
 	round_complete = false
@@ -494,6 +496,7 @@ func _begin_drag(pointer: Vector2) -> void:
 		_set_status("The recipe flask is the receiver. Choose an ingredient vial instead.")
 		return
 	selected_vial = index
+	tool_selected_vial = index
 	is_dragging = true
 	drag_origin = slot_positions[index]
 	grab_offset = pointer - drag_origin
@@ -522,7 +525,11 @@ func _finish_drag(pointer: Vector2) -> void:
 	var source_index := selected_vial
 	var target_index := _get_vial_at(pointer)
 	is_dragging = false
-	if target_index < 0 or target_index == source_index:
+	if target_index == source_index:
+		tool_selected_vial = source_index
+		_return_vial(source_index, "Vial selected for tool use. Press TRANSMUTE when ready.")
+		return
+	if target_index < 0:
 		_return_vial(source_index, "No receiving vial selected. Try again.")
 		return
 	_perform_pour(source_index, target_index)
@@ -622,6 +629,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	source_vial.call("reset_motion")
 	target_vial.call("set_feedback", false, false, false)
 	selected_vial = -1
+	tool_selected_vial = -1
 	is_animating = false
 	round_complete = _is_puzzle_solved()
 	if round_complete:
@@ -689,6 +697,7 @@ func _undo_move() -> void:
 	if is_instance_valid(locked_label):
 		locked_label.visible = not seal_unlocked
 	selected_vial = -1
+	tool_selected_vial = -1
 	round_complete = _is_puzzle_solved()
 	_set_status("Last action undone.")
 	_refresh_hud()
@@ -711,26 +720,27 @@ func _toggle_pipette() -> void:
 func _transmute_selected() -> void:
 	if is_animating or transmute_used:
 		return
-	if selected_vial < 0:
-		_set_status("Select the vial containing adjacent Tide + Ember layers first.")
+	if tool_selected_vial < 0:
+		_set_status("Drag the retort vial onto itself to select it, then press TRANSMUTE.")
 		return
-	var tube: Array = bottle_contents[selected_vial]
+	var tube: Array = bottle_contents[tool_selected_vial]
 	for index in range(tube.size() - 1):
 		if String(tube[index]) == "A" and String(tube[index + 1]) == "B":
 			_save_history()
 			tube[index] = "D"
 			tube.remove_at(index + 1)
-			bottle_contents[selected_vial] = tube
-			bottle_nodes[selected_vial].call("set_contents", tube)
-			bottle_nodes[selected_vial].call("trigger_slosh", 0.24)
+			bottle_contents[tool_selected_vial] = tube
+			bottle_nodes[tool_selected_vial].call("set_contents", tube)
+			bottle_nodes[tool_selected_vial].call("trigger_slosh", 0.24)
 			transmute_used = true
 			move_count += 1
 			selected_vial = -1
+			tool_selected_vial = -1
 			round_complete = _is_puzzle_solved()
 			_set_status("Tide and Ember combine into Dusk. Now separate all three essences.")
 			_refresh_hud()
 			return
-	_set_status("This vial does not contain Tide directly beneath Ember. Choose the retort vial.")
+	_set_status("The selected vial does not contain Tide directly beneath Ember. Select the retort vial.")
 
 
 func _is_puzzle_solved() -> bool:
