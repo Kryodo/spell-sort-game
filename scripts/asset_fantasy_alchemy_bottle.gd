@@ -116,7 +116,7 @@ func _build_inner_window_profile() -> void:
 	# Keeping only the broad central region prevents liquid from climbing into
 	# the neck or appearing in the narrow decorative base.
 	var top_chamber_width: int = maxi(12, int(round(float(peak_width) * CHAMBER_WIDTH_RATIO)))
-	var bottom_chamber_width: int = maxi(10, int(round(float(peak_width) * 0.18)))
+	var bottom_chamber_width: int = maxi(10, int(round(float(peak_width) * 0.08)))
 	var chamber_top: int = peak_row
 	var chamber_bottom: int = peak_row
 	while chamber_top > top_scan and row_width[chamber_top - 1] >= top_chamber_width:
