@@ -1,6 +1,7 @@
 extends "res://scripts/sorting_direction_prototype.gd"
 
-const FantasyBottleScript = preload("res://scripts/fantasy_alchemy_bottle.gd")
+const AssetFantasyBottleScript = preload("res://scripts/asset_fantasy_alchemy_bottle.gd")
+const TEST_VIAL_SOURCE_SIZE := Vector2(160.0, 365.0)
 
 
 class SlotMarkerSurface extends Control:
@@ -527,7 +528,7 @@ func _build_vial_layout() -> void:
 	match _selected_layout:
 		"arc":
 			if count <= 6:
-				var scale_value: float = 1.0 if count == 4 else 0.84
+				var scale_value: float = 1.0 if count == 4 else (0.75 if count == 5 else 0.66)
 				_place_vial_row(0, count, scale_value, 856.0, markers, 0.0, 48.0)
 			else:
 				_place_vial_row(0, 4, 0.80, 600.0, markers, 0.0, 22.0)
@@ -536,7 +537,7 @@ func _build_vial_layout() -> void:
 			_place_two_rows(count, markers, false)
 		_:
 			if count <= 6:
-				var scale_value: float = 1.0 if count == 4 else 0.84
+				var scale_value: float = 1.0 if count == 4 else (0.75 if count == 5 else 0.66)
 				_place_vial_row(0, count, scale_value, 856.0, markers)
 			else:
 				_place_vial_row(0, 4, 0.80, 600.0, markers)
@@ -572,7 +573,7 @@ func _place_vial_row(
 	horizontal_shift: float = 0.0,
 	arc_strength: float = 0.0
 ) -> void:
-	var size_value: Vector2 = BOTTLE_SOURCE_SIZE * scale_value
+	var size_value: Vector2 = TEST_VIAL_SOURCE_SIZE * scale_value
 	var gap: float = (720.0 - float(row_count) * size_value.x) / float(row_count + 1)
 
 	for column in range(row_count):
@@ -588,7 +589,7 @@ func _place_vial_row(
 
 
 func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2, markers: Array) -> void:
-	var vial: Control = FantasyBottleScript.new()
+	var vial: Control = AssetFantasyBottleScript.new()
 	vial.name = "SortingVial%02d" % (index + 1)
 	vial.position = position_value
 	vial.size = size_value
@@ -613,7 +614,7 @@ func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2,
 	markers.append({
 		"centre": foot,
 		"radius": Vector2(size_value.x * 0.47, size_value.x * 0.125),
-		"scale": size_value.x / BOTTLE_SOURCE_SIZE.x
+		"scale": size_value.x / TEST_VIAL_SOURCE_SIZE.x
 	})
 
 	if index == int(level_data.get("locked_vial", -1)):
