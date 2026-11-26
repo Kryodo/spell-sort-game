@@ -12,15 +12,15 @@ Vial 2 remains a provisional composition candidate, not a locked art direction. 
 
 The previous manually estimated liquid profile did not match the visible chamber closely enough. The renderer now reads the PNG's alpha channel when the vial enters the scene:
 
-- It scans rows through the central body, starting at the image centre.
-- On each row, it searches outward for the continuous opaque glass wall on the left and right.
-- Small isolated front highlights are ignored by requiring a short run of opaque pixels before accepting a boundary.
-- The detected row boundaries form an interpolated inner-window profile.
-- Both the liquid silhouette and its vertical fill range use that measured profile; there is no longer a hand-authored Vial 2 width curve.
+- It starts from a transparent pixel near the centre of the viewing window.
+- A bounded four-connected flood fill identifies the transparent interior component, rather than treating every transparent pixel in the outside background as liquid space.
+- The resulting per-row left/right bounds are lightly smoothed and sampled into a compact profile.
+- A width threshold trims the narrow connecting neck/foot tails so the main chamber defines the fill range.
+- Both the liquid silhouette and its vertical fill range use this measured profile; there is no hand-authored Vial 2 width curve.
 
-Each layer is drawn as a continuous polygon bounded by the measured left and right edges. The top layer retains its animated surface, and subtle bubbles stay within the detected transparent window. The liquid surface position used by the pour stream is calculated from the same detected top and bottom limits.
+Each essence layer is drawn as a single continuous contour. The animated top edge recalculates its left/right limits at the wave's displaced height, so the wave should not pull away from the side walls or leave triangular gaps. Surface motion and bubble visibility have also been made more restrained to reduce flicker.
 
-If the PNG's alpha does not contain a detectable central transparent window, the renderer emits a warning and uses conservative fallback bounds. This needs to be checked in the Godot output after import.
+The renderer prints the detected profile sample count, connected pixel count, maximum chamber width and vertical fill interval to Godot's Output panel. If the transparent component cannot be safely isolated, it emits a warning and uses fallback bounds. Check this output after import.
 
 ## Compositing
 
