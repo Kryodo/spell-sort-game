@@ -184,6 +184,10 @@ var _sheet_panel: Panel
 var _sheet_title: Label
 var _sheet_content: VBoxContainer
 var _sheet_kind: String = ""
+var _undo_action_active: bool = false
+var _pipette_action_active: bool = false
+var _transmute_action_active: bool = false
+var _continue_action_active: bool = false
 
 
 func _draw() -> void:
@@ -298,6 +302,15 @@ func _build_interface() -> void:
     next_level_action_button = _make_icon_button("continue", "Continue", Callable(self, "_continue_from_completion"))
     next_level_action_button.z_index = 24
     add_child(next_level_action_button)
+
+    undo_button.visible = false
+    pipette_button.visible = false
+    transmute_button.visible = false
+    next_level_action_button.visible = false
+    undo_button.modulate.a = 0.0
+    pipette_button.modulate.a = 0.0
+    transmute_button.modulate.a = 0.0
+    next_level_action_button.modulate.a = 0.0
 
     # The inherited sorting controller still owns puzzle state and action rules.
     # These non-rendered controls satisfy its shared HUD refresh contract.
@@ -484,21 +497,28 @@ func _refresh_hud() -> void:
     objective_label.visible = false
     restart_button.visible = false
 
-    undo_button.visible = not round_complete
-    undo_button.disabled = move_history.is_empty() or is_animating
-    undo_button.caption = "Undo"
-    undo_button.queue_redraw()
-
     var special := String(level_data.get("special", "classic"))
-    pipette_button.visible = not round_complete and (special == "pipette" or special == "master")
+    var show_undo := not round_complete
+    var show_pipette := not round_complete and (special == "pipette" or special == "master")
+    var show_transmute := not round_complete and (special == "transmute" or special == "master")
+    var show_continue := round_complete
+
+    _transition_action_visibility(undo_button, show_undo, _undo_action_active)
+    _transition_action_visibility(pipette_button, show_pipette, _pipette_action_active)
+    _transition_action_visibility(transmute_button, show_transmute, _transmute_action_active)
+    _transition_action_visibility(next_level_action_button, show_continue, _continue_action_active)
+
+    _undo_action_active = show_undo
+    _pipette_action_active = show_pipette
+    _transmute_action_active = show_transmute
+    _continue_action_active = show_continue
+
+    undo_button.disabled = move_history.is_empty() or is_animating
+    undo_button.configure("undo", "Undo")
     pipette_button.disabled = precision_used or is_animating
     pipette_button.configure("pipette", "Used" if precision_used else ("Armed" if precision_armed else "Pipette"))
-
-    transmute_button.visible = not round_complete and (special == "transmute" or special == "master")
     transmute_button.disabled = transmute_used or is_animating
     transmute_button.configure("transmute", "Done" if transmute_used else "Transmute")
-
-    next_level_action_button.visible = round_complete
     next_level_action_button.disabled = is_animating
     next_level_action_button.configure("continue", "Return" if current_level >= 9 else "Continue")
 
@@ -526,17 +546,16 @@ func _layout_action_buttons() -> void:
     if not is_instance_valid(undo_button):
         return
 
-    if round_complete:
-        next_level_action_button.position = Vector2(236.0, 1128.0)
-        next_level_action_button.size = Vector2(248.0, 78.0)
+    if _continue_action_active:
+        _animate_action_position(next_level_action_button, Vector2(236.0, 1128.0), Vector2(248.0, 78.0))
         return
 
     var actions: Array = []
-    if undo_button.visible:
+    if _undo_action_active:
         actions.append(undo_button)
-    if pipette_button.visible:
+    if _pipette_action_active:
         actions.append(pipette_button)
-    if transmute_button.visible:
+    if _transmute_action_active:
         actions.append(transmute_button)
 
     var button_width := 88.0
@@ -547,8 +566,39 @@ func _layout_action_buttons() -> void:
 
     for index in range(actions.size()):
         var action: SoftIconButton = actions[index]
-        action.position = Vector2(start_x + float(index) * (button_width + separation), 1128.0)
-        action.size = Vector2(button_width, button_height)
+        var target := Vector2(start_x + float(index) * (button_width + separation), 1128.0)
+        _animate_action_position(action, target, Vector2(button_width, button_height))
+
+
+func _transition_action_visibility(button: SoftIconButton, should_show: bool, was_showing: bool) -> void:
+    if should_show:
+        button.visible = true
+        if not was_showing:
+            button.modulate.a = 0.0
+            button.position.y = 1146.0
+            var reveal := create_tween().set_parallel(true)
+            reveal.tween_property(button, "modulate:a", 1.0, 0.20).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+            reveal.tween_property(button, "position:y", 1128.0, 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+        else:
+            button.modulate.a = 1.0
+    elif was_showing:
+        button.visible = true
+        var conceal := create_tween().set_parallel(true)
+        conceal.tween_property(button, "modulate:a", 0.0, 0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+        conceal.tween_property(button, "position:y", 1144.0, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+        conceal.chain().tween_callback(Callable(button, "hide"))
+    else:
+        button.visible = false
+        button.modulate.a = 0.0
+
+
+func _animate_action_position(button: SoftIconButton, target: Vector2, target_size: Vector2) -> void:
+    button.size = target_size
+    if button.visible and button.modulate.a > 0.95 and button.position.distance_to(target) > 1.0:
+        var tween := create_tween()
+        tween.tween_property(button, "position", target, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+    else:
+        button.position = target
 
 
 func _set_status(value: String) -> void:
@@ -696,8 +746,7 @@ func _populate_sheet(kind: String) -> void:
             _add_sheet_copy(String(level_data.get("description", "No additional notes for this experiment.")))
             var stats := "MOVES  %02d     ·     VIALS  %02d     ·     EXPERIMENT  %02d / 10" % [move_count, bottle_contents.size(), current_level + 1]
             _add_sheet_copy(stats, 12, Color("#a8b8ae"))
-            if level_data.has("special"):
-                _add_sheet_button("Back to experiment menu", Callable(self, "_show_sheet").bind("menu"))
+            _add_sheet_button("Back to experiment menu", Callable(self, "_show_sheet").bind("menu"))
         "layout":
             _sheet_title.text = "Arrangement"
             _add_sheet_copy("These comparison controls are tucked away here so they never compete with the actual sorting.")
