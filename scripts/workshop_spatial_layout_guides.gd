@@ -4,10 +4,10 @@ extends Control
 # workshop background. These are development guides, not final gameplay UI.
 
 const SLOT_CENTERS: Array[Vector2] = [
-	Vector2(190.0, 826.0),
-	Vector2(303.0, 826.0),
-	Vector2(417.0, 826.0),
-	Vector2(530.0, 826.0)
+	Vector2(207.0, 826.0),
+	Vector2(309.0, 826.0),
+	Vector2(411.0, 826.0),
+	Vector2(513.0, 826.0)
 ]
 const SLOT_SIZE := Vector2(64.0, 200.0)
 
