@@ -594,7 +594,12 @@ func _transition_action_visibility(button: SoftIconButton, should_show: bool, wa
 
 func _animate_action_position(button: SoftIconButton, target: Vector2, target_size: Vector2) -> void:
     button.size = target_size
-    if button.visible and button.modulate.a > 0.95 and button.position.distance_to(target) > 1.0:
+    if button.visible and button.modulate.a <= 0.95:
+        # Keep the reveal tween's vertical travel while placing the control in
+        # the correct horizontal group immediately.
+        button.position.x = target.x
+        return
+    if button.visible and button.position.distance_to(target) > 1.0:
         var tween := create_tween()
         tween.tween_property(button, "position", target, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
     else:
