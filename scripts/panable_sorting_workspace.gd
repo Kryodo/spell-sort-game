@@ -61,10 +61,10 @@ class WorkspaceSurface extends Control:
 const WORKSPACE_SIZE := Vector2(1720.0, 1500.0)
 const SLOT_COLUMNS := [260.0, 660.0, 1060.0, 1460.0]
 const SLOT_ROWS := [390.0, 850.0, 1310.0]
-const VIAL_SCALE := 0.80
+const VIAL_SCALE := 0.86
 const MIN_ZOOM := 0.64
 const MAX_ZOOM := 1.08
-const INITIAL_ZOOM := 0.78
+const INITIAL_ZOOM := 0.75
 const SLOT_DROP_RADIUS := 166.0
 
 var _workspace_view: Control
@@ -373,7 +373,7 @@ func _build_workspace() -> void:
 
 func _set_initial_camera() -> void:
 	_workspace_zoom = INITIAL_ZOOM
-	var initial_world_centre := Vector2(640.0, 650.0)
+	var initial_world_centre := Vector2(660.0, 550.0)
 	_workspace_offset = _workspace_view.size * 0.5 - initial_world_centre * _workspace_zoom
 	_apply_workspace_camera()
 
