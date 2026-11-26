@@ -33,6 +33,7 @@ var _mouth_y_ratio: float = 0.065
 var _mouth_width_ratio: float = 0.15
 # Static chamber highlight paths are built once per vial instance, not every draw.
 var _glass_layer_reflections: Array[Dictionary] = []
+var _glass_top_cap := PackedVector2Array()
 
 
 func _ready() -> void:
@@ -592,6 +593,7 @@ func _draw_glass_overlay() -> void:
 
 func _build_static_reflection_geometry() -> void:
 	_glass_layer_reflections.clear()
+	_glass_top_cap.clear()
 	if _window_profile.size() < 8 or vial_art == null:
 		return
 
@@ -605,18 +607,21 @@ func _build_static_reflection_geometry() -> void:
 		var halo_inset: float = rect.size.x * 0.030
 		var main_inset: float = rect.size.x * 0.016
 		var core_inset: float = rect.size.x * 0.006
+		var is_top_section: bool = layer_index == CAPACITY - 1
 
 		var left_halo := _chamber_edge_points(rect, true, section_top, section_bottom, halo_inset)
 		var left_main := _chamber_edge_points(rect, true, section_top, section_bottom, main_inset)
-		var left_core := _chamber_edge_points(rect, true, section_top, section_bottom, core_inset)
+		var core_start: float = section_top if is_top_section else lerpf(section_top, section_bottom, 0.14)
+		var left_core := _chamber_edge_points(rect, true, core_start, section_bottom, core_inset)
+		var bounce_start: float = section_top if is_top_section else section_top + 0.10 / float(CAPACITY)
 		var right_bounce := _chamber_edge_points(
 			rect,
 			false,
-			section_top + 0.10 / float(CAPACITY),
+			bounce_start,
 			section_bottom,
 			rect.size.x * 0.020
 		)
-		var glint_start: float = lerpf(section_top, section_bottom, 0.18)
+		var glint_start: float = section_top if is_top_section else lerpf(section_top, section_bottom, 0.18)
 		var glint_end: float = lerpf(section_top, section_bottom, 0.48)
 		var glint := _chamber_edge_points(rect, true, glint_start, glint_end, core_inset + 1.5)
 
@@ -627,6 +632,18 @@ func _build_static_reflection_geometry() -> void:
 			"bounce": right_bounce,
 			"glint": glint
 		})
+
+	# Close the upper ends with a very fine curved reflection along the top
+	# chamber boundary. This remains present even when every section is empty.
+	var top_bounds: Vector2 = _window_bounds_at(_window_top_ratio)
+	var top_left_x: float = rect.position.x + rect.size.x * top_bounds.x + main_inset
+	var top_right_x: float = rect.position.x + rect.size.x * top_bounds.y - rect.size.x * 0.020
+	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
+	for index in range(25):
+		var t: float = float(index) / 24.0
+		var x: float = lerpf(top_left_x, top_right_x, t)
+		var y: float = top_y + sin(PI * t) * maxf(0.8, rect.size.y * 0.002)
+		_glass_top_cap.append(Vector2(x, y))
 
 
 func _draw_chamber_reflections(rect: Rect2) -> void:
@@ -652,6 +669,15 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 		draw_polyline(geometry["core"], Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
 		draw_polyline(geometry["bounce"], right_color, maxf(1.4, rect.size.x * 0.014), true)
 		draw_polyline(geometry["glint"], Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
+
+	# A fine curved cap joins the fixed side reflections at the chamber top,
+	# including on completely empty vessels.
+	var top_reflection_color := Color(0.66, 0.82, 0.86, 1.0)
+	if _visual_contents.size() >= CAPACITY:
+		var top_essence: String = String(_visual_contents[CAPACITY - 1])
+		top_reflection_color = _glass_reflection_color(_palette.get(top_essence, Color(0.45, 0.78, 0.75, 1.0)))
+	var cap_color := Color(top_reflection_color.r, top_reflection_color.g, top_reflection_color.b, 0.34)
+	draw_polyline(_glass_top_cap, cap_color, maxf(1.0, rect.size.x * 0.010), true)
 
 	# Only the meniscus follows the fill level; the glass strokes above never move.
 	_draw_liquid_surface_reflection(rect)
@@ -690,9 +716,11 @@ func _draw_liquid_surface_reflection(rect: Rect2) -> void:
 		var right_x: float = rect.position.x + rect.size.x * bounds.y - rect.size.x * 0.025
 		surface_points.append(Vector2(lerpf(left_x, right_x, t), wave_y))
 
-	var surface_color: Color = _glass_reflection_color(_get_top_liquid_color())
-	draw_polyline(surface_points, Color(surface_color.r, surface_color.g, surface_color.b, 0.42), maxf(2.0, rect.size.x * 0.028), true)
-	draw_polyline(surface_points, Color(0.97, 1.0, 0.97, 0.84), maxf(1.0, rect.size.x * 0.010), true)
+	# One restrained reflection that borrows the active top essence hue.
+	# Avoid the separate white glow stroke, which reads like a hard divider.
+	var surface_color: Color = _get_top_liquid_color().lightened(0.16)
+	surface_color.a = 0.22
+	draw_polyline(surface_points, surface_color, maxf(1.0, rect.size.x * 0.012), true)
 
 
 func _chamber_edge_points(
