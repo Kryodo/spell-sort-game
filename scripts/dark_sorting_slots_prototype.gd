@@ -445,6 +445,8 @@ func _vial_base_offset(size_value: Vector2) -> float:
 
 
 func _refresh_hud() -> void:
+	if not bottle_contents.is_empty():
+		_selected_vial_count = bottle_contents.size()
 	super._refresh_hud()
 	if not is_instance_valid(level_label):
 		return
