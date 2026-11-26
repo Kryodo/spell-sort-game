@@ -30,7 +30,7 @@ A new design uses the same script and liquid renderer. It does not require a new
 
 ## Current proof of concept
 
-The active prototype uses assets/bottles/SpellSort_Vial_2.png as its single-image test asset. The old per-pixel connected-component flood fill has been replaced by a simpler centre-scanline detector with a relative body-width cutoff. A narrow neck therefore does not become part of the liquid fill range.
+The active prototype uses assets/bottles/SpellSort_Vial_2.png as its single-image test asset. The centre-scanline profile detector now bridges short opaque interruptions inside the transparent chamber, treating them as reflections rather than wall boundaries. It smooths the sampled left/right contour and uses separate upper and lower width thresholds so the profile follows the tapered chamber bottom without including the narrow neck.
 
 SpellSort_Vial_1.png is not used as the second test shape: it has a stopper and a much more opaque-looking centre, so it is not a valid open, transparent vessel for this rendering test. A second suitable one-piece illustration is still needed before shape-independence can be confirmed visually.
 
@@ -42,4 +42,4 @@ SpellSort_Vial_1.png is not used as the second test shape: it has a stopper and 
 4. Pouring begins at the automatically detected mouth opening.
 5. A second open, transparent vial with a different silhouette works by assigning its PNG to the same renderer, without changing the liquid code.
 
-The renderer is implemented, but the visual checks still need to be run in the Godot project.
+The reflection-bridging and contour-smoothing changes are an experimental fix, not yet visually verified. The visual checks still need to be run in the Godot project.
