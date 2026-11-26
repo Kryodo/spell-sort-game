@@ -72,10 +72,11 @@ func _build_inner_window_profile() -> void:
 		))
 
 	if _window_profile.size() < 8:
+		var detected_rows: int = _window_profile.size()
 		_window_profile.clear()
 		push_warning(
 			"Vial 2: only %d transparent-window scan lines found; liquid will use the fallback bounds."
-			% _window_profile.size()
+			% detected_rows
 		)
 		return
 
@@ -83,6 +84,10 @@ func _build_inner_window_profile() -> void:
 	var edge_margin: float = 2.0 / float(image_height)
 	_window_top_ratio = _window_profile[0].x + edge_margin
 	_window_bottom_ratio = _window_profile[-1].x - edge_margin
+	print(
+		"Vial 2 alpha window: %d rows, vertical %.3f–%.3f"
+		% [_window_profile.size(), _window_top_ratio, _window_bottom_ratio]
+	)
 
 
 func _find_window_edge_ratio(
