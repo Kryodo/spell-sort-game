@@ -441,6 +441,10 @@ func _refresh_workspace_markers() -> void:
 	_workspace_surface.configure(markers)
 
 
+func _vial_base_offset(size_value: Vector2) -> float:
+	return 72.0 + size_value.y * 0.735 * 0.975
+
+
 func _build_vial_layout() -> void:
 	_vial_slot_indices.clear()
 	var vial_size := BOTTLE_SOURCE_SIZE * VIAL_SCALE
