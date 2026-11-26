@@ -214,9 +214,9 @@ func _draw() -> void:
 
 
 func _build_interface() -> void:
-	var title := _make_label("SPELL SORT  /  DIRECTION TEST", Vector2(26.0, 18.0), Vector2(500.0, 38.0), 23, Color("#f3dfbd"))
+	var title := _make_label("SPELL SORT  /  DIRECTION TEST", Vector2(26.0, 18.0), Vector2(500.0, 38.0), 26, Color("#f3dfbd"))
 	add_child(title)
-	var subtitle := _make_label("PLAYABLE MECHANICS PROTOTYPE  ·  PLACEHOLDER PRESENTATION", Vector2(28.0, 54.0), Vector2(610.0, 20.0), 10, Color("#9eb0a8"))
+	var subtitle := _make_label("PLAYABLE MECHANICS PROTOTYPE  ·  PLACEHOLDER PRESENTATION", Vector2(28.0, 54.0), Vector2(610.0, 20.0), 12, Color("#9eb0a8"))
 	add_child(subtitle)
 
 	track_a_button = _make_button("TRACK A  ·  FOUR VIALS", Vector2(26.0, 84.0), Vector2(178.0, 42.0), Callable(self, "_select_track_a"))
@@ -226,30 +226,30 @@ func _build_interface() -> void:
 
 	previous_button = _make_button("‹", Vector2(430.0, 84.0), Vector2(46.0, 42.0), Callable(self, "_previous_level"))
 	add_child(previous_button)
-	level_label = _make_label("", Vector2(484.0, 82.0), Vector2(164.0, 46.0), 13, Color("#f0d6a8"))
+	level_label = _make_label("", Vector2(484.0, 82.0), Vector2(164.0, 46.0), 15, Color("#f0d6a8"))
 	add_child(level_label)
 	next_button = _make_button("›", Vector2(660.0, 84.0), Vector2(38.0, 42.0), Callable(self, "_next_level"))
 	add_child(next_button)
 
-	description_label = _make_label("", Vector2(28.0, 139.0), Vector2(664.0, 82.0), 13, Color("#d1d9ce"), true)
+	description_label = _make_label("", Vector2(28.0, 139.0), Vector2(664.0, 82.0), 16, Color("#d1d9ce"), true)
 	add_child(description_label)
 
 	var board := _make_panel(Rect2(18.0, 260.0, 684.0, 662.0), Color("#1b2927"), Color("#8e714c"), 18)
 	board.z_index = 0
 	add_child(board)
 
-	var board_title := _make_label("SORTING SURFACE  /  LAYOUT TEST", Vector2(32.0, 273.0), Vector2(560.0, 20.0), 9, Color("#9cae9f"))
+	var board_title := _make_label("SORTING SURFACE  /  LAYOUT TEST", Vector2(32.0, 273.0), Vector2(560.0, 20.0), 12, Color("#9cae9f"))
 	add_child(board_title)
 
 	var status_panel := _make_panel(Rect2(20.0, 944.0, 680.0, 158.0), Color("#172421"), Color("#856844"), 16)
 	status_panel.z_index = 0
 	add_child(status_panel)
 
-	status_label = _make_label("", Vector2(38.0, 956.0), Vector2(644.0, 38.0), 12, Color("#f0e6d1"), true)
+	status_label = _make_label("", Vector2(38.0, 956.0), Vector2(644.0, 44.0), 15, Color("#f0e6d1"), true)
 	add_child(status_label)
-	move_label = _make_label("", Vector2(38.0, 1000.0), Vector2(200.0, 25.0), 11, Color("#d8c39f"))
+	move_label = _make_label("", Vector2(38.0, 1000.0), Vector2(200.0, 27.0), 14, Color("#d8c39f"))
 	add_child(move_label)
-	objective_label = _make_label("", Vector2(38.0, 1027.0), Vector2(644.0, 55.0), 11, Color("#c3d0c4"), true)
+	objective_label = _make_label("", Vector2(38.0, 1027.0), Vector2(644.0, 58.0), 14, Color("#c3d0c4"), true)
 	add_child(objective_label)
 
 	restart_button = _make_button("RESTART", Vector2(22.0, 1124.0), Vector2(112.0, 48.0), Callable(self, "_restart_level"))
@@ -263,7 +263,7 @@ func _build_interface() -> void:
 	next_level_action_button = _make_button("NEXT LEVEL", Vector2(526.0, 1124.0), Vector2(172.0, 48.0), Callable(self, "_next_level"))
 	add_child(next_level_action_button)
 
-	_add_label_to_bottom("Drag a vial onto another vial to pour. Select a vial first to use an alchemy tool.", Vector2(26.0, 1186.0), Vector2(668.0, 28.0), 10, Color("#8fa39a"))
+	_add_label_to_bottom("Drag a vial onto another vial to pour. Select a vial first to use an alchemy tool.", Vector2(26.0, 1186.0), Vector2(668.0, 30.0), 12, Color("#8fa39a"))
 
 
 func _make_label(
@@ -316,7 +316,7 @@ func _make_button(button_text: String, position_value: Vector2, size_value: Vect
 	button.position = position_value
 	button.size = size_value
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_size_override("font_size", 11)
+	button.add_theme_font_size_override("font_size", 14)
 	button.add_theme_color_override("font_color", Color("#f2e4ca"))
 	button.add_theme_color_override("font_hover_color", Color("#fff3df"))
 	button.add_theme_color_override("font_pressed_color", Color("#f9d18e"))
@@ -439,7 +439,7 @@ func _add_vial_slot(index: int, position_value: Vector2, size_value: Vector2) ->
 	slot_positions.append(position_value)
 
 	if index == int(level_data.get("locked_vial", -1)):
-		locked_label = _make_label("SEALED", position_value + Vector2(7.0, size_value.y * 0.52), Vector2(size_value.x - 14.0, 25.0), 10, Color("#f5d69a"))
+		locked_label = _make_label("SEALED", position_value + Vector2(7.0, size_value.y * 0.52), Vector2(size_value.x - 14.0, 25.0), 13, Color("#f5d69a"))
 		locked_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		locked_label.z_index = 8
 		locked_label.add_to_group("direction_level_overlay")
@@ -494,17 +494,25 @@ func _begin_drag(pointer: Vector2) -> void:
 	if current_track == "A" and level_data.get("special", "") == "recipe" and index == int(level_data["recipe_target"]):
 		_set_status("The recipe flask is the receiver. Choose an ingredient vial instead.")
 		return
+
+	if tool_selected_vial >= 0 and tool_selected_vial < bottle_nodes.size():
+		bottle_nodes[tool_selected_vial].call("set_feedback", false, false, false)
+
 	selected_vial = index
 	tool_selected_vial = index
 	is_dragging = true
 	drag_origin = slot_positions[index]
 	grab_offset = pointer - drag_origin
-	if tool_selected_vial >= 0 and tool_selected_vial != index and tool_selected_vial < bottle_nodes.size():
-		bottle_nodes[tool_selected_vial].call("set_feedback", false, false, false)
 	var vial: Control = bottle_nodes[index]
 	vial.z_index = 50
 	vial.call("set_feedback", true, false, true)
-	vial.call("set_pose", Vector2(24.0, 0.0))
+
+	# The bottle draws its glass around an internal pivot. Compensate for that
+	# transform immediately so the exact point grabbed stays under the pointer.
+	var pickup_pose := Vector2(0.0, 0.0)
+	vial.call("set_pose", pickup_pose)
+	var pickup_anchor: Vector2 = vial.call("get_point_local_for_pose", grab_offset, pickup_pose)
+	vial.position = pointer - pickup_anchor
 	_set_status("Vial lifted. Release it over a valid receiving vial.")
 
 
@@ -512,12 +520,15 @@ func _update_drag(pointer: Vector2) -> void:
 	if selected_vial < 0 or not is_dragging:
 		return
 	var vial: Control = bottle_nodes[selected_vial]
-	vial.position = pointer - grab_offset
 	var delta_x := pointer.x - (drag_origin.x + vial.size.x * 0.5)
 	var tilt := deg_to_rad(38.0) * signf(delta_x)
 	if is_zero_approx(delta_x):
 		tilt = 0.0
-	vial.call("set_pose", Vector2(24.0, tilt))
+
+	var drag_pose := Vector2(18.0, tilt)
+	vial.call("set_pose", drag_pose)
+	var drag_anchor: Vector2 = vial.call("get_point_local_for_pose", grab_offset, drag_pose)
+	vial.position = pointer - drag_anchor
 
 
 func _finish_drag(pointer: Vector2) -> void:
@@ -596,9 +607,10 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var target_center := slot_positions[target_index] + target_vial.size * 0.5
 	var stage_position := target_center - Vector2(source_vial.size.x * 0.5, source_vial.size.y * 0.78)
 
+	var current_source_pose: Vector2 = source_vial.call("get_pose")
 	var approach := create_tween().set_parallel(true)
 	approach.tween_property(source_vial, "position", stage_position, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	approach.tween_method(Callable(source_vial, "set_pose"), Vector2(24.0, 0.0), Vector2(20.0, deg_to_rad(62.0)), 0.16)
+	approach.tween_method(Callable(source_vial, "set_pose"), current_source_pose, Vector2(20.0, deg_to_rad(62.0)), 0.16)
 	await approach.finished
 
 	var next_source: Array = bottle_contents[source_index].duplicate()
@@ -655,9 +667,10 @@ func _check_seal_unlock() -> void:
 func _return_vial(index: int, message: String) -> void:
 	is_animating = true
 	var vial: Control = bottle_nodes[index]
+	var current_pose: Vector2 = vial.call("get_pose")
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(vial, "position", slot_positions[index], 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_method(Callable(vial, "set_pose"), Vector2(24.0, 0.0), Vector2.ZERO, 0.18)
+	tween.tween_method(Callable(vial, "set_pose"), current_pose, Vector2.ZERO, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await tween.finished
 	vial.z_index = 2
 	vial.call("set_feedback", false, false, false)
