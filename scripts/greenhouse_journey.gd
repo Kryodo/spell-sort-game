@@ -329,7 +329,6 @@ func _build_bottom_navigation() -> void:
 	]
 	for index in range(nav_items.size()):
 		var item: Dictionary = nav_items[index]
-		var x: float = 30.0 + float(index) * 168.0
 		var button := _make_button(String(item["title"]), Rect2(12.0 + float(index) * 168.0, 14.0, 158.0, 48.0), false)
 		button.add_theme_font_size_override("font_size", 12)
 		button.pressed.connect(_open_page.bind(String(item["key"])))
