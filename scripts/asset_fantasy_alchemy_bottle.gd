@@ -4,7 +4,7 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 # The silhouette/style remains provisional pending its in-environment review.
 const VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_2.png")
 
-const WINDOW_ALPHA_THRESHOLD := 0.02
+const WINDOW_ALPHA_THRESHOLD := 0.12
 const WINDOW_ROI_LEFT := 0.20
 const WINDOW_ROI_RIGHT := 0.80
 const WINDOW_ROI_TOP := 0.18
@@ -200,8 +200,8 @@ func _build_inner_window_profile() -> void:
 	_window_top_ratio = _window_profile[0].x + edge_margin
 	_window_bottom_ratio = _window_profile[-1].x - edge_margin
 	print(
-		"Vial 2 alpha mask: %d profile samples, peak width %d px, vertical %.3f–%.3f"
-		% [_window_profile.size(), peak_width, _window_top_ratio, _window_bottom_ratio]
+		"Vial 2 alpha mask: %d profile samples, %d connected pixels, peak width %d px, vertical %.3f–%.3f"
+		% [_window_profile.size(), queue.size(), peak_width, _window_top_ratio, _window_bottom_ratio]
 	)
 
 
@@ -322,6 +322,8 @@ func _draw_liquid_band(
 	if not is_bottom:
 		bottom_y += 0.8
 	var top_y: float = rect.position.y + rect.size.y * top_ratio
+	if bottom_y - top_y <= 1.2:
+		return
 	var surface_min_y: float = rect.position.y + rect.size.y * _window_top_ratio + 0.4
 
 	# Build every point of the liquid surface from the boundary at its current
@@ -360,30 +362,30 @@ func _draw_liquid_band(
 	# smoothed alpha boundary all the way to the bottom of this layer.
 	for side_index in range(1, LIQUID_SIDE_SAMPLES + 1):
 		var side_t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(right_top_y, bottom_y, side_t)
-		var y_ratio: float = clampf(
-			(y - rect.position.y) / rect.size.y,
+		var right_y: float = lerpf(right_top_y, bottom_y, side_t)
+		var right_ratio: float = clampf(
+			(right_y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
 			_window_bottom_ratio
 		)
-		var bounds := _window_bounds_at(y_ratio)
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - WINDOW_WALL_INSET
-		polygon.append(Vector2(right_x, y))
+		var right_bounds := _window_bounds_at(right_ratio)
+		var right_x: float = rect.position.x + rect.size.x * right_bounds.y - WINDOW_WALL_INSET
+		polygon.append(Vector2(right_x, right_y))
 
 	# Close the bottom edge, then trace the left wall back to the first surface
 	# point. No independent left/right arrays can drift out of sync.
 	polygon.append(Vector2(bottom_left_x, bottom_y))
 	for side_index in range(1, LIQUID_SIDE_SAMPLES):
 		var side_t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(bottom_y, left_top_y, side_t)
-		var y_ratio: float = clampf(
-			(y - rect.position.y) / rect.size.y,
+		var left_y: float = lerpf(bottom_y, left_top_y, side_t)
+		var left_ratio: float = clampf(
+			(left_y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
 			_window_bottom_ratio
 		)
-		var bounds := _window_bounds_at(y_ratio)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + WINDOW_WALL_INSET
-		polygon.append(Vector2(left_x, y))
+		var left_bounds := _window_bounds_at(left_ratio)
+		var left_x: float = rect.position.x + rect.size.x * left_bounds.x + WINDOW_WALL_INSET
+		polygon.append(Vector2(left_x, left_y))
 
 	var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.14), 0.08)
 	draw_colored_polygon(polygon, fill_color)
