@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://c4mwawg3qe503"]
+
+[ext_resource type="PackedScene" path="res://scenes/workshop_vial_preview.tscn" id="1_vials"]
+[ext_resource type="Texture2D" uid="uid://bymctx6odrvdk" path="res://assets/environments/SpellSort_Vial_Rack.svg" id="2_rack_rear"]
+[ext_resource type="Texture2D" uid="uid://b8y3loys7fqj4" path="res://assets/environments/SpellSort_Vial_Rack_Front.svg" id="3_rack_front"]
+
+[node name="WorkshopRackPreview" unique_id=925225698 instance=ExtResource("1_vials")]
+
+[node name="VialRackRear" type="Sprite2D" parent="." index="1" unique_id=1924246267]
+z_index = 9
+texture_filter = 1
+position = Vector2(49, 640)
+texture = ExtResource("2_rack_rear")
+centered = false
+
+[node name="VialRackFront" type="Sprite2D" parent="." index="2" unique_id=108058573]
+z_index = 11
+texture_filter = 1
+position = Vector2(49, 640)
+texture = ExtResource("3_rack_front")
+centered = false
