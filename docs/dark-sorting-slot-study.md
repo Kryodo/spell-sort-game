@@ -14,7 +14,7 @@ The mouth hit area, liquid chamber rectangle and liquid side profile are adjuste
 
 The PNG is drawn above the independently rendered liquid. The old procedural glass-back fill and SVG vial overlays are bypassed for this test. The transparent central window should let the liquid remain vivid, while the sparse painted reflections retain some front-surface glass definition.
 
-The existing layered liquid rendering and motion remain unchanged; only its chamber geometry is being adapted here. This pass is for checking composition, style compatibility, transparency, liquid visibility and pour alignment in the actual Godot scene. No decision has been made to lock this vessel style.
+The liquid chamber now uses a Vial 2-specific inner contour with a much smaller wall inset. Each essence layer is drawn as a continuous curved polygon instead of stacked horizontal rectangles, so the liquid follows the full tapered window rather than looking like a narrow stack of blocks. The surface retains its animated wave, and the four essence colours remain separate. This pass is for checking composition, style compatibility, transparency, liquid visibility and pour alignment in the actual Godot scene. No decision has been made to lock this vessel style.
 
 ## Pickup and pouring
 
