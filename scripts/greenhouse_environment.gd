@@ -2,6 +2,7 @@ extends Control
 
 # Reusable chapter environment component. All geometry belongs to this scene;
 # no sorting slots, vial count or HUD layout is baked into the environment.
+@export var experiment_backdrop: bool = false
 
 func _draw() -> void:
 	_draw_greenhouse_environment()
@@ -113,9 +114,10 @@ func _draw_greenhouse_environment() -> void:
 		Vector2(360.0, 788.0), Vector2(388.0, 816.0),
 		Vector2(360.0, 844.0), Vector2(332.0, 816.0)
 	]), Color(0.69, 0.78, 0.60, 0.28))
-	_draw_book(Vector2(78.0, 745.0), 0.86, -0.08)
-	_draw_pot(Vector2(600.0, 738.0), 0.78, Color("#a86c42"))
-	_draw_plant_cluster(Vector2(600.0, 720.0), 0.36, Color("#699455"))
+	if not experiment_backdrop:
+		_draw_book(Vector2(78.0, 745.0), 0.86, -0.08)
+		_draw_pot(Vector2(600.0, 738.0), 0.78, Color("#a86c42"))
+		_draw_plant_cluster(Vector2(600.0, 720.0), 0.36, Color("#699455"))
 
 	# Floor stones and foreground foliage.
 	draw_colored_polygon(PackedVector2Array([
