@@ -49,7 +49,13 @@ The pour stream begins at the authored mouth anchor. Its start is not drawn acro
 
 ## Current migration status
 
-The resource contract is now in the project. The existing Vial 2 PNG is still a provisional single-layer illustration and does not yet satisfy the complete layered contract. It must not be treated as a production-ready vial or used to validate the final glass treatment. The old renderer remains isolated until replacement back/front artwork and a matching mask are authored and inspected together.
+The resource contract and generic masked renderer are now in the project:
+
+- `scripts/vial_asset_definition.gd` stores the layer textures, mask, normalized anchors and fill range.
+- `scripts/masked_asset_fantasy_alchemy_bottle.gd` samples the dedicated mask row-by-row once and uses that profile for every liquid layer. It does not flood-fill or inspect the glass artwork.
+- Artwork can use contain or cover fitting, so a square source illustration can retain the intended tall crop inside the vial control.
+
+The new renderer is not yet wired into the active prototype because the existing Vial 2 PNG is a provisional single-layer illustration and does not satisfy the layered contract. It must not be treated as a production-ready vial or used to validate the final glass treatment. The current prototype remains an isolated visual experiment until replacement back/front artwork and a matching mask are authored and inspected together.
 
 ## Acceptance checks
 
