@@ -634,17 +634,46 @@ func _build_static_reflection_geometry() -> void:
 			"glint": glint
 		})
 
-	# Close the upper ends with a very fine curved reflection along the top
-	# chamber boundary. This remains present even when every section is empty.
+	# Close the upper ends by following the measured inner-wall tangents.
+	# The curve arches over the chamber opening instead of spanning it with a
+	# straight or arbitrary sine-shaped connector.
 	var top_bounds: Vector2 = _window_bounds_at(_window_top_ratio)
-	var top_left_x: float = rect.position.x + rect.size.x * top_bounds.x + top_cap_inset
-	var top_right_x: float = rect.position.x + rect.size.x * top_bounds.y - rect.size.x * 0.020
 	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
-	for index in range(25):
-		var t: float = float(index) / 24.0
-		var x: float = lerpf(top_left_x, top_right_x, t)
-		var y: float = top_y + sin(PI * t) * maxf(0.8, rect.size.y * 0.002)
-		_glass_top_cap.append(Vector2(x, y))
+	var top_left := Vector2(
+		rect.position.x + rect.size.x * top_bounds.x + top_cap_inset,
+		top_y
+	)
+	var top_right := Vector2(
+		rect.position.x + rect.size.x * top_bounds.y - rect.size.x * 0.020,
+		top_y
+	)
+
+	# A short way down each detected wall gives us the actual direction and
+	# curvature of the chamber shoulders near the arch.
+	var shoulder_ratio: float = lerpf(_window_top_ratio, _window_bottom_ratio, 0.14)
+	var shoulder_bounds: Vector2 = _window_bounds_at(shoulder_ratio)
+	var shoulder_y: float = rect.position.y + rect.size.y * shoulder_ratio
+	var left_shoulder := Vector2(
+		rect.position.x + rect.size.x * shoulder_bounds.x + top_cap_inset,
+		shoulder_y
+	)
+	var right_shoulder := Vector2(
+		rect.position.x + rect.size.x * shoulder_bounds.y - rect.size.x * 0.020,
+		shoulder_y
+	)
+
+	# Reverse the wall tangents to form the upper arch. The control points are
+	# derived from the silhouette, so a different chamber shape gets a different cap.
+	var left_control := top_left - (left_shoulder - top_left) * 0.72
+	var right_control := top_right - (right_shoulder - top_right) * 0.72
+	for index in range(33):
+		var t: float = float(index) / 32.0
+		_glass_top_cap.append(top_left.bezier_interpolate(
+			left_control,
+			right_control,
+			top_right,
+			t
+		))
 
 
 func _draw_chamber_reflections(rect: Rect2) -> void:
