@@ -36,6 +36,7 @@ var _glass_halo_left := PackedVector2Array()
 var _glass_main_left := PackedVector2Array()
 var _glass_core_left := PackedVector2Array()
 var _glass_bounce_right := PackedVector2Array()
+var _glass_specular_glint := PackedVector2Array()
 
 
 func _ready() -> void:
@@ -598,16 +599,18 @@ func _build_static_reflection_geometry() -> void:
 	_glass_main_left.clear()
 	_glass_core_left.clear()
 	_glass_bounce_right.clear()
+	_glass_specular_glint.clear()
 	if _window_profile.size() < 8 or vial_art == null:
 		return
 
 	var rect := _get_vessel_rect()
-	# These paths belong to the glass silhouette. They never depend on fill
-	# height or liquid-layer boundaries.
-	_glass_halo_left = _chamber_edge_points(rect, true, 0.06, 0.94, rect.size.x * 0.040)
-	_glass_main_left = _chamber_edge_points(rect, true, 0.08, 0.90, rect.size.x * 0.022)
-	_glass_core_left = _chamber_edge_points(rect, true, 0.14, 0.58, rect.size.x * 0.008)
-	_glass_bounce_right = _chamber_edge_points(rect, false, 0.18, 0.86, rect.size.x * 0.026)
+	# Restore the earlier layered highlight treatment, but construct each path
+	# over the fixed chamber silhouette instead of the currently filled bands.
+	_glass_halo_left = _chamber_edge_points(rect, true, 0.06, 0.94, rect.size.x * 0.030)
+	_glass_main_left = _chamber_edge_points(rect, true, 0.08, 0.90, rect.size.x * 0.016)
+	_glass_core_left = _chamber_edge_points(rect, true, 0.14, 0.58, rect.size.x * 0.006)
+	_glass_bounce_right = _chamber_edge_points(rect, false, 0.18, 0.86, rect.size.x * 0.020)
+	_glass_specular_glint = _chamber_edge_points(rect, true, 0.22, 0.48, rect.size.x * 0.006 + 1.5)
 
 
 func _draw_chamber_reflections(rect: Rect2) -> void:
@@ -615,19 +618,20 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 		return
 
 	var reflection_color: Color = _get_liquid_reflection_color()
-	var halo_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.20)
-	var main_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.52)
-	var right_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.30)
+	var halo_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.25)
+	var main_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.62)
+	var right_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.34)
 
-	# The same glass highlights remain visible at every fill level. Only their
-	# tint responds to the mixture inside; the geometry is cached and fixed.
-	draw_polyline(_glass_halo_left, halo_color, maxf(3.0, rect.size.x * 0.050), true)
-	draw_polyline(_glass_main_left, main_color, maxf(1.8, rect.size.x * 0.022), true)
-	draw_polyline(_glass_core_left, Color(0.96, 1.0, 0.98, 0.76), maxf(1.0, rect.size.x * 0.009), true)
-	draw_polyline(_glass_bounce_right, right_color, maxf(1.4, rect.size.x * 0.016), true)
+	# These are the original layered strokes and strengths. Their paths are
+	# cached against the complete vessel and never follow liquid boundaries.
+	draw_polyline(_glass_halo_left, halo_color, maxf(3.0, rect.size.x * 0.045), true)
+	draw_polyline(_glass_main_left, main_color, maxf(1.8, rect.size.x * 0.018), true)
+	draw_polyline(_glass_core_left, Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
+	draw_polyline(_glass_bounce_right, right_color, maxf(1.4, rect.size.x * 0.014), true)
+	draw_polyline(_glass_specular_glint, Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
 
-	# This separate, short glint is the liquid meniscus and correctly follows
-	# the liquid surface. It is intentionally much softer than the glass edge.
+	# This is the only highlight that follows fill height: it represents the
+	# liquid's actual meniscus, not a reflection in the stationary glass wall.
 	_draw_liquid_surface_reflection(rect)
 
 
