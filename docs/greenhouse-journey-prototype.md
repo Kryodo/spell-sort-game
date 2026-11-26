@@ -15,7 +15,7 @@ The project startup scene remains unchanged.
 - Interactive Botanical Garden and Research Archive hotspots.
 - Persistent HUD navigation for Experiments, Codex, Discoveries and Laboratory.
 - Experiment chapter list with the first three experiments marked complete, the third available, and later entries locked.
-- Launch from Experiment 03 into the existing playable sorting direction prototype.
+- Launch from Experiment 03 into a dedicated chapter entry scene that starts the four-vial prototype at Track A, Level 03. The standalone direction comparison remains available separately.
 - Return from the experiment prototype to the greenhouse hub.
 
 ## Architecture intention
