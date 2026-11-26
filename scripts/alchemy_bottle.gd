@@ -268,7 +268,7 @@ func _draw() -> void:
 		display_name,
 		HORIZONTAL_ALIGNMENT_CENTER,
 		size.x,
-		12,
+		15,
 		Color(0.96, 0.88, 0.70, 0.96)
 	)
 
