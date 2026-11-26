@@ -93,6 +93,7 @@ func _profile_points() -> Array[Vector2]:
                 Vector2(0.51, 0.475), Vector2(0.70, 0.455),
                 Vector2(0.84, 0.365), Vector2(0.93, 0.255),
                 Vector2(0.985, 0.17), Vector2(1.00, 0.13)
+            ]
 
 
 func _draw_liquid(rect: Rect2) -> void:
