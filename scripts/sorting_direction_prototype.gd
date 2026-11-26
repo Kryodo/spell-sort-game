@@ -108,13 +108,13 @@ const TRACK_B_LEVELS := [
 	{
 		"name": "Third Essence",
 		"description": "Three essences and four vials. One empty vessel must do the work of a temporary buffer.",
-		"contents": [["A", "B", "C", "B"], ["B", "C", "A", "C"], ["C", "A", "B", "A"], []],
+		"contents": [["C", "A", "B", "A"], ["A", "B", "C", "B"], ["B", "C", "A", "C"], []],
 		"expected": ["A", "B", "C"]
 	},
 	{
 		"name": "The Tangle",
 		"description": "Three essences, one buffer, and a more interleaved starting state.",
-		"contents": [["A", "B", "A", "C"], ["B", "C", "B", "A"], ["C", "A", "C", "B"], []],
+		"contents": [["A", "B", "C", "B"], ["C", "A", "C", "B"], ["A", "B", "A", "C"], []],
 		"expected": ["A", "B", "C"]
 	},
 	{
