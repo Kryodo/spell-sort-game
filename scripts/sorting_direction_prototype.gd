@@ -214,10 +214,14 @@ func _draw() -> void:
 
 
 func _build_interface() -> void:
-	var title := _make_label("SPELL SORT  /  DIRECTION TEST", Vector2(26.0, 18.0), Vector2(500.0, 38.0), 26, Color("#f3dfbd"))
+	var title := _make_label("SPELL SORT  /  EXPERIMENT", Vector2(26.0, 18.0), Vector2(475.0, 38.0), 26, Color("#f3dfbd"))
 	add_child(title)
-	var subtitle := _make_label("PLAYABLE MECHANICS PROTOTYPE  ·  PLACEHOLDER PRESENTATION", Vector2(28.0, 54.0), Vector2(610.0, 20.0), 12, Color("#9eb0a8"))
+	var subtitle := _make_label("THE OVERGROWN GREENHOUSE  ·  CHAPTER 01", Vector2(28.0, 54.0), Vector2(470.0, 20.0), 12, Color("#9eb0a8"))
 	add_child(subtitle)
+	var return_button := _make_button("RETURN TO WORLD", Rect2(522.0, 20.0, 176.0, 36.0), false)
+	return_button.add_theme_font_size_override("font_size", 11)
+	return_button.pressed.connect(_return_to_world)
+	add_child(return_button)
 
 	track_a_button = _make_button("TRACK A  ·  FOUR VIALS", Vector2(26.0, 84.0), Vector2(178.0, 42.0), Callable(self, "_select_track_a"))
 	add_child(track_a_button)
@@ -904,3 +908,9 @@ func _next_level() -> void:
 		return
 	current_level += 1
 	_load_level()
+
+
+func _return_to_world() -> void:
+	if is_animating:
+		return
+	get_tree().change_scene_to_file("res://scenes/greenhouse_journey.tscn")
