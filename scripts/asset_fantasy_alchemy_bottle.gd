@@ -1,24 +1,34 @@
 extends "res://scripts/fantasy_alchemy_bottle.gd"
 
-# Current composition candidate: Qwen's second transparent-front vessel.
-# The silhouette/style remains provisional pending its in-environment review.
-const VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_2.png")
+## One complete illustration per vial. The transparent inner chamber is analysed
+## once per texture; every essence layer then shares the resulting body profile.
 
-const WINDOW_ALPHA_THRESHOLD := 0.12
-const WINDOW_ROI_LEFT := 0.20
-const WINDOW_ROI_RIGHT := 0.80
-const WINDOW_ROI_TOP := 0.18
-const WINDOW_ROI_BOTTOM := 0.88
-const WINDOW_MAX_COMPONENT_FRACTION := 0.23
-const WINDOW_PROFILE_SAMPLES := 96
-const WINDOW_PROFILE_SMOOTH_RADIUS := 5
-const WINDOW_WALL_INSET := 0.55
+const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_2.png")
+
+const ALPHA_CUTOFF := 0.14
+const SCAN_TOP_RATIO := 0.16
+const SCAN_BOTTOM_RATIO := 0.88
+const SCAN_LEFT_RATIO := 0.28
+const SCAN_RIGHT_RATIO := 0.72
+const CHAMBER_WIDTH_RATIO := 0.62
+const PROFILE_SAMPLES := 112
+const PROFILE_SMOOTH_RADIUS := 4
 const LIQUID_SURFACE_SAMPLES := 64
 const LIQUID_SIDE_SAMPLES := 48
+const LIQUID_WALL_INSET := 1.8
 
-var _window_profile: Array[Vector3] = []
-var _window_top_ratio: float = 0.265
-var _window_bottom_ratio: float = 0.79
+# A shared tint tones down the very bright glass without dimming the liquid,
+# which is drawn underneath the PNG and remains visible through its alpha.
+const GLASS_MODULATE := Color(0.76, 0.81, 0.79, 1.0)
+
+static var _texture_analysis_cache: Dictionary = {}
+
+var vial_art: Texture2D = DEFAULT_VIAL_ART
+var _window_profile := PackedVector3Array()
+var _window_top_ratio: float = 0.28
+var _window_bottom_ratio: float = 0.76
+var _mouth_y_ratio: float = 0.065
+var _mouth_width_ratio: float = 0.15
 
 
 func _ready() -> void:
@@ -26,189 +36,219 @@ func _ready() -> void:
 	_build_inner_window_profile()
 
 
+func set_vial_art(texture: Texture2D) -> void:
+	if texture == null:
+		push_warning("Vial renderer: cannot assign a null illustration.")
+		return
+	vial_art = texture
+	if is_node_ready():
+		_build_inner_window_profile()
+	queue_redraw()
+
+
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
-	var source_image: Image = VIAL_ART.get_image()
+	if vial_art == null:
+		return
+
+	var cache_key: int = vial_art.get_instance_id()
+	if _texture_analysis_cache.has(cache_key):
+		_apply_cached_analysis(_texture_analysis_cache[cache_key])
+		return
+
+	var source_image: Image = vial_art.get_image()
 	if source_image == null or source_image.is_empty():
-		push_warning("Vial 2: unable to read source image alpha for the liquid window.")
+		push_warning("Vial renderer: illustration pixels are unavailable.")
 		return
 
 	var image_width: int = source_image.get_width()
 	var image_height: int = source_image.get_height()
-	var roi_left: int = int(float(image_width) * WINDOW_ROI_LEFT)
-	var roi_right: int = int(float(image_width) * WINDOW_ROI_RIGHT)
-	var roi_top: int = int(float(image_height) * WINDOW_ROI_TOP)
-	var roi_bottom: int = int(float(image_height) * WINDOW_ROI_BOTTOM)
+	if image_width < 16 or image_height < 16:
+		push_warning("Vial renderer: illustration is too small to analyse.")
+		return
 
-	# Vial 2's transparent centre is a distinct enclosed alpha component.
-	# Flood-fill from that component instead of stopping at the first bright
-	# reflection on every scan line. This prevents front highlights from being
-	# mistaken for the left/right liquid walls.
-	var seed := Vector2i(int(image_width / 2), int(image_height / 2))
-	if source_image.get_pixel(seed.x, seed.y).a > WINDOW_ALPHA_THRESHOLD:
-		var found_seed := false
-		for radius in range(2, 49, 2):
-			for offset_y in range(-radius, radius + 1, 2):
-				for offset_x in range(-radius, radius + 1, 2):
-					var candidate_x: int = seed.x + offset_x
-					var candidate_y: int = seed.y + offset_y
-					if candidate_x < roi_left or candidate_x > roi_right:
-						continue
-					if candidate_y < roi_top or candidate_y > roi_bottom:
-						continue
-					if source_image.get_pixel(candidate_x, candidate_y).a <= WINDOW_ALPHA_THRESHOLD:
-						seed = Vector2i(candidate_x, candidate_y)
-						found_seed = true
-						break
-				if found_seed:
-					break
-			if found_seed:
-				break
-		if not found_seed:
-			push_warning("Vial 2: no transparent seed pixel found inside the central glass window.")
-			return
+	var x_min: int = int(round(float(image_width) * SCAN_LEFT_RATIO))
+	var x_max: int = int(round(float(image_width) * SCAN_RIGHT_RATIO))
+	var centre_x: int = int(image_width / 2)
+	var top_scan: int = int(round(float(image_height) * SCAN_TOP_RATIO))
+	var bottom_scan: int = int(round(float(image_height) * SCAN_BOTTOM_RATIO))
+	var search_radius: int = maxi(2, int(round(float(image_width) * 0.025)))
 
-	var visited := PackedByteArray()
-	visited.resize(image_width * image_height)
 	var row_left := PackedInt32Array()
 	var row_right := PackedInt32Array()
+	var row_width := PackedInt32Array()
 	row_left.resize(image_height)
 	row_right.resize(image_height)
-	row_left.fill(image_width)
+	row_width.resize(image_height)
+	row_left.fill(-1)
 	row_right.fill(-1)
-
-	var queue := PackedInt32Array()
-	var seed_index: int = seed.y * image_width + seed.x
-	queue.append(seed_index)
-	visited[seed_index] = 1
-	var cursor: int = 0
-	var maximum_pixels: int = int(float(image_width * image_height) * WINDOW_MAX_COMPONENT_FRACTION)
-	var component_overflow := false
-
-	while cursor < queue.size():
-		var pixel_index: int = queue[cursor]
-		cursor += 1
-		var pixel_x: int = pixel_index % image_width
-		var pixel_y: int = int(pixel_index / image_width)
-
-		row_left[pixel_y] = mini(row_left[pixel_y], pixel_x)
-		row_right[pixel_y] = maxi(row_right[pixel_y], pixel_x)
-
-		# Four-connected flood fill preserves the narrow antialiased glass wall
-		# instead of leaking diagonally into the fully transparent background.
-		# Inline the four neighbours to avoid allocating a temporary array for
-		# every pixel visited in the flood fill.
-		if pixel_x > roi_left:
-			var left_index: int = pixel_index - 1
-			if visited[left_index] == 0:
-				if source_image.get_pixel(pixel_x - 1, pixel_y).a <= WINDOW_ALPHA_THRESHOLD:
-					visited[left_index] = 1
-					queue.append(left_index)
-				else:
-					visited[left_index] = 2
-		if pixel_x < roi_right:
-			var right_index: int = pixel_index + 1
-			if visited[right_index] == 0:
-				if source_image.get_pixel(pixel_x + 1, pixel_y).a <= WINDOW_ALPHA_THRESHOLD:
-					visited[right_index] = 1
-					queue.append(right_index)
-				else:
-					visited[right_index] = 2
-		if pixel_y > roi_top:
-			var up_index: int = pixel_index - image_width
-			if visited[up_index] == 0:
-				if source_image.get_pixel(pixel_x, pixel_y - 1).a <= WINDOW_ALPHA_THRESHOLD:
-					visited[up_index] = 1
-					queue.append(up_index)
-				else:
-					visited[up_index] = 2
-		if pixel_y < roi_bottom:
-			var down_index: int = pixel_index + image_width
-			if visited[down_index] == 0:
-				if source_image.get_pixel(pixel_x, pixel_y + 1).a <= WINDOW_ALPHA_THRESHOLD:
-					visited[down_index] = 1
-					queue.append(down_index)
-				else:
-					visited[down_index] = 2
-
-		if queue.size() > maximum_pixels:
-			component_overflow = true
-			break
-
-	if component_overflow:
-		push_warning("Vial 2: transparent component escaped the inner window ROI; alpha mask rejected.")
-		return
+	row_width.fill(0)
 
 	var peak_width: int = 0
 	var peak_row: int = -1
-	for row in range(roi_top, roi_bottom + 1):
-		var row_width: int = row_right[row] - row_left[row] + 1
-		if row_width > peak_width:
-			peak_width = row_width
+	for row in range(top_scan, bottom_scan + 1):
+		var run := _find_centre_transparent_run(
+			source_image,
+			row,
+			centre_x,
+			x_min,
+			x_max,
+			search_radius
+		)
+		if run.x < 0:
+			continue
+
+		var width: int = run.y - run.x + 1
+		row_left[row] = run.x
+		row_right[row] = run.y
+		row_width[row] = width
+		if width > peak_width:
+			peak_width = width
 			peak_row = row
 
 	if peak_row < 0 or peak_width < 12:
-		push_warning("Vial 2: alpha flood-fill did not find a usable central chamber.")
+		push_warning("Vial renderer: no transparent central chamber was found; liquid is disabled for this image.")
 		return
 
-	# Ignore the narrow connecting neck/foot tails. The main liquid chamber is
-	# the continuous broad region around the row with the largest transparent span.
-	var minimum_chamber_width: int = maxi(4, int(float(peak_width) * 0.10))
+	# The neck and foot are also transparent, but narrower than the main body.
+	# Keeping only the broad central region prevents liquid from climbing into
+	# the neck or appearing in the narrow decorative base.
+	var minimum_chamber_width: int = maxi(12, int(round(float(peak_width) * CHAMBER_WIDTH_RATIO)))
 	var chamber_top: int = peak_row
 	var chamber_bottom: int = peak_row
-	while chamber_top > roi_top and row_right[chamber_top - 1] - row_left[chamber_top - 1] + 1 >= minimum_chamber_width:
+	while chamber_top > top_scan and row_width[chamber_top - 1] >= minimum_chamber_width:
 		chamber_top -= 1
-	while chamber_bottom < roi_bottom and row_right[chamber_bottom + 1] - row_left[chamber_bottom + 1] + 1 >= minimum_chamber_width:
+	while chamber_bottom < bottom_scan and row_width[chamber_bottom + 1] >= minimum_chamber_width:
 		chamber_bottom += 1
 
-	if chamber_bottom - chamber_top < 32:
-		push_warning("Vial 2: detected transparent chamber is too short to use as a liquid mask.")
+	if float(chamber_bottom - chamber_top) < float(image_height) * 0.22:
+		push_warning("Vial renderer: detected transparent region is not a usable liquid chamber.")
 		return
 
-	# Smooth the pixel boundary lightly to remove one-pixel antialias noise while
-	# retaining the authored curvature. Bounds are sampled into a compact profile.
-	for sample_index in range(WINDOW_PROFILE_SAMPLES):
-		var weight: float = float(sample_index) / float(WINDOW_PROFILE_SAMPLES - 1)
-		var centre_row: int = roundi(lerpf(float(chamber_top), float(chamber_bottom), weight))
+	for sample_index in range(PROFILE_SAMPLES):
+		var t: float = float(sample_index) / float(PROFILE_SAMPLES - 1)
+		var sample_row: int = roundi(lerpf(float(chamber_top), float(chamber_bottom), t))
 		var sum_left: float = 0.0
 		var sum_right: float = 0.0
 		var sample_count: int = 0
 		for row in range(
-			maxi(chamber_top, centre_row - WINDOW_PROFILE_SMOOTH_RADIUS),
-			mini(chamber_bottom, centre_row + WINDOW_PROFILE_SMOOTH_RADIUS) + 1
+			maxi(chamber_top, sample_row - PROFILE_SMOOTH_RADIUS),
+			mini(chamber_bottom, sample_row + PROFILE_SMOOTH_RADIUS) + 1
 		):
-			if row_right[row] < row_left[row]:
+			if row_width[row] <= 0:
 				continue
 			sum_left += float(row_left[row])
 			sum_right += float(row_right[row] + 1)
 			sample_count += 1
+
 		if sample_count == 0:
 			continue
-
 		_window_profile.append(Vector3(
-			float(centre_row) / float(image_height),
+			float(sample_row) / float(image_height),
 			(sum_left / float(sample_count)) / float(image_width),
 			(sum_right / float(sample_count)) / float(image_width)
 		))
 
 	if _window_profile.size() < 8:
 		_window_profile.clear()
-		push_warning("Vial 2: smoothed alpha mask did not produce enough profile samples.")
+		push_warning("Vial renderer: chamber profile could not be sampled reliably.")
 		return
 
-	var edge_margin: float = 1.0 / float(image_height)
-	_window_top_ratio = _window_profile[0].x + edge_margin
-	_window_bottom_ratio = _window_profile[-1].x - edge_margin
-	print(
-		"Vial 2 alpha mask: %d profile samples, %d connected pixels, peak width %d px, vertical %.3f–%.3f"
-		% [_window_profile.size(), queue.size(), peak_width, _window_top_ratio, _window_bottom_ratio]
-	)
+	_window_top_ratio = _window_profile[0].x + 1.0 / float(image_height)
+	_window_bottom_ratio = _window_profile[-1].x - 1.0 / float(image_height)
+	_detect_mouth(source_image, x_min, x_max, centre_x, search_radius)
+
+	_texture_analysis_cache[cache_key] = {
+		"profile": _window_profile,
+		"top": _window_top_ratio,
+		"bottom": _window_bottom_ratio,
+		"mouth_y": _mouth_y_ratio,
+		"mouth_width": _mouth_width_ratio
+	}
+
+
+func _apply_cached_analysis(analysis: Dictionary) -> void:
+	_window_profile = analysis["profile"]
+	_window_top_ratio = float(analysis["top"])
+	_window_bottom_ratio = float(analysis["bottom"])
+	_mouth_y_ratio = float(analysis["mouth_y"])
+	_mouth_width_ratio = float(analysis["mouth_width"])
+
+
+func _find_centre_transparent_run(
+	source_image: Image,
+	row: int,
+	centre_x: int,
+	x_min: int,
+	x_max: int,
+	search_radius: int
+) -> Vector2i:
+	var seed_x: int = -1
+	for offset in range(search_radius + 1):
+		var left_candidate: int = centre_x - offset
+		if left_candidate >= x_min:
+			if source_image.get_pixel(left_candidate, row).a <= ALPHA_CUTOFF:
+				seed_x = left_candidate
+				break
+
+		if offset > 0:
+			var right_candidate: int = centre_x + offset
+			if right_candidate <= x_max:
+				if source_image.get_pixel(right_candidate, row).a <= ALPHA_CUTOFF:
+					seed_x = right_candidate
+					break
+
+	if seed_x < 0:
+		return Vector2i(-1, -1)
+
+	var left_x: int = seed_x
+	while left_x > x_min:
+		if source_image.get_pixel(left_x - 1, row).a > ALPHA_CUTOFF:
+			break
+		left_x -= 1
+
+	var right_x: int = seed_x
+	while right_x < x_max:
+		if source_image.get_pixel(right_x + 1, row).a > ALPHA_CUTOFF:
+			break
+		right_x += 1
+
+	return Vector2i(left_x, right_x)
+
+
+func _detect_mouth(
+	source_image: Image,
+	x_min: int,
+	x_max: int,
+	centre_x: int,
+	search_radius: int
+) -> void:
+	var image_height: int = source_image.get_height()
+	var image_width: int = source_image.get_width()
+	var search_end: int = int(round(float(image_height) * 0.18))
+
+	for row in range(maxi(1, int(round(float(image_height) * 0.01))), search_end):
+		var run := _find_centre_transparent_run(
+			source_image,
+			row,
+			centre_x,
+			x_min,
+			x_max,
+			search_radius
+		)
+		if run.x < 0:
+			continue
+		var width_ratio: float = float(run.y - run.x + 1) / float(image_width)
+		if width_ratio < 0.035 or width_ratio > 0.32:
+			continue
+		_mouth_y_ratio = float(row) / float(image_height)
+		_mouth_width_ratio = width_ratio
+		return
 
 
 func _window_bounds_at(y_ratio: float) -> Vector2:
 	if _window_profile.is_empty():
-		return Vector2(0.39, 0.61)
-
+		return Vector2.ZERO
 	if y_ratio <= _window_profile[0].x:
 		return Vector2(_window_profile[0].y, _window_profile[0].z)
 
@@ -223,16 +263,11 @@ func _window_bounds_at(y_ratio: float) -> Vector2:
 				lerpf(first.z, second.z, weight)
 			)
 
-	var last: Vector3 = _window_profile.back()
+	var last: Vector3 = _window_profile[-1]
 	return Vector2(last.y, last.z)
 
 
 func _profile_points() -> Array[Vector2]:
-	# Preserve the base liquid/bubble helpers' profile API, but derive it from
-	# the measured transparent window rather than a hand-authored silhouette.
-	if _window_profile.is_empty():
-		return super._profile_points()
-
 	var points: Array[Vector2] = []
 	for bounds in _window_profile:
 		points.append(Vector2(bounds.x, (bounds.z - bounds.y) * 0.5))
@@ -240,30 +275,31 @@ func _profile_points() -> Array[Vector2]:
 
 
 func _get_vessel_rect() -> Rect2:
-	# Use the exact same image-to-control mapping as the glass sprite. Liquid
-	# coordinates and sampled alpha boundaries therefore share one pixel space.
-	var source_size: Vector2 = Vector2(VIAL_ART.get_size())
+	if vial_art == null:
+		return super._get_vessel_rect()
+	var source_size: Vector2 = Vector2(vial_art.get_size())
 	var draw_scale: float = size.y / source_size.y
 	var draw_size: Vector2 = source_size * draw_scale
-	var draw_position := (size - draw_size) * 0.5
-	return Rect2(draw_position, draw_size)
+	return Rect2((size - draw_size) * 0.5, draw_size)
 
 
 func get_mouth_local() -> Vector2:
 	var rect := _get_vessel_rect()
-	return Vector2(rect.get_center().x, rect.position.y + rect.size.y * 0.065)
+	return Vector2(rect.get_center().x, rect.position.y + rect.size.y * _mouth_y_ratio)
 
 
 func get_mouth_hit_radius() -> Vector2:
-	return Vector2(size.y * 0.105, size.y * 0.04)
+	var rect := _get_vessel_rect()
+	return Vector2(
+		maxf(14.0, rect.size.x * _mouth_width_ratio * 0.65),
+		rect.size.y * 0.035
+	)
 
 
 func get_liquid_surface_position_in_parent() -> Vector2:
 	var rect := _get_vessel_rect()
-	var window_top: float = _window_top_ratio
-	var window_bottom: float = _window_bottom_ratio
-	var layer_height: float = (window_bottom - window_top) / float(CAPACITY)
-	var surface_ratio: float = window_bottom - layer_height * clampf(
+	var layer_height: float = (_window_bottom_ratio - _window_top_ratio) / float(CAPACITY)
+	var surface_ratio: float = _window_bottom_ratio - layer_height * clampf(
 		_liquid_level,
 		0.0,
 		float(CAPACITY)
@@ -278,17 +314,17 @@ func get_liquid_surface_position_in_parent() -> Vector2:
 	)
 
 
-func _draw_liquid(rect: Rect2) -> void:
-	if _visual_contents.is_empty() or _liquid_level <= 0.001:
+func _draw_liquid(_rect: Rect2) -> void:
+	if _window_profile.size() < 8 or _visual_contents.is_empty() or _liquid_level <= 0.001:
 		return
 
-	var window_span: float = _window_bottom_ratio - _window_top_ratio
-	if window_span <= 0.01:
+	var rect := _get_vessel_rect()
+	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
+	if chamber_span <= 0.01:
 		return
 
-	var layer_height: float = window_span / float(CAPACITY)
+	var layer_height: float = chamber_span / float(CAPACITY)
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
-
 	for layer_index in range(visible_layers):
 		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
 		if amount <= 0.001:
@@ -324,24 +360,21 @@ func _draw_liquid_band(
 	var top_y: float = rect.position.y + rect.size.y * top_ratio
 	if bottom_y - top_y <= 1.2:
 		return
-	var surface_min_y: float = rect.position.y + rect.size.y * _window_top_ratio + 0.4
 
-	# Build every point of the liquid surface from the boundary at its current
-	# animated y-coordinate. This keeps the wave inside the real alpha window
-	# instead of leaving triangular gaps at either side as the surface moves.
 	var top_edge := PackedVector2Array()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
 		var normalized_x: float = t * 2.0 - 1.0
 		var wave: float = _get_surface_wave_offset(normalized_x) * 0.36 if is_surface else 0.0
-		var wave_y: float = clampf(top_y + wave, surface_min_y, bottom_y - 0.8)
-		var bounds := _window_bounds_at(
-			clampf((wave_y - rect.position.y) / rect.size.y, _window_top_ratio, _window_bottom_ratio)
-		)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + WINDOW_WALL_INSET
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - WINDOW_WALL_INSET
-		var x: float = lerpf(left_x, right_x, t)
-		top_edge.append(Vector2(x, wave_y))
+		var wave_y: float = clampf(top_y + wave, top_y - 2.0, bottom_y - 0.8)
+		var bounds := _window_bounds_at(clampf(
+			(wave_y - rect.position.y) / rect.size.y,
+			_window_top_ratio,
+			_window_bottom_ratio
+		))
+		var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
+		var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
+		top_edge.append(Vector2(lerpf(left_x, right_x, t), wave_y))
 
 	if top_edge.size() < 2:
 		return
@@ -349,43 +382,36 @@ func _draw_liquid_band(
 	var polygon := top_edge.duplicate()
 	var right_top_y: float = top_edge[-1].y
 	var left_top_y: float = top_edge[0].y
-	var bottom_ratio_clamped: float = clampf(
-		(bottom_y - rect.position.y) / rect.size.y,
-		_window_top_ratio,
-		_window_bottom_ratio
-	)
-	var bottom_bounds := _window_bounds_at(bottom_ratio_clamped)
-	var bottom_left_x: float = rect.position.x + rect.size.x * bottom_bounds.x + WINDOW_WALL_INSET
-	var bottom_right_x: float = rect.position.x + rect.size.x * bottom_bounds.y - WINDOW_WALL_INSET
+	var bottom_bounds := _window_bounds_at(bottom_ratio)
+	var bottom_left_x: float = rect.position.x + rect.size.x * bottom_bounds.x + LIQUID_WALL_INSET
+	var bottom_right_x: float = rect.position.x + rect.size.x * bottom_bounds.y - LIQUID_WALL_INSET
 
-	# Right wall: begin at the exact end of the animated surface and trace the
-	# smoothed alpha boundary all the way to the bottom of this layer.
 	for side_index in range(1, LIQUID_SIDE_SAMPLES + 1):
-		var side_t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var right_y: float = lerpf(right_top_y, bottom_y, side_t)
-		var right_ratio: float = clampf(
-			(right_y - rect.position.y) / rect.size.y,
+		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
+		var y: float = lerpf(right_top_y, bottom_y, t)
+		var bounds := _window_bounds_at(clampf(
+			(y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
 			_window_bottom_ratio
-		)
-		var right_bounds := _window_bounds_at(right_ratio)
-		var right_x: float = rect.position.x + rect.size.x * right_bounds.y - WINDOW_WALL_INSET
-		polygon.append(Vector2(right_x, right_y))
+		))
+		polygon.append(Vector2(
+			rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET,
+			y
+		))
 
-	# Close the bottom edge, then trace the left wall back to the first surface
-	# point. No independent left/right arrays can drift out of sync.
 	polygon.append(Vector2(bottom_left_x, bottom_y))
 	for side_index in range(1, LIQUID_SIDE_SAMPLES):
-		var side_t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var left_y: float = lerpf(bottom_y, left_top_y, side_t)
-		var left_ratio: float = clampf(
-			(left_y - rect.position.y) / rect.size.y,
+		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
+		var y: float = lerpf(bottom_y, left_top_y, t)
+		var bounds := _window_bounds_at(clampf(
+			(y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
 			_window_bottom_ratio
-		)
-		var left_bounds := _window_bounds_at(left_ratio)
-		var left_x: float = rect.position.x + rect.size.x * left_bounds.x + WINDOW_WALL_INSET
-		polygon.append(Vector2(left_x, left_y))
+		))
+		polygon.append(Vector2(
+			rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET,
+			y
+		))
 
 	var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.14), 0.08)
 	draw_colored_polygon(polygon, fill_color)
@@ -407,10 +433,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	)
 	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
-	var layer_span: float = (_window_bottom_ratio - _window_top_ratio) / float(CAPACITY)
 
-	# Keep the bubbles deliberately sparse and low contrast so they read as
-	# gentle internal movement rather than a flickering overlay.
 	for bubble_index in range(4):
 		var phase: float = fposmod(
 			_wave_time * (0.085 + float(bubble_index) * 0.009)
@@ -459,10 +482,11 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 
 
 func _draw_glass_back(_rect: Rect2) -> void:
-	# The Qwen asset supplies its rear glass and painted reflections.
+	# The complete PNG is drawn once, above the live liquid.
 	pass
 
 
 func _draw_glass_overlay() -> void:
-	# Draw the exact same source rectangle used by the alpha-derived liquid mask.
-	draw_texture_rect(VIAL_ART, _get_vessel_rect(), false, Color.WHITE)
+	if vial_art == null:
+		return
+	draw_texture_rect(vial_art, _get_vessel_rect(), false, GLASS_MODULATE)
