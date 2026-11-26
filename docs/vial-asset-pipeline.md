@@ -1,68 +1,45 @@
-# Vial asset pipeline
+# Single-image vial pipeline
 
 ## Decision
 
-Vials use a data-driven, layered asset contract. The liquid renderer must never infer the chamber from the transparency or reflections of the finished glass illustration.
+Each vial is one complete PNG illustration. The PNG contains the full glass artwork, a genuinely transparent outer background, and a genuinely transparent central chamber. Godot draws the live liquid first and the same PNG over it.
 
-Each vial is one `VialAssetDefinition` resource with:
+There are no separate rear-glass, front-glass, or mask images. Qwen only has to produce one finished vial.
 
-- **Glass back** — rear wall, silhouette shading and rear reflections, drawn behind liquid.
-- **Liquid mask** — a separate, clean chamber mask. Opaque white marks the area liquid may occupy; transparent/black marks everything else.
-- **Glass front** — front rim, restrained highlights and any front-facing glass details, drawn above liquid.
-- **Anchors** — normalized mouth position and hit radius.
-- **Fill limits** — normalized top and bottom of the playable chamber.
+## Shared rendering
 
-The same generic renderer handles every vial. A new silhouette requires a new asset definition and its own mask, not a new liquid algorithm or code subclass.
+The shared renderer in scripts/asset_fantasy_alchemy_bottle.gd handles every illustrated vial. It:
 
-## Why the previous approach is retired
+- analyses the texture's transparent centre once and caches the result for all vial instances using that texture;
+- finds the broad body region from its scanline widths, excluding the narrower neck and foot;
+- builds a smoothed chamber profile from those rows;
+- derives a mouth anchor from the transparent opening near the top;
+- draws all liquid layers, surface motion and bubbles inside that profile;
+- draws the complete source PNG over the liquid with one shared, subdued glass tint.
 
-The Vial 2 renderer attempted to recover the chamber by flood-filling transparent pixels in the final PNG. That couples gameplay geometry to incidental art details: reflections, antialiasing, transparency, and any future art edits can change the inferred bounds. It is not a reliable production interface and must not be extended.
+A new design uses the same script and liquid renderer. It does not require a new subclass, Qwen-generated layers, a hand-aligned mask, or manually tuned liquid coordinates.
 
-The old alpha-derived renderer is therefore a disposable experiment, not the template for future vessels.
+## Artwork requirements
 
-## Mask authoring rules
+- One centered vessel on a fully transparent canvas.
+- The inside of the main chamber must be genuinely transparent, not painted pale blue or white.
+- The neck should be open and transparent; no cork, stopper or sealed cap.
+- The main body should be wider than the neck and decorative foot so the shared profile detector can identify the fillable chamber.
+- Keep the style broad, soft and painterly, with muted glass reflections. The shared renderer applies a restrained cool-sage tint to reduce the bright white glass against the dark workshop.
+- Keep highlights away from the centre of the chamber so the transparent scanline remains continuous.
 
-- The mask uses the same canvas dimensions and alignment as the glass layers.
-- White/opaque means liquid is allowed; black/transparent means it is forbidden.
-- The mask describes the complete internal cavity, including a narrow neck only if the neck is intended to hold liquid.
-- The playable fill range is separately defined so the mouth and decorative foot do not become fill space.
-- The mask is authored once per vial and remains independent of essence colours, layer count, capacity and animation.
+## Current proof of concept
 
-A mask must be checked over the glass artwork before a vial is approved. Do not derive it at runtime from the finished glass PNG.
+The active prototype uses assets/bottles/SpellSort_Vial_2.png as its single-image test asset. The old per-pixel connected-component flood fill has been replaced by a simpler centre-scanline detector with a relative body-width cutoff. A narrow neck therefore does not become part of the liquid fill range.
 
-## Rendering order
+SpellSort_Vial_1.png is not used as the second test shape: it has a stopper and a much more opaque-looking centre, so it is not a valid open, transparent vessel for this rendering test. A second suitable one-piece illustration is still needed before shape-independence can be confirmed visually.
 
-1. Rear glass.
-2. Liquid layers, all clipped to the dedicated chamber mask.
-3. Front glass and rim.
-4. External pour stream.
+## Acceptance checks in Godot
 
-The pour stream begins at the authored mouth anchor. Its start is not drawn across an opaque front neck/rim. The mouth aperture remains visually open.
+1. Full, partial and nearly empty fills remain inside the body and do not climb into the neck or foot.
+2. The PNG's front reflections remain visible over the liquid, while the liquid remains clearly readable.
+3. The glass sits more comfortably against the dark workshop because of the shared tint.
+4. Pouring begins at the automatically detected mouth opening.
+5. A second open, transparent vial with a different silhouette works by assigning its PNG to the same renderer, without changing the liquid code.
 
-## Art direction constraints
-
-- Stylized hand-painted 2.5D casual-fantasy shapes; broad, soft colour transitions.
-- Muted smoky glass tints that sit comfortably in the dark workshop.
-- No broad solid-white reflections, razor-sharp outlines, etched micro-detail or photoreal glass.
-- Highlights should be sparse and low contrast so the essence remains the strongest colour inside the vessel.
-- The outside canvas is transparent. The central chamber is genuinely transparent in the glass layers; the separate mask is not visible in-game.
-
-## Current migration status
-
-The resource contract and generic masked renderer are now in the project:
-
-- `scripts/vial_asset_definition.gd` stores the layer textures, mask, normalized anchors and fill range.
-- `scripts/masked_asset_fantasy_alchemy_bottle.gd` samples the dedicated mask row-by-row once and uses that profile for every liquid layer. It does not flood-fill or inspect the glass artwork.
-- Artwork can use contain or cover fitting, so a square source illustration can retain the intended tall crop inside the vial control.
-
-The new renderer is not yet wired into the active prototype because the existing Vial 2 PNG is a provisional single-layer illustration and does not satisfy the layered contract. It must not be treated as a production-ready vial or used to validate the final glass treatment. The current prototype remains an isolated visual experiment until replacement back/front artwork and a matching mask are authored and inspected together.
-
-## Acceptance checks
-
-- A full vial fills to the authored chamber walls without gaps.
-- Partial fills remain clipped to the same mask.
-- Changing essence colours or layer count requires no mask changes.
-- A second vial with a different silhouette works by swapping only its asset definition.
-- No liquid appears outside the glass or across an opaque neck.
-- The glass remains subdued against the dark workshop and does not wash out the liquid.
-- Pickup, tilt, pour, undo and restart retain the existing sorting rules.
+The renderer is implemented, but the visual checks still need to be run in the Godot project.
