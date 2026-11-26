@@ -33,7 +33,6 @@ var _mouth_y_ratio: float = 0.065
 var _mouth_width_ratio: float = 0.15
 # Static chamber highlight paths are built once per vial instance, not every draw.
 var _glass_layer_reflections: Array[Dictionary] = []
-var _glass_top_cap := PackedVector2Array()
 var _window_top_contour := PackedVector2Array()
 
 
@@ -660,7 +659,6 @@ func _draw_glass_overlay() -> void:
 
 func _build_static_reflection_geometry() -> void:
 	_glass_layer_reflections.clear()
-	_glass_top_cap.clear()
 	if _window_profile.size() < 8 or vial_art == null:
 		return
 
@@ -701,37 +699,96 @@ func _build_static_reflection_geometry() -> void:
 			"glint": glint
 		})
 
-	# Trace the chamber's actual upper alpha boundary, just as the side
-	# reflections trace the left/right wall profile. This keeps the highlight
-	# on the generated arch instead of approximating it with a Bezier connector.
+	# Extend the existing side reflections up the actual inner arch. Keep the
+	# two strokes separate: no line is drawn across or over the top of the vial.
 	if _window_top_contour.size() >= 8 and not _glass_layer_reflections.is_empty():
 		var top_geometry: Dictionary = _glass_layer_reflections[CAPACITY - 1]
-		var left_anchor: PackedVector2Array = top_geometry["main"]
-		var right_anchor: PackedVector2Array = top_geometry["bounce"]
-		for index in range(_window_top_contour.size()):
-			var normalized_point: Vector2 = _window_top_contour[index]
-			var point := Vector2(
-				rect.position.x + rect.size.x * normalized_point.x,
-				rect.position.y + rect.size.y * normalized_point.y
-			)
-			var previous_point: Vector2 = _window_top_contour[maxi(0, index - 1)]
-			var next_point: Vector2 = _window_top_contour[mini(_window_top_contour.size() - 1, index + 1)]
-			var tangent := Vector2(
-				(next_point.x - previous_point.x) * rect.size.x,
-				(next_point.y - previous_point.y) * rect.size.y
-			)
-			# The inward normal points down into the transparent chamber on both
-			# sides of the arch, matching the side-stroke inset.
-			var inward_normal := Vector2(-tangent.y, tangent.x).normalized()
-			point += inward_normal * rect.size.x * 0.016
-			_glass_top_cap.append(point)
+		top_geometry["main"] = _extend_side_reflection_to_arch(
+			top_geometry["main"],
+			rect,
+			true,
+			rect.size.x * 0.016
+		)
+		top_geometry["bounce"] = _extend_side_reflection_to_arch(
+			top_geometry["bounce"],
+			rect,
+			false,
+			rect.size.x * 0.020
+		)
+		_glass_layer_reflections[CAPACITY - 1] = top_geometry
 
-		# Pin both ends to the existing side strokes so the highlight reads as
-		# one continuous path around the chamber's inner edge.
-		if not _glass_top_cap.is_empty() and not left_anchor.is_empty() and not right_anchor.is_empty():
-			_glass_top_cap[0] = left_anchor[0]
-			_glass_top_cap[_glass_top_cap.size() - 1] = right_anchor[0]
 
+func _extend_side_reflection_to_arch(
+	side_path: PackedVector2Array,
+	rect: Rect2,
+	left_side: bool,
+	inset: float
+) -> PackedVector2Array:
+	if side_path.size() < 2 or _window_top_contour.size() < 8:
+		return side_path
+
+	# Locate the existing stroke endpoint on the measured arch contour.
+	var anchor: Vector2 = side_path[0]
+	var anchor_index: int = 0
+	var nearest_distance: float = 1.0e20
+	var apex_index: int = 0
+	var highest_y: float = 1.0
+	for index in range(_window_top_contour.size()):
+		var contour_point: Vector2 = _window_top_contour[index]
+		var screen_point := Vector2(
+			rect.position.x + rect.size.x * contour_point.x,
+			rect.position.y + rect.size.y * contour_point.y
+		)
+		var distance: float = screen_point.distance_squared_to(anchor)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			anchor_index = index
+		if contour_point.y < highest_y:
+			highest_y = contour_point.y
+			apex_index = index
+
+	# Leave a small gap at the crown so the left and right reflections never
+	# become a new top-cap line.
+	var crown_gap: int = maxi(2, roundi(float(_window_top_contour.size()) * 0.08))
+	var stop_index: int = (
+		maxi(anchor_index + 1, apex_index - crown_gap)
+		if left_side
+		else mini(anchor_index - 1, apex_index + crown_gap)
+	)
+	if left_side and stop_index <= anchor_index:
+		return side_path
+	if not left_side and stop_index >= anchor_index:
+		return side_path
+
+	var extended := PackedVector2Array()
+	var contour_step: int = -1 if left_side else 1
+	var contour_index: int = stop_index
+	while (contour_index >= anchor_index if left_side else contour_index <= anchor_index):
+		var current_point: Vector2 = _window_top_contour[contour_index]
+		var previous_point: Vector2 = _window_top_contour[maxi(0, contour_index - 1)]
+		var next_point: Vector2 = _window_top_contour[mini(
+			_window_top_contour.size() - 1,
+			contour_index + 1
+		)]
+		var tangent := Vector2(
+			(next_point.x - previous_point.x) * rect.size.x,
+			(next_point.y - previous_point.y) * rect.size.y
+		)
+		# The inward normal points down into the chamber on both sides.
+		var inward_normal := Vector2(-tangent.y, tangent.x).normalized()
+		var point := Vector2(
+			rect.position.x + rect.size.x * current_point.x,
+			rect.position.y + rect.size.y * current_point.y
+		)
+		extended.append(point + inward_normal * inset)
+		contour_index += contour_step
+
+	if extended.size() < 2:
+		return side_path
+	extended[extended.size() - 1] = anchor
+	for index in range(1, side_path.size()):
+		extended.append(side_path[index])
+	return extended
 
 
 func _draw_chamber_reflections(rect: Rect2) -> void:
@@ -757,14 +814,6 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 		draw_polyline(geometry["core"], Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
 		draw_polyline(geometry["bounce"], right_color, maxf(1.4, rect.size.x * 0.014), true)
 		draw_polyline(geometry["glint"], Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
-
-	# A fine curved cap joins the fixed side reflections at the chamber top,
-	# including on completely empty vessels.
-	var top_reflection_color := Color(0.66, 0.82, 0.86, 1.0)
-	if _liquid_level > 0.001 and not _visual_contents.is_empty():
-		top_reflection_color = _glass_reflection_color(_get_top_liquid_color())
-	var cap_color := Color(top_reflection_color.r, top_reflection_color.g, top_reflection_color.b, 0.34)
-	draw_polyline(_glass_top_cap, cap_color, maxf(1.0, rect.size.x * 0.010), true)
 
 	# Only the meniscus follows the fill level; the glass strokes above never move.
 	_draw_liquid_surface_reflection(rect)
