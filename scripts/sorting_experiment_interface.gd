@@ -328,7 +328,7 @@ func _build_vial_layout() -> void:
 				gap + float(index) * (size_value.x + gap),
 				base_y + centre_offset * 5.0
 			)
-			_add_experiment_vial(index, position_value, size_value, false)
+			_add_experiment_vial(index, position_value, size_value)
 			anchors.append({"position": position_value, "size": size_value, "rear": false})
 	else:
 		rear_count = 4
@@ -340,7 +340,7 @@ func _build_vial_layout() -> void:
 				rear_gap + float(index) * (rear_size.x + rear_gap),
 				330.0 + centre_offset * 3.0
 			)
-			_add_experiment_vial(index, position_value, rear_size, true)
+			_add_experiment_vial(index, position_value, rear_size)
 			anchors.append({"position": position_value, "size": rear_size, "rear": true})
 
 		var front_count: int = count - rear_count
@@ -356,13 +356,13 @@ func _build_vial_layout() -> void:
 				front_base_y + centre_offset * 5.0
 			)
 			var vial_index: int = rear_count + column
-			_add_experiment_vial(vial_index, position_value, front_size, false)
+			_add_experiment_vial(vial_index, position_value, front_size)
 			anchors.append({"position": position_value, "size": front_size, "rear": false})
 
 	_apparatus_surface.configure(anchors, rear_count)
 
 
-func _add_experiment_vial(index: int, position_value: Vector2, size_value: Vector2, rear: bool) -> void:
+func _add_experiment_vial(index: int, position_value: Vector2, size_value: Vector2) -> void:
 	var vial: Control = BottleScript.new()
 	vial.name = "ExperimentVial%02d" % (index + 1)
 	vial.position = position_value
