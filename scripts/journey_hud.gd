@@ -135,7 +135,7 @@ func _build_experiments_page(parent: VBoxContainer) -> void:
 	_add_info_card(parent, "Experiment 02 — The Three Essences", "Identify Tide, Moon and Ember, then separate their mixed layers.", "COMPLETED", 112)
 	var current := _make_action_card(
 		"Experiment 03 — A Pure Formula",
-		"Work with limited vial capacity. Use the experiment apparatus to separate three essences with only one empty receiver.",
+		"Separate four essences across five vessels. The wider workspace creates more possible transfers, so plan each temporary grouping carefully.",
 		"AVAILABLE  ·  CONTINUE",
 		"BEGIN EXPERIMENT"
 	)
