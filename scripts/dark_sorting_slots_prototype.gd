@@ -340,8 +340,8 @@ func _build_vial_layout() -> void:
 				var scale_value: float = 1.0 if count == 4 else 0.84
 				_place_vial_row(0, count, scale_value, 856.0, markers, 0.0, 48.0)
 			else:
-				_place_vial_row(0, 4, 0.80, 610.0, markers, 0.0, 22.0)
-				_place_vial_row(4, 4, 0.80, 900.0, markers, 0.0, 22.0)
+				_place_vial_row(0, 4, 0.80, 600.0, markers, 0.0, 22.0)
+				_place_vial_row(4, 4, 0.80, 910.0, markers, 0.0, 22.0)
 		"rows":
 			_place_two_rows(count, markers, false)
 		_:
@@ -349,8 +349,8 @@ func _build_vial_layout() -> void:
 				var scale_value: float = 1.0 if count == 4 else 0.84
 				_place_vial_row(0, count, scale_value, 856.0, markers)
 			else:
-				_place_vial_row(0, 4, 0.80, 610.0, markers)
-				_place_vial_row(4, 4, 0.80, 900.0, markers)
+				_place_vial_row(0, 4, 0.80, 600.0, markers)
+				_place_vial_row(4, 4, 0.80, 910.0, markers)
 
 	_slot_surface.configure(markers)
 
@@ -362,15 +362,15 @@ func _place_two_rows(count: int, markers: Array, staggered: bool) -> void:
 	var scale_value: float
 	match count:
 		4:
-			scale_value = 0.96
-		6:
-			scale_value = 0.88
-		_:
 			scale_value = 0.80
+		6:
+			scale_value = 0.78
+		_:
+			scale_value = 0.72
 
 	_place_vial_row(0, upper_count, scale_value, 610.0, markers, 20.0 if staggered else 0.0)
 	if lower_count > 0:
-		_place_vial_row(upper_count, lower_count, scale_value, 900.0, markers, -20.0 if staggered else 0.0)
+		_place_vial_row(upper_count, lower_count, scale_value, 910.0, markers, -20.0 if staggered else 0.0)
 
 
 func _place_vial_row(
