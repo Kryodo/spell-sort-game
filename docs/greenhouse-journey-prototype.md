@@ -19,7 +19,7 @@ The project startup scene remains unchanged.
 - Interactive Botanical Garden and Research Archive hotspots.
 - Persistent HUD navigation for Experiments, Codex, Discoveries and Laboratory.
 - Experiment chapter list with the first two experiments marked complete, Experiment 03 available and later entries locked.
-- A separate sorting interface that reuses the greenhouse environment as its backdrop.
+- A separate sorting interface that reuses the greenhouse environment as its backdrop, with an experiment-only clear tabletop variant so decorative props do not sit underneath the glass vessels.
 - Adaptive vial placement: four to six vessels share one shallow tabletop arc; seven or eight expand onto a raised rear tier and the front of the table.
 - Individual engraved resting points rather than permanent bottle slots or a fixed rack.
 - The existing procedural glass/liquid renderer, drag interaction, pour animation, undo, restart and optional experiment tools remain in use.
