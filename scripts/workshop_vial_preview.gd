@@ -2,9 +2,7 @@ extends Control
 
 const BottleScript = preload("res://scripts/alchemy_bottle.gd")
 
-# The bottle script uses a 116 x 365 internal drawing coordinate system.
-# Scale the whole control to the approved guide footprint instead of resizing
-# its internal drawing area, which would offset the liquid geometry.
+# Keep the bottle script at its native 116 x 365 drawing dimensions.
 const VIAL_SOURCE_SIZE := Vector2(116.0, 365.0)
 const VIAL_GAP := 18.0
 const VIAL_TOP_Y := 520.0
