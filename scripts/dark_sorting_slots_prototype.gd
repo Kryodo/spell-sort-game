@@ -632,7 +632,7 @@ func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2,
 
 
 func _vial_base_offset(size_value: Vector2) -> float:
-	return 72.0 + size_value.y * 0.735 * 0.975
+	return size_value.y * 0.953
 
 
 func _refresh_hud() -> void:
