@@ -36,15 +36,15 @@ func _process(delta: float) -> void:
     var previous_tilt: float = _tilt
 
     # Critically damped pose response gives the vessel a little mass.
-    const LIFT_OMEGA := 25.0
-    const TILT_OMEGA := 19.0
+    var lift_omega: float = 25.0
+    var tilt_omega: float = 19.0
     _pose_velocity.x += (
-        (_pose_target.x - _lift) * LIFT_OMEGA * LIFT_OMEGA
-        - 2.0 * LIFT_OMEGA * _pose_velocity.x
+        (_pose_target.x - _lift) * lift_omega * lift_omega
+        - 2.0 * lift_omega * _pose_velocity.x
     ) * delta
     _pose_velocity.y += (
-        (_pose_target.y - _tilt) * TILT_OMEGA * TILT_OMEGA
-        - 2.0 * TILT_OMEGA * _pose_velocity.y
+        (_pose_target.y - _tilt) * tilt_omega * tilt_omega
+        - 2.0 * tilt_omega * _pose_velocity.y
     ) * delta
 
     _lift += _pose_velocity.x * delta
@@ -105,7 +105,8 @@ func _draw_liquid(rect: Rect2) -> void:
     var surface_ratio: float = LIQUID_BOTTOM_RATIO - layer_height * fill_amount
     var surface_y: float = rect.position.y + rect.size.y * surface_ratio
     var bottom_y: float = rect.position.y + rect.size.y * LIQUID_BOTTOM_RATIO
-    var top_essence: String = String(_visual_contents.back())
+    var top_layer_index: int = clampi(int(floor(fill_amount - 0.0001)), 0, _visual_contents.size() - 1)
+    var top_essence: String = String(_visual_contents[top_layer_index])
     var liquid_color: Color = _palette.get(top_essence, Color(0.45, 0.78, 0.75, 1.0))
 
     # A restrained inner radiance keeps each essence luminous without turning
@@ -140,11 +141,18 @@ func _draw_liquid(rect: Rect2) -> void:
         var bubble_position := Vector2(x_position, bubble_y)
         var bubble_size: float = 1.35 + fposmod(float(bubble_index) * 0.73, 2.4)
         var bubble_alpha: float = 0.15 + 0.10 * (0.5 + 0.5 * sin(_wave_time * 1.6 + float(bubble_index)))
+        var bubble_layer_index: int = clampi(
+            int(floor((LIQUID_BOTTOM_RATIO - normalized_y) / layer_height)),
+            0,
+            _visual_contents.size() - 1
+        )
+        var bubble_essence: String = String(_visual_contents[bubble_layer_index])
+        var bubble_color: Color = _palette.get(bubble_essence, liquid_color)
 
         draw_circle(
             bubble_position,
             bubble_size * 2.25,
-            Color(liquid_color.r, liquid_color.g, liquid_color.b, bubble_alpha * 0.18)
+            Color(bubble_color.r, bubble_color.g, bubble_color.b, bubble_alpha * 0.18)
         )
         draw_circle(
             bubble_position,

@@ -314,6 +314,7 @@ var _drag_pointer_velocity := Vector2.ZERO
 var _drag_follow_velocity := Vector2.ZERO
 var _drag_target_position := Vector2.ZERO
 var _drag_hover_index: int = -1
+var _drag_swing_time: float = 0.0
 
 var _pour_source: int = -1
 var _pour_target: int = -1
@@ -834,6 +835,7 @@ func _begin_drag(pointer: Vector2) -> void:
         _drag_follow_velocity = Vector2.ZERO
         _drag_target_position = vial.position
         _drag_hover_index = -1
+        _drag_swing_time = 0.0
 
         vial.z_index = 50
         vial.call("set_feedback", true, false, true)
@@ -874,6 +876,13 @@ func _update_drag(pointer: Vector2) -> void:
 func _process(delta: float) -> void:
     if selected_vial >= 0 and is_dragging and not is_animating:
         var source: Control = bottle_nodes[selected_vial]
+        _drag_swing_time += delta
+        var inertial_tilt: float = clampf(_drag_pointer_velocity.x / 1500.0, -0.24, 0.24)
+        inertial_tilt += sin(_drag_swing_time * 3.6) * 0.012
+        var gentle_bob: float = sin(_drag_swing_time * 2.1) * 0.8
+        source.call("set_pose", Vector2(25.0 + gentle_bob, inertial_tilt))
+        source.call("set_drag_motion", _drag_pointer_velocity.length() > 20.0)
+
         var pose: Vector2 = source.call("get_pose")
         _drag_target_position = _drag_pointer - source.call("get_drag_anchor_local", grab_offset, pose)
 
@@ -1004,6 +1013,7 @@ func _return_dragged_vial(source_index: int, message: String, keep_tool_selectio
     source.z_index = 2
     source.call("reset_motion")
     source.call("set_feedback", keep_tool_selection, false, false)
+    _drag_swing_time = 0.0
     is_animating = false
     _refresh_hud()
     _set_status(message)
