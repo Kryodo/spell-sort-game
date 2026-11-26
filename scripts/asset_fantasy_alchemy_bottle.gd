@@ -34,6 +34,7 @@ var _mouth_width_ratio: float = 0.15
 # Static chamber highlight paths are built once per vial instance, not every draw.
 var _glass_layer_reflections: Array[Dictionary] = []
 var _glass_top_cap := PackedVector2Array()
+var _window_top_contour := PackedVector2Array()
 
 
 func _ready() -> void:
@@ -53,6 +54,7 @@ func set_vial_art(texture: Texture2D) -> void:
 
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
+	_window_top_contour.clear()
 	if vial_art == null:
 		return
 
@@ -165,11 +167,13 @@ func _build_inner_window_profile() -> void:
 	# underneath the anti-aliased chamber rim instead of leaving a hairline gap.
 	_window_top_ratio = maxf(0.0, _window_profile[0].x - 1.25 / float(image_height))
 	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 1.25 / float(image_height))
+	_window_top_contour = _detect_top_chamber_contour(source_image)
 	_detect_mouth(source_image, x_min, x_max, centre_x, search_radius)
 	_build_static_reflection_geometry()
 
 	_texture_analysis_cache[cache_key] = {
 		"profile": _window_profile,
+		"top_contour": _window_top_contour,
 		"top": _window_top_ratio,
 		"bottom": _window_bottom_ratio,
 		"mouth_y": _mouth_y_ratio,
@@ -179,6 +183,7 @@ func _build_inner_window_profile() -> void:
 
 func _apply_cached_analysis(analysis: Dictionary) -> void:
 	_window_profile = analysis["profile"]
+	_window_top_contour = analysis.get("top_contour", PackedVector2Array())
 	_window_top_ratio = float(analysis["top"])
 	_window_bottom_ratio = float(analysis["bottom"])
 	_mouth_y_ratio = float(analysis["mouth_y"])
@@ -298,6 +303,68 @@ func _find_centre_transparent_span(
 	if right_x - left_x < 8:
 		return Vector2i(-1, -1)
 	return Vector2i(left_x, right_x)
+
+
+func _detect_top_chamber_contour(source_image: Image) -> PackedVector2Array:
+	var contour := PackedVector2Array()
+	if _window_profile.size() < 8:
+		return contour
+
+	var image_width: int = source_image.get_width()
+	var image_height: int = source_image.get_height()
+	var first_profile: Vector3 = _window_profile[0]
+	var left_column: int = clampi(
+		floori(first_profile.y * float(image_width)),
+		0,
+		image_width - 1
+	)
+	var right_column: int = clampi(
+		ceili(first_profile.z * float(image_width)) - 1,
+		left_column + 1,
+		image_width - 1
+	)
+	var scan_top: int = maxi(0, roundi(float(image_height) * SCAN_TOP_RATIO))
+	var chamber_row: int = clampi(
+		roundi(first_profile.x * float(image_height)),
+		scan_top,
+		image_height - 1
+	)
+	# Search only the upper chamber band. Within the measured left/right span,
+	# the first transparent pixel in each column is the actual inner arch edge.
+	var scan_bottom: int = mini(
+		image_height - 1,
+		chamber_row + maxi(4, roundi(float(image_height) * 0.035))
+	)
+
+	for column in range(left_column, right_column + 1, 2):
+		var boundary_row: int = -1
+		for row in range(scan_top, scan_bottom + 1):
+			if source_image.get_pixel(column, row).a <= ALPHA_CUTOFF:
+				boundary_row = row
+				break
+		if boundary_row >= 0:
+			contour.append(Vector2(
+				(float(column) + 0.5) / float(image_width),
+				(float(boundary_row) + 0.5) / float(image_height)
+			))
+
+	if contour.size() < 8:
+		return PackedVector2Array()
+
+	# A small moving average removes single-pixel alpha noise without replacing
+	# the detected silhouette with a guessed curve.
+	var smoothed := PackedVector2Array()
+	for index in range(contour.size()):
+		var y_sum: float = 0.0
+		var sample_count: int = 0
+		for neighbour in range(maxi(0, index - 2), mini(contour.size() - 1, index + 2) + 1):
+			y_sum += contour[neighbour].y
+			sample_count += 1
+		smoothed.append(Vector2(
+			contour[index].x,
+			y_sum / float(maxi(1, sample_count))
+		))
+	return smoothed
 
 
 func _detect_mouth(
@@ -634,46 +701,37 @@ func _build_static_reflection_geometry() -> void:
 			"glint": glint
 		})
 
-	# Close the upper ends by following the measured inner-wall tangents.
-	# The curve arches over the chamber opening instead of spanning it with a
-	# straight or arbitrary sine-shaped connector.
-	var top_bounds: Vector2 = _window_bounds_at(_window_top_ratio)
-	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
-	var top_left := Vector2(
-		rect.position.x + rect.size.x * top_bounds.x + top_cap_inset,
-		top_y
-	)
-	var top_right := Vector2(
-		rect.position.x + rect.size.x * top_bounds.y - rect.size.x * 0.020,
-		top_y
-	)
+	# Trace the chamber's actual upper alpha boundary, just as the side
+	# reflections trace the left/right wall profile. This keeps the highlight
+	# on the generated arch instead of approximating it with a Bezier connector.
+	if _window_top_contour.size() >= 8 and not _glass_layer_reflections.is_empty():
+		var top_geometry: Dictionary = _glass_layer_reflections[CAPACITY - 1]
+		var left_anchor: PackedVector2Array = top_geometry["main"]
+		var right_anchor: PackedVector2Array = top_geometry["bounce"]
+		for index in range(_window_top_contour.size()):
+			var normalized_point: Vector2 = _window_top_contour[index]
+			var point := Vector2(
+				rect.position.x + rect.size.x * normalized_point.x,
+				rect.position.y + rect.size.y * normalized_point.y
+			)
+			var previous_point: Vector2 = _window_top_contour[maxi(0, index - 1)]
+			var next_point: Vector2 = _window_top_contour[mini(_window_top_contour.size() - 1, index + 1)]
+			var tangent := Vector2(
+				(next_point.x - previous_point.x) * rect.size.x,
+				(next_point.y - previous_point.y) * rect.size.y
+			)
+			# The inward normal points down into the transparent chamber on both
+			# sides of the arch, matching the side-stroke inset.
+			var inward_normal := Vector2(-tangent.y, tangent.x).normalized()
+			point += inward_normal * rect.size.x * 0.016
+			_glass_top_cap.append(point)
 
-	# A short way down each detected wall gives us the actual direction and
-	# curvature of the chamber shoulders near the arch.
-	var shoulder_ratio: float = lerpf(_window_top_ratio, _window_bottom_ratio, 0.14)
-	var shoulder_bounds: Vector2 = _window_bounds_at(shoulder_ratio)
-	var shoulder_y: float = rect.position.y + rect.size.y * shoulder_ratio
-	var left_shoulder := Vector2(
-		rect.position.x + rect.size.x * shoulder_bounds.x + top_cap_inset,
-		shoulder_y
-	)
-	var right_shoulder := Vector2(
-		rect.position.x + rect.size.x * shoulder_bounds.y - rect.size.x * 0.020,
-		shoulder_y
-	)
+		# Pin both ends to the existing side strokes so the highlight reads as
+		# one continuous path around the chamber's inner edge.
+		if not _glass_top_cap.is_empty() and not left_anchor.is_empty() and not right_anchor.is_empty():
+			_glass_top_cap[0] = left_anchor[0]
+			_glass_top_cap[_glass_top_cap.size() - 1] = right_anchor[0]
 
-	# Reverse the wall tangents to form the upper arch. The control points are
-	# derived from the silhouette, so a different chamber shape gets a different cap.
-	var left_control := top_left - (left_shoulder - top_left) * 0.72
-	var right_control := top_right - (right_shoulder - top_right) * 0.72
-	for index in range(33):
-		var t: float = float(index) / 32.0
-		_glass_top_cap.append(top_left.bezier_interpolate(
-			left_control,
-			right_control,
-			top_right,
-			t
-		))
 
 
 func _draw_chamber_reflections(rect: Rect2) -> void:
