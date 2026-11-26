@@ -223,9 +223,8 @@ func _build_interface() -> void:
 	add_child(title)
 	var subtitle := _make_label("THE OVERGROWN GREENHOUSE  ·  CHAPTER 01", Vector2(28.0, 54.0), Vector2(470.0, 20.0), 12, Color("#9eb0a8"))
 	add_child(subtitle)
-	var return_button := _make_button("RETURN TO WORLD", Rect2(522.0, 20.0, 176.0, 36.0), false)
+	var return_button := _make_button("RETURN TO WORLD", Vector2(522.0, 20.0), Vector2(176.0, 36.0), Callable(self, "_return_to_world"))
 	return_button.add_theme_font_size_override("font_size", 11)
-	return_button.pressed.connect(_return_to_world)
 	add_child(return_button)
 
 	track_a_button = _make_button("TRACK A  ·  FOUR VIALS", Vector2(26.0, 84.0), Vector2(178.0, 42.0), Callable(self, "_select_track_a"))
