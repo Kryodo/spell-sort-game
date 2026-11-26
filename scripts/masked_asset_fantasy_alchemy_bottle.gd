@@ -185,7 +185,7 @@ func _draw_masked_liquid_band(
 	if bottom_y - top_y <= 1.0:
 		return
 
-	var polygon := PackedVector2Array()
+	var top_edge := PackedVector2Array()
 	for index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(index) / float(LIQUID_SURFACE_SAMPLES)
 		var x_norm: float = t * 2.0 - 1.0
@@ -198,11 +198,17 @@ func _draw_masked_liquid_band(
 		))
 		var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
 		var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
-		polygon.append(Vector2(lerpf(left_x, right_x, t), y))
+		top_edge.append(Vector2(lerpf(left_x, right_x, t), y))
+
+	if top_edge.size() < 2:
+		return
+	var polygon := top_edge.duplicate()
+	var right_top_y: float = top_edge[-1].y
+	var left_top_y: float = top_edge[0].y
 
 	for side_index in range(1, 49):
 		var t: float = float(side_index) / 48.0
-		var y: float = lerpf(top_y, bottom_y, t)
+		var y: float = lerpf(right_top_y, bottom_y, t)
 		var bounds := _mask_bounds_at(clampf(
 			(y - rect.position.y) / rect.size.y,
 			asset_definition.fill_top,
@@ -221,7 +227,7 @@ func _draw_masked_liquid_band(
 
 	for side_index in range(1, 48):
 		var t: float = float(side_index) / 48.0
-		var y: float = lerpf(bottom_y, top_y, t)
+		var y: float = lerpf(bottom_y, left_top_y, t)
 		var bounds := _mask_bounds_at(clampf(
 			(y - rect.position.y) / rect.size.y,
 			asset_definition.fill_top,
@@ -249,7 +255,9 @@ func _draw_masked_liquid_band(
 			var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
 			var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
 			surface_points.append(Vector2(lerpf(left_x, right_x, t), wave_y))
-		draw_polyline(surface_points, Color(fill_color, 0.18), 1.0, true)
+		var surface_glint := fill_color
+		surface_glint.a = 0.18
+		draw_polyline(surface_points, surface_glint, 1.0, true)
 
 
 func _draw_glass_back(_rect: Rect2) -> void:
