@@ -341,7 +341,7 @@ func _window_bounds_at(y_ratio: float) -> Vector2:
 	var low_index: int = 0
 	var high_index: int = profile_count - 1
 	while high_index - low_index > 1:
-		var middle_index: int = (low_index + high_index) / 2
+		var middle_index: int = (low_index + high_index) >> 1
 		if _window_profile[middle_index].x <= y_ratio:
 			low_index = middle_index
 		else:
@@ -593,8 +593,8 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
 	if visible_layers <= 0:
 		# Empty glass still catches a restrained cool studio highlight.
-		var empty_left := _chamber_edge_points(rect, true, 0.08, 0.70, rect.size.x * 0.055)
-		draw_polyline(empty_left, Color(0.78, 0.91, 0.93, 0.25), maxf(1.8, rect.size.x * 0.025), true)
+		var empty_left := _chamber_edge_points(rect, true, 0.08, 0.70, rect.size.x * 0.035)
+		draw_polyline(empty_left, Color(0.82, 0.94, 0.95, 0.34), maxf(1.8, rect.size.x * 0.020), true)
 		return
 
 	# Reflect each essence on its own vertical section, so a multi-colour vial
@@ -610,21 +610,21 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
 		var reflection_color: Color = _glass_reflection_color(liquid_color)
 
-		var halo_inset: float = rect.size.x * 0.065
-		var main_inset: float = rect.size.x * 0.040
-		var core_inset: float = rect.size.x * 0.022
-		var halo_width: float = maxf(3.0, rect.size.x * 0.060)
-		var main_width: float = maxf(1.8, rect.size.x * 0.026)
+		var halo_inset: float = rect.size.x * 0.030
+		var main_inset: float = rect.size.x * 0.016
+		var core_inset: float = rect.size.x * 0.006
+		var halo_width: float = maxf(3.0, rect.size.x * 0.045)
+		var main_width: float = maxf(1.8, rect.size.x * 0.018)
 
 		var left_halo := _chamber_edge_points(rect, true, section_top, section_bottom, halo_inset)
 		var left_main := _chamber_edge_points(rect, true, section_top, section_bottom, main_inset)
 		var left_core := _chamber_edge_points(rect, true, section_top, section_bottom, core_inset)
-		var right_bounce := _chamber_edge_points(rect, false, section_top + amount / float(CAPACITY) * 0.10, section_bottom, rect.size.x * 0.045)
+		var right_bounce := _chamber_edge_points(rect, false, section_top + amount / float(CAPACITY) * 0.10, section_bottom, rect.size.x * 0.020)
 
 		draw_polyline(left_halo, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.25), halo_width, true)
 		draw_polyline(left_main, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.62), main_width, true)
 		draw_polyline(left_core, Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
-		draw_polyline(right_bounce, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.34), maxf(1.4, rect.size.x * 0.018), true)
+		draw_polyline(right_bounce, Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.34), maxf(1.4, rect.size.x * 0.014), true)
 
 	# Short specular glints make the glass read as polished instead of outlined.
 	if amount > 0.25:
@@ -664,8 +664,8 @@ func _draw_liquid_surface_reflection(rect: Rect2) -> void:
 			_window_bottom_ratio
 		)
 		var bounds: Vector2 = _window_bounds_at(y_ratio)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + rect.size.x * 0.045
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - rect.size.x * 0.045
+		var left_x: float = rect.position.x + rect.size.x * bounds.x + rect.size.x * 0.025
+		var right_x: float = rect.position.x + rect.size.x * bounds.y - rect.size.x * 0.025
 		surface_points.append(Vector2(lerpf(left_x, right_x, t), wave_y))
 
 	var surface_color: Color = _glass_reflection_color(_get_top_liquid_color())
@@ -693,30 +693,6 @@ func _chamber_edge_points(
 		var y: float = rect.position.y + rect.size.y * y_ratio
 		points.append(Vector2(x, y))
 	return points
-
-
-func _get_liquid_reflection_color() -> Color:
-	if _liquid_level <= 0.001 or _visual_contents.is_empty():
-		return Color(0.58, 0.78, 0.82, 1.0)
-
-	var accumulated := Vector3.ZERO
-	var total_weight: float = 0.0
-	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
-	for layer_index in range(visible_layers):
-		var weight: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
-		if weight <= 0.001:
-			continue
-		var essence: String = String(_visual_contents[layer_index])
-		var essence_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-		accumulated += Vector3(essence_color.r, essence_color.g, essence_color.b) * weight
-		total_weight += weight
-
-	if total_weight <= 0.001:
-		return Color(0.58, 0.78, 0.82, 1.0)
-
-	var average := accumulated / total_weight
-	var liquid_tint := Color(average.x, average.y, average.z, 1.0).lightened(0.34)
-	return Color(0.68, 0.84, 0.88, 1.0).lerp(liquid_tint, 0.32)
 
 
 func _get_top_liquid_color() -> Color:
