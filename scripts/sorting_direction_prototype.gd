@@ -188,6 +188,7 @@ var track_a_button: Button
 var track_b_button: Button
 var previous_button: Button
 var next_button: Button
+var next_level_action_button: Button
 var restart_button: Button
 var undo_button: Button
 var pipette_button: Button
@@ -225,7 +226,7 @@ func _build_interface() -> void:
 
 	previous_button = _make_button("‹", Vector2(430.0, 84.0), Vector2(46.0, 42.0), Callable(self, "_previous_level"))
 	add_child(previous_button)
-	level_label = _make_label("", Vector2(484.0, 82.0), Vector2(205.0, 46.0), 13, Color("#f0d6a8"))
+	level_label = _make_label("", Vector2(484.0, 82.0), Vector2(164.0, 46.0), 13, Color("#f0d6a8"))
 	add_child(level_label)
 	next_button = _make_button("›", Vector2(660.0, 84.0), Vector2(38.0, 42.0), Callable(self, "_next_level"))
 	add_child(next_button)
@@ -234,14 +235,14 @@ func _build_interface() -> void:
 	add_child(description_label)
 
 	var board := _make_panel(Rect2(18.0, 260.0, 684.0, 662.0), Color("#1b2927"), Color("#8e714c"), 18)
-	board.z_index = -1
+	board.z_index = 0
 	add_child(board)
 
 	var board_title := _make_label("SORTING SURFACE  /  LAYOUT TEST", Vector2(32.0, 273.0), Vector2(560.0, 20.0), 9, Color("#9cae9f"))
 	add_child(board_title)
 
 	var status_panel := _make_panel(Rect2(20.0, 944.0, 680.0, 158.0), Color("#172421"), Color("#856844"), 16)
-	status_panel.z_index = -1
+	status_panel.z_index = 0
 	add_child(status_panel)
 
 	status_label = _make_label("", Vector2(38.0, 956.0), Vector2(644.0, 38.0), 12, Color("#f0e6d1"), true)
@@ -259,10 +260,8 @@ func _build_interface() -> void:
 	add_child(pipette_button)
 	transmute_button = _make_button("TRANSMUTE", Vector2(384.0, 1124.0), Vector2(132.0, 48.0), Callable(self, "_transmute_selected"))
 	add_child(transmute_button)
-	next_button.size = Vector2(38.0, 42.0)
-	var next_level_button := _make_button("NEXT LEVEL", Vector2(526.0, 1124.0), Vector2(172.0, 48.0), Callable(self, "_next_level"))
-	add_child(next_level_button)
-	next_level_button.name = "NextLevelActionButton"
+	next_level_action_button = _make_button("NEXT LEVEL", Vector2(526.0, 1124.0), Vector2(172.0, 48.0), Callable(self, "_next_level"))
+	add_child(next_level_action_button)
 
 	_add_label_to_bottom("Drag a vial onto another vial to pour. Select a vial first to use an alchemy tool.", Vector2(26.0, 1186.0), Vector2(668.0, 28.0), 10, Color("#8fa39a"))
 
@@ -500,6 +499,8 @@ func _begin_drag(pointer: Vector2) -> void:
 	is_dragging = true
 	drag_origin = slot_positions[index]
 	grab_offset = pointer - drag_origin
+	if tool_selected_vial >= 0 and tool_selected_vial != index and tool_selected_vial < bottle_nodes.size():
+		bottle_nodes[tool_selected_vial].call("set_feedback", false, false, false)
 	var vial: Control = bottle_nodes[index]
 	vial.z_index = 50
 	vial.call("set_feedback", true, false, true)
@@ -530,6 +531,7 @@ func _finish_drag(pointer: Vector2) -> void:
 		_return_vial(source_index, "Vial selected for tool use. Press TRANSMUTE when ready.")
 		return
 	if target_index < 0:
+		tool_selected_vial = -1
 		_return_vial(source_index, "No receiving vial selected. Try again.")
 		return
 	_perform_pour(source_index, target_index)
@@ -581,6 +583,7 @@ func _can_pour(source_index: int, target_index: int) -> bool:
 func _perform_pour(source_index: int, target_index: int) -> void:
 	var details := _get_transfer_details(source_index, target_index)
 	if details.is_empty():
+		tool_selected_vial = -1
 		_return_vial(source_index, "Invalid pour. Use an empty vial or one with a matching top essence.")
 		return
 
@@ -659,6 +662,8 @@ func _return_vial(index: int, message: String) -> void:
 	vial.z_index = 2
 	vial.call("set_feedback", false, false, false)
 	vial.call("reset_motion")
+	if tool_selected_vial == index:
+		vial.call("set_feedback", true, false, false)
 	selected_vial = -1
 	is_animating = false
 	_set_status(message)
@@ -848,6 +853,7 @@ func _refresh_hud() -> void:
 	restart_button.disabled = is_animating
 	previous_button.disabled = current_level <= 0 or is_animating
 	next_button.disabled = current_level >= 9 or is_animating
+	next_level_action_button.disabled = current_level >= 9 or is_animating
 	track_a_button.disabled = current_track == "A" or is_animating
 	track_b_button.disabled = current_track == "B" or is_animating
 
