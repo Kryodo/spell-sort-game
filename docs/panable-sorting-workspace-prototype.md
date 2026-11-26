@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A focused, playable study of a large fixed-dimension alchemy workspace. The world contains twelve predefined vial positions, while the starting experiment uses eight vials. The camera initially shows only part of the workspace so players must navigate to reach the remaining positions.
+A focused, playable study of a large fixed-dimension alchemy workspace. The world contains twelve predefined vial positions, while the starting experiment uses eight vials. The initial camera view shows six of the eight starting vials; the remaining occupied positions and the empty row require navigation.
 
 This prototype deliberately keeps the existing sorting rules and bottle renderer. It does not introduce free placement, a rack, or a permanent apparatus.
 
