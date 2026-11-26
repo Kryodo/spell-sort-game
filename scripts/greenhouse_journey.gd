@@ -284,11 +284,11 @@ func _build_world() -> void:
 func _build_top_hud() -> void:
 	var header := _make_panel(Rect2(18.0, 18.0, 684.0, 94.0), Color(0.018, 0.034, 0.032, 0.80), Color(0.76, 0.61, 0.39, 0.52), 18)
 	add_child(header)
-	var logo := _make_label("SPELL SORT", Vector2(34.0, 26.0), Vector2(265.0, 34.0), 25, Color("#f3dfbd"))
+	var logo := _make_label("SPELL SORT", Vector2(16.0, 8.0), Vector2(265.0, 34.0), 25, Color("#f3dfbd"))
 	header.add_child(logo)
-	var chapter := _make_label("CHAPTER 01  /  THE OVERGROWN GREENHOUSE", Vector2(36.0, 61.0), Vector2(460.0, 22.0), 11, Color("#b8c9b7"))
+	var chapter := _make_label("CHAPTER 01  /  THE OVERGROWN GREENHOUSE", Vector2(18.0, 43.0), Vector2(460.0, 22.0), 11, Color("#b8c9b7"))
 	header.add_child(chapter)
-	var journal := _make_button("FIELD JOURNAL", Rect2(525.0, 39.0, 155.0, 42.0), true)
+	var journal := _make_button("FIELD JOURNAL", Rect2(507.0, 21.0, 155.0, 42.0), true)
 	journal.pressed.connect(func() -> void: _open_page("discoveries"))
 	header.add_child(journal)
 
@@ -330,11 +330,11 @@ func _build_bottom_navigation() -> void:
 	for index in range(nav_items.size()):
 		var item: Dictionary = nav_items[index]
 		var x: float = 30.0 + float(index) * 168.0
-		var button := _make_button(String(item["title"]), Rect2(x, 1138.0, 158.0, 48.0), false)
+		var button := _make_button(String(item["title"]), Rect2(12.0 + float(index) * 168.0, 14.0, 158.0, 48.0), false)
 		button.add_theme_font_size_override("font_size", 12)
 		button.pressed.connect(_open_page.bind(String(item["key"])))
 		dock.add_child(button)
-		var subtitle := _make_label(String(item["subtitle"]), Vector2(x + 2.0, 1191.0), Vector2(154.0, 26.0), 10, Color("#aebdb0"))
+		var subtitle := _make_label(String(item["subtitle"]), Vector2(14.0 + float(index) * 168.0, 67.0), Vector2(154.0, 26.0), 10, Color("#aebdb0"))
 		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		dock.add_child(subtitle)
 		_nav_buttons.append(button)
@@ -523,6 +523,7 @@ func _make_label(text_value: String, position_value: Vector2, size_value: Vector
 	label.text = text_value
 	label.position = position_value
 	label.size = size_value
+	label.custom_minimum_size = size_value
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", tint)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
