@@ -1,39 +1,37 @@
-# Dark sorting space — adaptive gameplay UI study
+# Dark sorting space — fantasy vial, liquid and interaction study
 
 Open `scenes/dark_sorting_slots_prototype.tscn` in Godot and run it with **F6**. The project startup scene remains unchanged.
 
-## Gameplay screen
+## Fantasy vessels
 
-The sorting view is intentionally quiet. It keeps only:
+The dark prototype now uses a dedicated `fantasy_alchemy_bottle.gd` renderer. Four distinct procedural silhouettes share the existing glass/liquid pipeline. Small fabric neck wraps, tied details, brass accents, base bands and occasional side charms stay near the edges so the coloured liquid remains visible.
 
-- A compact chapter label, experiment title, and objective.
-- A back control and a contextual menu control.
-- The live vials and understated recessed slot markers.
-- Small action icons for Undo and only the special tools relevant to the current experiment.
+The existing SVG vial overlays are not drawn by this renderer. Glass edges and reflections are rendered procedurally around the new silhouettes.
 
-The objective is tappable and opens the experiment notes. Feedback such as selecting a vial, invalid pours, and successful transfers fades in near the top of the play space, then fades away. While dragging, valid destination vials receive a subtle highlight.
+## Magical liquid
 
-When the experiment is complete, the normal action row gives way to a larger Continue action.
+The liquid keeps its separate layered colour data and now has restrained inner radiance, rising bubbles, moving highlights and a more pronounced surface meniscus. Bubbles are subtle and varied rather than a constant stream of particles.
 
-## Nested sheets
+## Pickup and pouring
 
-The top-right menu opens a bottom sheet with:
+The dark prototype now ports the proven mouth-alignment interaction pattern from `alchemy_interaction_test.gd`:
 
-- Experiment notes.
-- Arrangement and vial-count comparison controls.
-- A restart confirmation.
-- Return to the greenhouse.
+- The player lifts a vial and guides its opening to a compatible receiving opening.
+- Target validity uses the vial mouth position and hit radius, not a broad vial-body rectangle.
+- Movement follows the pointer with a small spring response; the vessel pose and scale ease instead of snapping.
+- Pour staging aligns the source mouth over the target. The stream follows a curved path to the receiving liquid surface, with a soft glow, travelling droplets and a small impact ripple.
+- Existing expanded sorting rules remain authoritative through `_get_transfer_details()`, including recipe, pipette, seal and transmutation requirements.
 
-The arrangement and vial-count controls are intentionally hidden in this sheet rather than occupying the gameplay screen. Changing either setting reloads the sample puzzle.
+## Atmosphere
 
-Sheets animate out from the bottom, use a dimmed backdrop, and can be dismissed by tapping outside or using the close control.
+Two small animated candles frame the lower action area. A restrained set of drifting motes adds depth without competing with the vials. Tiny motes can also occasionally rise near filled vial necks.
 
-## Layout comparison
+## UI and comparison controls
 
-- **Line** — one horizontal row for four or six vials; two rows for eight.
-- **Arc** — a shallow curved row, or two slightly curved rows for eight.
-- **Two rows** — aligned upper and lower rows for four, six, or eight.
+The screen retains the adaptive HUD: compact chapter and experiment identity, tappable objective, back/menu controls, transient feedback and only relevant action icons. The menu bottom sheet contains experiment notes, arrangement/vial-count comparison, restart confirmation and return to the greenhouse.
 
-The prototype continues to use the existing sorting controller and bottle renderer. Drag-and-pour rules, undo, pipette, transmutation, and completion remain owned by the inherited sorting logic. The main project startup scene is not changed.
+## Validation
 
-Runtime validation is still required in Godot. This branch update is a UI and interaction prototype, not a replacement for the chapter gameplay scene.
+Run the scene in Godot and test pickup, releasing without a target, mouth alignment, a normal pour, undo, restart, pipette and transmutation. Also compare all four vial silhouettes and inspect the liquid at partial and full levels.
+
+This is a visual/game-feel prototype. The project startup scene is not changed. Runtime validation is required in Godot.
