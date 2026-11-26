@@ -598,6 +598,7 @@ func _build_static_reflection_geometry() -> void:
 		return
 
 	var rect := _get_vessel_rect()
+	var top_cap_inset: float = rect.size.x * 0.016
 	# Recreate the earlier layered reflection style for every fixed capacity
 	# section. The original paths were tied to the changing liquid bands; these
 	# copies use the same shapes and insets but are anchored to the vessel.
@@ -636,7 +637,7 @@ func _build_static_reflection_geometry() -> void:
 	# Close the upper ends with a very fine curved reflection along the top
 	# chamber boundary. This remains present even when every section is empty.
 	var top_bounds: Vector2 = _window_bounds_at(_window_top_ratio)
-	var top_left_x: float = rect.position.x + rect.size.x * top_bounds.x + main_inset
+	var top_left_x: float = rect.position.x + rect.size.x * top_bounds.x + top_cap_inset
 	var top_right_x: float = rect.position.x + rect.size.x * top_bounds.y - rect.size.x * 0.020
 	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
 	for index in range(25):
@@ -673,9 +674,8 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 	# A fine curved cap joins the fixed side reflections at the chamber top,
 	# including on completely empty vessels.
 	var top_reflection_color := Color(0.66, 0.82, 0.86, 1.0)
-	if _visual_contents.size() >= CAPACITY:
-		var top_essence: String = String(_visual_contents[CAPACITY - 1])
-		top_reflection_color = _glass_reflection_color(_palette.get(top_essence, Color(0.45, 0.78, 0.75, 1.0)))
+	if _liquid_level > 0.001 and not _visual_contents.is_empty():
+		top_reflection_color = _glass_reflection_color(_get_top_liquid_color())
 	var cap_color := Color(top_reflection_color.r, top_reflection_color.g, top_reflection_color.b, 0.34)
 	draw_polyline(_glass_top_cap, cap_color, maxf(1.0, rect.size.x * 0.010), true)
 
