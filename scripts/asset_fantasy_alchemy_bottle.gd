@@ -100,6 +100,12 @@ var _glass_layer_reflections: Array[Dictionary] = []
 var _window_top_contour := PackedVector2Array()
 var _front_mouth_lip_overlay: FrontMouthLipOverlay
 
+# Stable liquid body geometry is cached per vial and rebuilt only when its
+# contents, fill preview, artwork profile or control size changes.
+var _cached_liquid_bands: Array[Dictionary] = []
+var _cached_liquid_rect := Rect2()
+var _liquid_geometry_dirty: bool = true
+
 
 func _ready() -> void:
 	super._ready()
@@ -109,6 +115,33 @@ func _ready() -> void:
 	add_child(_front_mouth_lip_overlay)
 	_front_mouth_lip_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_front_mouth_lip_overlay.configure(self, vial_art)
+	if not resized.is_connected(_on_vial_resized):
+		resized.connect(_on_vial_resized)
+	_invalidate_liquid_geometry()
+
+
+func _on_vial_resized() -> void:
+	_invalidate_liquid_geometry()
+
+
+func _invalidate_liquid_geometry() -> void:
+	_liquid_geometry_dirty = true
+	queue_redraw()
+
+
+func setup(index: int, label: String, variant: int, palette: Dictionary, contents: Array) -> void:
+	super.setup(index, label, variant, palette, contents)
+	_invalidate_liquid_geometry()
+
+
+func set_contents(contents: Array) -> void:
+	super.set_contents(contents)
+	_invalidate_liquid_geometry()
+
+
+func set_preview(contents: Array, level: float) -> void:
+	super.set_preview(contents, level)
+	_invalidate_liquid_geometry()
 
 
 func _process(delta: float) -> void:
@@ -133,6 +166,7 @@ func set_vial_art(texture: Texture2D) -> void:
 		_front_mouth_lip_overlay.set_art(texture)
 	if is_node_ready():
 		_build_inner_window_profile()
+		_liquid_geometry_dirty = true
 	queue_redraw()
 
 
@@ -633,32 +667,18 @@ func _draw_liquid(_rect: Rect2) -> void:
 		return
 
 	var rect := _get_vessel_rect()
-	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
-	if chamber_span <= 0.01:
+	if _liquid_geometry_dirty or rect != _cached_liquid_rect:
+		_rebuild_cached_liquid_geometry(rect)
+	if _cached_liquid_bands.is_empty():
 		return
 
-	var layer_height: float = chamber_span / float(CAPACITY)
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
-	for layer_index in range(visible_layers):
-		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
-		if amount <= 0.001:
-			continue
-
-		var bottom_ratio: float = _window_bottom_ratio - float(layer_index) * layer_height
-		var top_ratio: float = bottom_ratio - layer_height * amount
-		var essence: String = String(_visual_contents[layer_index])
-		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-		# Each incoming layer fades in over its first fraction instead of
-		# appearing at full opacity on the first non-zero preview value.
-		liquid_color.a *= smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, amount)
-		_draw_liquid_band(
-			rect,
-			top_ratio,
-			bottom_ratio,
-			liquid_color,
-			layer_index == visible_layers - 1,
-			layer_index == 0
-		)
+	for band in _cached_liquid_bands:
+		var polygon: PackedVector2Array = band["polygon"]
+		var vertex_colors: PackedColorArray = band["vertex_colors"]
+		draw_polygon(polygon, vertex_colors)
+		if bool(band["is_surface"]):
+			_draw_cached_liquid_surface(band)
 
 	_draw_window_bubbles(rect, visible_layers)
 	_draw_surface_bubble_activity(rect)
@@ -781,77 +801,82 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 			)
 
 
-func _draw_liquid_band(
+func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
+	_cached_liquid_bands.clear()
+	_cached_liquid_rect = rect
+	_liquid_geometry_dirty = false
+
+	if _window_profile.size() < 8 or _visual_contents.is_empty() or _liquid_level <= 0.001:
+		return
+
+	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
+	if chamber_span <= 0.01:
+		return
+
+	var layer_height: float = chamber_span / float(CAPACITY)
+	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
+	for layer_index in range(visible_layers):
+		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
+		if amount <= 0.001:
+			continue
+
+		var bottom_ratio: float = _window_bottom_ratio - float(layer_index) * layer_height
+		var top_ratio: float = bottom_ratio - layer_height * amount
+		var essence: String = String(_visual_contents[layer_index])
+		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
+		liquid_color.a *= smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, amount)
+
+		var band: Dictionary = _build_cached_liquid_band(
+			rect,
+			top_ratio,
+			bottom_ratio,
+			liquid_color,
+			layer_index == visible_layers - 1,
+			layer_index == 0
+		)
+		if not band.is_empty():
+			_cached_liquid_bands.append(band)
+
+
+func _build_cached_liquid_band(
 	rect: Rect2,
 	top_ratio: float,
 	bottom_ratio: float,
 	liquid_color: Color,
 	is_surface: bool,
 	is_bottom: bool
-) -> void:
+) -> Dictionary:
 	var bottom_y: float = rect.position.y + rect.size.y * bottom_ratio
 	if not is_bottom:
 		bottom_y += 0.8
 	var top_y: float = rect.position.y + rect.size.y * top_ratio
 	var band_height: float = bottom_y - top_y
 	if band_height <= LIQUID_MIN_BAND_HEIGHT:
-		return
-	# Fade the first sub-pixel band in gradually instead of revealing it at
-	# the old hard 1.2px cutoff.
+		return {}
+
 	var band_alpha: float = smoothstep(
 		LIQUID_MIN_BAND_HEIGHT,
 		LIQUID_BAND_FADE_HEIGHT,
 		band_height
 	)
 
-	# The animated surface is the actual top boundary of the liquid body.
-	# Keeping one continuous body all the way to its floor prevents the
-	# single-layer case from becoming a short, separately capped polygon.
-	var body_top_y: float = top_y
-	var body_top_edge := PackedVector2Array()
-	# The top edge is horizontal, so every sample uses the same chamber bounds.
-	# Resolve them once instead of repeating the identical profile lookup 49 times.
+	# The top edge is horizontal, so resolve its chamber bounds once.
 	var body_ratio: float = clampf(
-		(body_top_y - rect.position.y) / rect.size.y,
+		(top_y - rect.position.y) / rect.size.y,
 		_window_top_ratio,
 		_window_bottom_ratio
 	)
 	var body_bounds := _window_bounds_at(body_ratio)
 	var body_left_x: float = rect.position.x + rect.size.x * body_bounds.x + LIQUID_WALL_INSET
 	var body_right_x: float = rect.position.x + rect.size.x * body_bounds.y - LIQUID_WALL_INSET
+	var body_top_edge := PackedVector2Array()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		body_top_edge.append(Vector2(lerpf(body_left_x, body_right_x, t), body_top_y))
+		body_top_edge.append(Vector2(lerpf(body_left_x, body_right_x, t), top_y))
 
 	if body_top_edge.size() < 2:
-		return
+		return {}
 
-	var wave_edge := PackedVector2Array()
-	if is_surface:
-		# Blend from resting to held to moving entirely through smoothed activity.
-		# This avoids a visual step when pointer velocity crosses the drag threshold.
-		var pickup_blend: float = smoothstep(0.18, 0.42, _surface_activity)
-		var movement_blend: float = smoothstep(0.42, 0.82, _surface_activity)
-		var wave_strength: float = lerpf(1.20, 1.30, pickup_blend)
-		wave_strength = lerpf(wave_strength, 1.75, movement_blend)
-
-		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			var normalized_x: float = t * 2.0 - 1.0
-			var wave: float = _get_surface_wave_offset(normalized_x) * wave_strength
-			# At the current maximum slosh/tilt this keeps the whole wave inside
-			# the cap. It cannot fold over the base edge or create a self-crossing.
-			# Let the top edge move in both directions while keeping the wave
-			# within the current liquid band.
-			# Keep the moving surface entirely above the stable body boundary.
-			# This forms a simple, non-self-intersecting strip every frame.
-			var wave_height: float = clampf(4.0 + wave, 1.0, 8.0) * liquid_color.a
-			var wave_y: float = top_y - wave_height
-			var base_point: Vector2 = body_top_edge[sample_index]
-			wave_edge.append(Vector2(base_point.x, wave_y))
-
-	# The body uses the stable chamber profile. The meniscus animates as a
-	# separate highlight so changing wave triangulation cannot expose seams.
 	var polygon := body_top_edge.duplicate()
 	var right_top_y: float = body_top_edge[-1].y
 	var left_top_y: float = body_top_edge[0].y
@@ -906,7 +931,6 @@ func _draw_liquid_band(
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
 
-	# The liquid body retains its stable horizontal centre/edge gradient.
 	var vertex_colors := PackedColorArray()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
@@ -917,29 +941,65 @@ func _draw_liquid_band(
 	vertex_colors.append(bottom_color)
 	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
 		vertex_colors.append(edge_color)
-	draw_polygon(polygon, vertex_colors)
 
-	if is_surface and wave_edge.size() == body_top_edge.size():
-		var surface_polygon := PackedVector2Array()
-		var surface_colours := PackedColorArray()
-		for sample_index in range(wave_edge.size()):
+	# Meniscus gradient values are also static; only its vertex positions move.
+	var surface_colours := PackedColorArray()
+	if is_surface:
+		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			surface_polygon.append(wave_edge[sample_index])
-			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
-		for sample_index in range(body_top_edge.size() - 1, -1, -1):
-			surface_polygon.append(body_top_edge[sample_index])
-			# The lower edge uses the exact same gradient in reverse order.
+			var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
+			surface_colours.append(edge_color.lerp(center_color, center_weight))
+		for sample_index in range(LIQUID_SURFACE_SAMPLES, -1, -1):
 			surface_colours.append(surface_colours[sample_index])
-		draw_polygon(surface_polygon, surface_colours)
 
-		var surface_color: Color = fill_color.lightened(0.34)
-		surface_color.a = (0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025) * fill_color.a
-		draw_polyline(wave_edge, surface_color, 1.1, true)
+	return {
+		"polygon": polygon,
+		"vertex_colors": vertex_colors,
+		"body_top_edge": body_top_edge,
+		"surface_colours": surface_colours,
+		"fill_color": fill_color,
+		"liquid_alpha": liquid_color.a,
+		"is_surface": is_surface,
+		"top_y": top_y
+	}
 
 
-func _surface_gradient_colour(normalized_x: float, edge_color: Color, center_color: Color) -> Color:
-	var center_weight: float = pow(maxf(0.0, sin(PI * normalized_x)), 0.85) * 0.42
-	return edge_color.lerp(center_color, center_weight)
+func _draw_cached_liquid_surface(band: Dictionary) -> void:
+	var body_top_edge: PackedVector2Array = band["body_top_edge"]
+	var wave_edge := PackedVector2Array()
+	wave_edge.resize(body_top_edge.size())
+
+	var pickup_blend: float = smoothstep(0.18, 0.42, _surface_activity)
+	var movement_blend: float = smoothstep(0.42, 0.82, _surface_activity)
+	var wave_strength: float = lerpf(1.20, 1.30, pickup_blend)
+	wave_strength = lerpf(wave_strength, 1.75, movement_blend)
+	var top_y: float = float(band["top_y"])
+	var liquid_alpha: float = float(band["liquid_alpha"])
+
+	for sample_index in range(body_top_edge.size()):
+		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+		var normalized_x: float = t * 2.0 - 1.0
+		var wave: float = _get_surface_wave_offset(normalized_x) * wave_strength
+		var wave_height: float = clampf(4.0 + wave, 1.0, 8.0) * liquid_alpha
+		var base_point: Vector2 = body_top_edge[sample_index]
+		wave_edge[sample_index] = Vector2(base_point.x, top_y - wave_height)
+
+	var surface_polygon := PackedVector2Array()
+	surface_polygon.resize(body_top_edge.size() * 2)
+	for sample_index in range(wave_edge.size()):
+		surface_polygon[sample_index] = wave_edge[sample_index]
+		surface_polygon[wave_edge.size() + sample_index] = body_top_edge[
+			body_top_edge.size() - 1 - sample_index
+		]
+
+	var surface_colours: PackedColorArray = band["surface_colours"]
+	draw_polygon(surface_polygon, surface_colours)
+
+	var fill_color: Color = band["fill_color"]
+	var surface_color: Color = fill_color.lightened(0.34)
+	surface_color.a = (0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025) * fill_color.a
+	draw_polyline(wave_edge, surface_color, 1.1, true)
+
 
 func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	if visible_layers <= 0 or _window_profile.is_empty():
