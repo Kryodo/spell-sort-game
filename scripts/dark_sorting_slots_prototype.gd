@@ -10,6 +10,7 @@ class SlotMarkerSurface extends Control:
 	const COMPLETION_BLOOM_DURATION := 0.90
 
 	var slot_markers: Array = []
+	var _marker_geometry: Array[Dictionary] = []
 	var _completion_active: bool = false
 	var _completion_time: float = 0.0
 
@@ -18,7 +19,53 @@ class SlotMarkerSurface extends Control:
 
 	func configure(markers: Array) -> void:
 		slot_markers = markers.duplicate(true)
+		_rebuild_marker_geometry()
 		queue_redraw()
+
+	func _rebuild_marker_geometry() -> void:
+		_marker_geometry.clear()
+		for marker in slot_markers:
+			var centre: Vector2 = marker["centre"]
+			var radius: Vector2 = marker["radius"]
+			var shadow := _ellipse_points(
+				centre + Vector2(0.0, 5.0),
+				radius.x * 1.12,
+				radius.y * 1.28,
+				48
+			)
+			var inset := _ellipse_points(centre, radius.x, radius.y, 48)
+			var inner := _ellipse_points(
+				centre + Vector2(0.0, -1.0),
+				radius.x * 0.82,
+				radius.y * 0.72,
+				48
+			)
+
+			var completion_halos: Array[PackedVector2Array] = []
+			for layer in range(1, 6):
+				var fraction: float = float(layer) / 5.0
+				var radius_scale: float = lerpf(1.12, 1.92, fraction)
+				completion_halos.append(_ellipse_points(
+					centre + Vector2(0.0, 1.0),
+					radius.x * radius_scale,
+					radius.y * (radius_scale + 0.28),
+					48
+				))
+
+			_marker_geometry.append({
+				"shadow": shadow,
+				"inset": inset,
+				"inset_closed": _closed_points(inset),
+				"inner": inner,
+				"inner_closed": _closed_points(inner),
+				"inner_light": _ellipse_points(
+					centre,
+					radius.x * 0.88,
+					radius.y * 0.76,
+					48
+				),
+				"completion_halos": completion_halos
+			})
 
 	func set_completion_state(completed: bool, bottles: Array, palette: Dictionary) -> void:
 		if completed:
@@ -61,37 +108,25 @@ class SlotMarkerSurface extends Control:
 
 	func _draw() -> void:
 		for marker_index in range(slot_markers.size()):
+			if marker_index >= _marker_geometry.size():
+				continue
 			var marker: Dictionary = slot_markers[marker_index]
-			var centre: Vector2 = marker["centre"]
-			var radius: Vector2 = marker["radius"]
+			var geometry: Dictionary = _marker_geometry[marker_index]
 			var scale_value: float = float(marker["scale"])
 			var has_contents: bool = bool(marker.get("has_contents", false))
 			var glow_color: Color = marker.get("glow_color", Color(0.54, 0.84, 0.72, 1.0))
 			var glow_strength: float = _get_completion_strength(marker_index) if has_contents else 0.0
 
-			var shadow := _ellipse_points(
-				centre + Vector2(0.0, 5.0),
-				radius.x * 1.12,
-				radius.y * 1.28,
-				48
-			)
-			draw_colored_polygon(shadow, Color(0.0, 0.0, 0.0, 0.38))
+			draw_colored_polygon(geometry["shadow"], Color(0.0, 0.0, 0.0, 0.38))
 
 			if glow_strength > 0.001:
-				_draw_completion_glow(centre, radius, glow_color, glow_strength)
+				_draw_completion_glow(geometry["completion_halos"], glow_color, glow_strength)
 
-			var inset := _ellipse_points(centre, radius.x, radius.y, 48)
-			draw_colored_polygon(inset, Color(0.012, 0.025, 0.026, 0.72))
+			draw_colored_polygon(geometry["inset"], Color(0.012, 0.025, 0.026, 0.72))
 
 			if glow_strength > 0.001:
-				var inner_light := _ellipse_points(
-					centre,
-					radius.x * 0.88,
-					radius.y * 0.76,
-					48
-				)
 				draw_colored_polygon(
-					inner_light,
+					geometry["inner_light"],
 					Color(glow_color.r, glow_color.g, glow_color.b, 0.060 * glow_strength)
 				)
 
@@ -104,20 +139,14 @@ class SlotMarkerSurface extends Control:
 					lerpf(rim_color.a, 0.40, glow_strength)
 				)
 			draw_polyline(
-				_closed_points(inset),
+				geometry["inset_closed"],
 				rim_color,
 				maxf(1.0, 1.35 * scale_value),
 				true
 			)
 
-			var inner := _ellipse_points(
-				centre + Vector2(0.0, -1.0),
-				radius.x * 0.82,
-				radius.y * 0.72,
-				48
-			)
 			draw_polyline(
-				_closed_points(inner),
+				geometry["inner_closed"],
 				Color(0.72, 0.80, 0.69, 0.10),
 				1.0,
 				true
@@ -135,24 +164,16 @@ class SlotMarkerSurface extends Control:
 		return bloom * breathing
 
 	func _draw_completion_glow(
-		centre: Vector2,
-		radius: Vector2,
+		halos: Array,
 		glow_color: Color,
 		strength: float
 	) -> void:
-		# Several broad, low-alpha ellipses build a soft pool without a hard neon edge.
-		for layer in range(5, 0, -1):
-			var fraction: float = float(layer) / 5.0
-			var radius_scale: float = lerpf(1.12, 1.92, fraction)
+		# The five halo paths are precomputed; only their alpha animates.
+		for halo_index in range(halos.size() - 1, -1, -1):
+			var fraction: float = float(halo_index + 1) / 5.0
 			var alpha: float = lerpf(0.032, 0.012, fraction) * strength
-			var halo := _ellipse_points(
-				centre + Vector2(0.0, 1.0),
-				radius.x * radius_scale,
-				radius.y * (radius_scale + 0.28),
-				48
-			)
 			draw_colored_polygon(
-				halo,
+				halos[halo_index],
 				Color(glow_color.r, glow_color.g, glow_color.b, alpha)
 			)
 
