@@ -329,7 +329,6 @@ var _pour_amount: int = 0
 var _pour_progress: float = 0.0
 var _pour_color: Color = Color.WHITE
 var _pour_stream_active: bool = false
-var _stream_phase: float = 0.0
 
 var _stream_glow: Polygon2D
 var _stream_shape: Polygon2D
@@ -904,7 +903,6 @@ func _process(delta: float) -> void:
 		_drag_pointer_velocity = _drag_pointer_velocity.move_toward(Vector2.ZERO, delta * 210.0)
 
 	if _pour_stream_active:
-		_stream_phase = fposmod(_stream_phase + delta * 1.9, 1.0)
 		_update_stream()
 
 
@@ -1103,10 +1101,6 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	target.call("trigger_slosh", 0.12)
 	_set_status("Pouring %s essence..." % essence.capitalize())
 
-	# Every pour starts its travelling effects from their hidden state.
-	# Reusing the previous pour's phase could make the impact ring appear
-	# at full mid-cycle opacity on the first frame, especially in an empty vial.
-	_stream_phase = 0.0
 	_pour_stream_active = true
 	_stream_glow.visible = true
 	_stream_shape.visible = true
@@ -1332,7 +1326,14 @@ func _update_stream() -> void:
 	_stream_glint.default_color = Color(1.0, 1.0, 1.0, glint_alpha)
 
 	for index in range(_stream_drops.size()):
-		var travel: float = fposmod(_stream_phase + float(index) / float(_stream_drops.size()), 1.0)
+		# Each droplet makes one staggered trip down the stream per transfer.
+		# There is no wrapped travel phase, so none can jump back to the source
+		# and flash a second time during a single pour.
+		var travel: float = clampf(
+			_pour_progress * 1.5 - float(index) * 0.25,
+			0.0,
+			1.0
+		)
 		var drop_position: Vector2 = start.bezier_interpolate(control_one, control_two, finish, travel)
 		var drop: Polygon2D = _stream_drops[index]
 		drop.position = drop_position
@@ -1341,9 +1342,8 @@ func _update_stream() -> void:
 			0.75 + 0.25 * sin(PI * travel),
 			0.90 + 0.4 * sin(PI * travel)
 		)
-		# Fade droplets at both ends of their loop so they disappear before
-		# returning to the source instead of visibly popping back into place.
-		var drop_alpha: float = 0.82 * sin(PI * travel)
+		# Keep the highlights softer; their opacity naturally starts and ends at zero.
+		var drop_alpha: float = 0.46 * sin(PI * travel)
 		drop.color = Color(1.0, 1.0, 1.0, drop_alpha)
 
 	# Expand the ripple once during the transfer, then fade it away. This hides the reset cleanly.
