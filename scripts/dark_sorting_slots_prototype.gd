@@ -1082,7 +1082,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var target_original_z: int = target.z_index
 	# Diagnostic: restore only the receiver z-order change; keep overlays and FX off.
 	target.z_index = 7
-	target.call("set_front_mouth_lip_active", not DEBUG_BARE_POUR_STREAM)
+	target.call("set_front_mouth_lip_active", true)
 
 	source.call("set_drag_motion", false)
 	source.call("set_feedback", false, false, false)
