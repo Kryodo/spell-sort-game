@@ -1103,6 +1103,10 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	target.call("trigger_slosh", 0.12)
 	_set_status("Pouring %s essence..." % essence.capitalize())
 
+	# Every pour starts its travelling effects from their hidden state.
+	# Reusing the previous pour's phase could make the impact ring appear
+	# at full mid-cycle opacity on the first frame, especially in an empty vial.
+	_stream_phase = 0.0
 	_pour_stream_active = true
 	_stream_glow.visible = true
 	_stream_shape.visible = true
