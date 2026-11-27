@@ -334,6 +334,7 @@ var _stream_phase: float = 0.0
 var _stream_glow: Polygon2D
 var _stream_shape: Polygon2D
 var _stream_highlight: Line2D
+var _stream_glint: Line2D
 var _stream_drops: Array[Polygon2D] = []
 var _splash_ring: Line2D
 
@@ -1200,6 +1201,14 @@ func _build_stream_layers() -> void:
 	_stream_highlight.visible = false
 	add_child(_stream_highlight)
 
+	_stream_glint = Line2D.new()
+	_stream_glint.width = 1.0
+	_stream_glint.antialiased = true
+	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.88)
+	_stream_glint.z_index = 11
+	_stream_glint.visible = false
+	add_child(_stream_glint)
+
 	for index in range(3):
 		var drop := Polygon2D.new()
 		drop.polygon = PackedVector2Array([
@@ -1254,18 +1263,23 @@ func _update_stream() -> void:
 	for index in range(POINT_COUNT):
 		var t: float = float(index) / float(POINT_COUNT - 1)
 		var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
-		centres.append(point)
 		var before: Vector2 = start.bezier_interpolate(control_one, control_two, finish, maxf(0.0, t - 0.015))
 		var after: Vector2 = start.bezier_interpolate(control_one, control_two, finish, minf(1.0, t + 0.015))
 		var tangent: Vector2 = (after - before).normalized()
 		var normal := Vector2(-tangent.y, tangent.x)
+		# A little lateral movement makes the stream feel fluid without making it wobble wildly.
+		var drift: float = sin(t * 16.0 + _stream_phase * TAU) * 0.85
+		drift += sin(t * 31.0 - _stream_phase * TAU * 1.4) * 0.32
+		point += normal * drift
+		centres.append(point)
 		var pulse_width: float = sin(PI * t)
-		var irregularity: float = 0.78 + 0.16 * sin(t * 19.0 + _stream_phase * TAU)
-		var half_width: float = (1.15 + pulse_width * 2.8) * irregularity
+		var irregularity: float = 0.94 + 0.06 * sin(t * 19.0 + _stream_phase * TAU)
+		# Roughly 25% fuller at the centre, while retaining narrow tapered ends.
+		var half_width: float = (0.85 + pulse_width * 3.0) * 1.28 * irregularity
 		left_edge.append(point + normal * half_width)
 		right_edge.append(point - normal * half_width)
-		left_glow.append(point + normal * half_width * 2.8)
-		right_glow.append(point - normal * half_width * 2.8)
+		left_glow.append(point + normal * half_width * 3.1)
+		right_glow.append(point - normal * half_width * 3.1)
 
 	var stream_polygon := PackedVector2Array()
 	for point in left_edge:
@@ -1284,7 +1298,17 @@ func _update_stream() -> void:
 	_stream_shape.polygon = stream_polygon
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 0.94)
 	_stream_highlight.points = centres
-	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.38 + 0.22 * sin(PI * _pour_progress))
+	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.25 + 0.12 * sin(PI * _pour_progress))
+	# A short, brighter glint travels down the stream like a moving reflection.
+	var glint_start: float = fposmod(_stream_phase + 0.18, 1.0) * 0.72 + 0.12
+	var glint_end: float = minf(0.98, glint_start + 0.16)
+	var glint_points := PackedVector2Array()
+	for index in range(centres.size()):
+		var point_t: float = float(index) / float(centres.size() - 1)
+		if point_t >= glint_start and point_t <= glint_end:
+			glint_points.append(centres[index])
+	_stream_glint.points = glint_points
+	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.82)
 
 	for index in range(_stream_drops.size()):
 		var travel: float = fposmod(_stream_phase + float(index) / float(_stream_drops.size()), 1.0)
@@ -1298,13 +1322,14 @@ func _update_stream() -> void:
 		)
 		drop.color = Color(1.0, 1.0, 1.0, 0.62 + 0.30 * sin(PI * travel))
 
-	var ring_radius: float = 7.0 + 10.0 * _pour_progress
+	# The impact ring expands and fades continuously while the stream is flowing.
+	var ring_radius: float = 4.5 + 13.0 * _stream_phase
 	var ring_points := PackedVector2Array()
 	for index in range(25):
 		var angle: float = TAU * float(index) / 24.0
 		ring_points.append(finish + Vector2(cos(angle) * ring_radius, sin(angle) * ring_radius * 0.42))
 	_splash_ring.points = ring_points
-	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.10 + 0.34 * sin(PI * _pour_progress))
+	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.08 + 0.28 * (1.0 - _stream_phase))
 
 
 func _load_level() -> void:
