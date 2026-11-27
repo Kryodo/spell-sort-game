@@ -1,7 +1,7 @@
 extends "res://scripts/sorting_direction_prototype.gd"
 
 const AssetFantasyBottleScript = preload("res://scripts/asset_fantasy_alchemy_bottle.gd")
-const DEBUG_BARE_POUR_STREAM := true
+const DEBUG_BARE_POUR_STREAM := false
 const TEST_VIAL_SOURCE_SIZE := Vector2(160.0, 365.0)
 
 
