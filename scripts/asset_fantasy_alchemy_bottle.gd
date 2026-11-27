@@ -85,6 +85,104 @@ class FrontMouthLipOverlay extends Control:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+
+# This layer retains the artwork and static chamber reflections as one CanvasItem.
+# It is redrawn only when the vial's contents/artwork/size changes.
+class StaticVialArtworkLayer extends Control:
+	var _bottle: Control
+
+	func configure(bottle: Control) -> void:
+		_bottle = bottle
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		queue_redraw()
+
+	func _draw() -> void:
+		if not is_instance_valid(_bottle):
+			return
+		var art: Texture2D = _bottle.get("vial_art")
+		if art == null:
+			return
+		var rect: Rect2 = _bottle.call("_get_vessel_rect")
+		draw_texture_rect(art, rect, false, Color.WHITE)
+
+		var reflections: Array = _bottle.get("_glass_layer_reflections")
+		if reflections.size() != 4:
+			return
+		var contents: Array = _bottle.get("_visual_contents")
+		var palette: Dictionary = _bottle.get("_palette")
+		var liquid_level: float = float(_bottle.get("_liquid_level"))
+
+		for layer_index in range(4):
+			var geometry: Dictionary = reflections[layer_index]
+			var amount: float = clampf(liquid_level - float(layer_index), 0.0, 1.0)
+			var reflection_color := Color(0.66, 0.82, 0.86, 1.0)
+			if layer_index < contents.size() and amount > 0.0:
+				var essence: String = String(contents[layer_index])
+				var liquid_color: Color = palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
+				var tint_blend: float = smoothstep(0.0, 0.12, amount)
+				reflection_color = reflection_color.lerp(
+					_bottle.call("_glass_reflection_color", liquid_color),
+					tint_blend
+				)
+
+			var halo_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.25)
+			var main_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.62)
+			var right_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.34)
+			draw_polyline(geometry["halo"], halo_color, maxf(3.0, rect.size.x * 0.045), true)
+			draw_polyline(geometry["main"], main_color, maxf(1.8, rect.size.x * 0.018), true)
+			draw_polyline(geometry["core"], Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
+			draw_polyline(geometry["bounce"], right_color, maxf(1.4, rect.size.x * 0.014), true)
+			draw_polyline(geometry["glint"], Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
+
+
+# Only the moving meniscus reflection remains in the per-frame overlay.
+class DynamicSurfaceReflectionLayer extends Control:
+	var _bottle: Control
+
+	func configure(bottle: Control) -> void:
+		_bottle = bottle
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		z_index = 2
+		queue_redraw()
+
+	func _draw() -> void:
+		if not is_instance_valid(_bottle):
+			return
+		var liquid_level: float = float(_bottle.get("_liquid_level"))
+		var contents: Array = _bottle.get("_visual_contents")
+		if liquid_level <= 0.001 or contents.is_empty():
+			return
+
+		var rect: Rect2 = _bottle.call("_get_vessel_rect")
+		var top_ratio: float = float(_bottle.get("_window_top_ratio"))
+		var bottom_ratio: float = float(_bottle.get("_window_bottom_ratio"))
+		var chamber_span: float = bottom_ratio - top_ratio
+		var surface_ratio: float = bottom_ratio - chamber_span / 4.0 * clampf(liquid_level, 0.0, 4.0)
+		var points := PackedVector2Array()
+		const SAMPLE_COUNT := 32
+		for index in range(SAMPLE_COUNT + 1):
+			var t: float = float(index) / float(SAMPLE_COUNT)
+			var normalized_x: float = t * 2.0 - 1.0
+			var wave_y: float = rect.position.y + rect.size.y * surface_ratio + float(
+				_bottle.call("_get_surface_wave_offset", normalized_x)
+			) * 0.42
+			var y_ratio: float = clampf(
+				(wave_y - rect.position.y) / rect.size.y,
+				top_ratio,
+				bottom_ratio
+			)
+			var bounds: Vector2 = _bottle.call("_window_bounds_at", y_ratio)
+			var left_x: float = rect.position.x + rect.size.x * bounds.x + rect.size.x * 0.025
+			var right_x: float = rect.position.x + rect.size.x * bounds.y - rect.size.x * 0.025
+			points.append(Vector2(lerpf(left_x, right_x, t), wave_y))
+
+		var palette: Dictionary = _bottle.get("_palette")
+		var essence: String = String(contents[clampi(int(floor(liquid_level - 0.0001)), 0, contents.size() - 1)])
+		var liquid_color: Color = palette.get(essence, Color(0.45, 0.78, 0.75, 1.0)).lightened(0.16)
+		liquid_color.a = 0.22 * smoothstep(0.0, 0.12, liquid_level)
+		draw_polyline(points, liquid_color, maxf(1.0, rect.size.x * 0.012), true)
+
+
 static var _texture_analysis_cache: Dictionary = {}
 
 var vial_art: Texture2D = DEFAULT_VIAL_ART
@@ -99,6 +197,9 @@ var _mouth_width_ratio: float = 0.15
 var _glass_layer_reflections: Array[Dictionary] = []
 var _window_top_contour := PackedVector2Array()
 var _front_mouth_lip_overlay: FrontMouthLipOverlay
+var _artwork_transform: Control
+var _static_artwork_layer: StaticVialArtworkLayer
+var _surface_reflection_layer: DynamicSurfaceReflectionLayer
 
 # Stable liquid body geometry is cached per vial and rebuilt only when its
 # contents, fill preview, artwork profile or control size changes.
@@ -115,13 +216,57 @@ func _ready() -> void:
 	add_child(_front_mouth_lip_overlay)
 	_front_mouth_lip_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_front_mouth_lip_overlay.configure(self, vial_art)
+
+	_artwork_transform = Control.new()
+	_artwork_transform.name = "VialArtworkTransform"
+	_artwork_transform.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_artwork_transform.size = size
+	add_child(_artwork_transform)
+
+	_static_artwork_layer = StaticVialArtworkLayer.new()
+	_static_artwork_layer.name = "StaticArtworkAndReflections"
+	_static_artwork_layer.size = size
+	_artwork_transform.add_child(_static_artwork_layer)
+	_static_artwork_layer.configure(self)
+
+	_surface_reflection_layer = DynamicSurfaceReflectionLayer.new()
+	_surface_reflection_layer.name = "DynamicSurfaceReflection"
+	_surface_reflection_layer.size = size
+	_artwork_transform.add_child(_surface_reflection_layer)
+	_surface_reflection_layer.configure(self)
+
 	if not resized.is_connected(_on_vial_resized):
 		resized.connect(_on_vial_resized)
+	_update_artwork_transform()
 	_invalidate_liquid_geometry()
+
+
+func _update_artwork_transform() -> void:
+	if not is_instance_valid(_artwork_transform):
+		return
+	var pivot := Vector2(size.x * 0.5, size.y * 0.86)
+	_artwork_transform.position = (
+		pivot
+		+ Vector2(0.0, -_lift)
+		- pivot.rotated(_tilt) * _draw_scale
+	)
+	_artwork_transform.rotation = _tilt
+	_artwork_transform.scale = Vector2(_draw_scale, _draw_scale)
+	_artwork_transform.size = size
+	if is_instance_valid(_static_artwork_layer):
+		_static_artwork_layer.size = size
+	if is_instance_valid(_surface_reflection_layer):
+		_surface_reflection_layer.size = size
 
 
 func _on_vial_resized() -> void:
+	_build_static_reflection_geometry()
+	_update_artwork_transform()
 	_invalidate_liquid_geometry()
+	if is_instance_valid(_static_artwork_layer):
+		_static_artwork_layer.queue_redraw()
+	if is_instance_valid(_surface_reflection_layer):
+		_surface_reflection_layer.queue_redraw()
 
 
 func _invalidate_liquid_geometry() -> void:
@@ -137,17 +282,28 @@ func setup(index: int, label: String, variant: int, palette: Dictionary, content
 func set_contents(contents: Array) -> void:
 	super.set_contents(contents)
 	_invalidate_liquid_geometry()
+	if is_instance_valid(_static_artwork_layer):
+		_static_artwork_layer.queue_redraw()
+	if is_instance_valid(_surface_reflection_layer):
+		_surface_reflection_layer.queue_redraw()
 
 
 func set_preview(contents: Array, level: float) -> void:
 	super.set_preview(contents, level)
 	_invalidate_liquid_geometry()
+	if is_instance_valid(_static_artwork_layer):
+		_static_artwork_layer.queue_redraw()
+	if is_instance_valid(_surface_reflection_layer):
+		_surface_reflection_layer.queue_redraw()
 
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	_update_artwork_transform()
 	if is_instance_valid(_front_mouth_lip_overlay) and _front_mouth_lip_overlay.visible:
 		_front_mouth_lip_overlay.queue_redraw()
+	if is_instance_valid(_surface_reflection_layer) and _liquid_level > 0.001:
+		_surface_reflection_layer.queue_redraw()
 
 
 func set_front_mouth_lip_active(active: bool) -> void:
@@ -167,6 +323,8 @@ func set_vial_art(texture: Texture2D) -> void:
 	if is_node_ready():
 		_build_inner_window_profile()
 		_liquid_geometry_dirty = true
+		if is_instance_valid(_static_artwork_layer):
+			_static_artwork_layer.queue_redraw()
 	queue_redraw()
 
 
@@ -181,6 +339,8 @@ func _build_inner_window_profile() -> void:
 	if _texture_analysis_cache.has(cache_key):
 		_apply_cached_analysis(_texture_analysis_cache[cache_key])
 		_build_static_reflection_geometry()
+		if is_instance_valid(_static_artwork_layer):
+			_static_artwork_layer.queue_redraw()
 		return
 
 	var source_image: Image = vial_art.get_image()
@@ -348,6 +508,8 @@ func _build_inner_window_profile() -> void:
 		"mouth_y": _mouth_y_ratio,
 		"mouth_width": _mouth_width_ratio
 	}
+	if is_instance_valid(_static_artwork_layer):
+		_static_artwork_layer.queue_redraw()
 
 
 func _apply_cached_analysis(analysis: Dictionary) -> void:
@@ -1111,13 +1273,9 @@ func _draw_glass_back(_rect: Rect2) -> void:
 
 
 func _draw_glass_overlay() -> void:
-	if vial_art == null:
-		return
-	var rect := _get_vessel_rect()
-	# Keep the Qwen artwork at its original colour. It supplies the vessel's
-	# identity and ornaments; Godot adds the live optical response afterwards.
-	draw_texture_rect(vial_art, rect, false, GLASS_MODULATE)
-	_draw_chamber_reflections(rect)
+	# Artwork and static glass reflections live on a retained child CanvasItem.
+	# This parent redraw now contains only liquid and interaction effects.
+	pass
 
 
 func _build_static_reflection_geometry() -> void:
