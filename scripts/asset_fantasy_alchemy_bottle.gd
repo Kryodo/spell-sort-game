@@ -5,10 +5,8 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 
 const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_Base_V1.2.png")
 
-# Diagnostic switch: re-enable the older bubble/glow pass to compare behaviour.
-const ENABLE_INHERITED_LIQUID_OVERLAYS_FOR_DIAGNOSTIC := false
-# Temporarily flatten per-vertex liquid shading to isolate moving colour interpolation.
-const ENABLE_VERTEX_COLOUR_LIQUID_SHADING := false
+# Keep the animated meniscus separate from the static shaded liquid body.
+const SURFACE_CAP_DEPTH := 4.0
 
 const ALPHA_CUTOFF := 0.14
 const SCAN_TOP_RATIO := 0.16
@@ -480,11 +478,6 @@ func get_liquid_surface_position_in_parent() -> Vector2:
 	)
 
 
-func _draw_fantasy_liquid_overlays(rect: Rect2) -> void:
-	if not ENABLE_INHERITED_LIQUID_OVERLAYS_FOR_DIAGNOSTIC:
-		return
-	super._draw_fantasy_liquid_overlays(rect)
-
 
 func _draw_liquid(_rect: Rect2) -> void:
 	if _window_profile.size() < 8 or _visual_contents.is_empty() or _liquid_level <= 0.001:
@@ -533,27 +526,45 @@ func _draw_liquid_band(
 	if bottom_y - top_y <= 1.2:
 		return
 
-	var top_edge := PackedVector2Array()
+	# The wave is rendered as a separate, very shallow cap. The main fill starts
+	# below it, so its vertices and colour interpolation never move with the wave.
+	var body_top_y: float = top_y + SURFACE_CAP_DEPTH if is_surface else top_y
+	body_top_y = minf(body_top_y, bottom_y - 1.0)
+	var wave_edge := PackedVector2Array()
+	if is_surface:
+		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			var normalized_x: float = t * 2.0 - 1.0
+			var wave: float = _get_surface_wave_offset(normalized_x) * 0.36
+			var wave_y: float = clampf(top_y + wave, top_y - 2.0, body_top_y)
+			var bounds := _window_bounds_at(clampf(
+				(wave_y - rect.position.y) / rect.size.y,
+				_window_top_ratio,
+				_window_bottom_ratio
+			))
+			var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
+			var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
+			wave_edge.append(Vector2(lerpf(left_x, right_x, t), wave_y))
+
+	var body_top_edge := PackedVector2Array()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		var normalized_x: float = t * 2.0 - 1.0
-		var wave: float = _get_surface_wave_offset(normalized_x) * 0.36 if is_surface else 0.0
-		var wave_y: float = clampf(top_y + wave, top_y - 2.0, bottom_y - 0.8)
-		var bounds := _window_bounds_at(clampf(
-			(wave_y - rect.position.y) / rect.size.y,
+		var body_ratio: float = clampf(
+			(body_top_y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
 			_window_bottom_ratio
-		))
+		)
+		var bounds := _window_bounds_at(body_ratio)
 		var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
 		var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
-		top_edge.append(Vector2(lerpf(left_x, right_x, t), wave_y))
+		body_top_edge.append(Vector2(lerpf(left_x, right_x, t), body_top_y))
 
-	if top_edge.size() < 2:
+	if body_top_edge.size() < 2:
 		return
 
-	var polygon := top_edge.duplicate()
-	var right_top_y: float = top_edge[-1].y
-	var left_top_y: float = top_edge[0].y
+	var polygon := body_top_edge.duplicate()
+	var right_top_y: float = body_top_edge[-1].y
+	var left_top_y: float = body_top_edge[0].y
 	var bottom_bounds := _window_bounds_at(bottom_ratio)
 	var bottom_left_x: float = rect.position.x + rect.size.x * bottom_bounds.x + LIQUID_WALL_INSET
 	var bottom_right_x: float = rect.position.x + rect.size.x * bottom_bounds.y - LIQUID_WALL_INSET
@@ -590,29 +601,40 @@ func _draw_liquid_band(
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
 
-	# Diagnostic: flatten the fill to a single static tint while checking whether
-	# animated top-edge vertices are moving the per-vertex colour interpolation.
+	# The body geometry is stationary while idle. Its gentle centre/edge gradient
+	# therefore remains stable instead of being re-interpolated over moving waves.
 	var vertex_colors := PackedColorArray()
-	if ENABLE_VERTEX_COLOUR_LIQUID_SHADING:
-		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
-			vertex_colors.append(edge_color.lerp(center_color, center_weight))
-		for _side_index in range(LIQUID_SIDE_SAMPLES):
-			vertex_colors.append(edge_color)
-		vertex_colors.append(bottom_color)
-		for _side_index in range(1, LIQUID_SIDE_SAMPLES):
-			vertex_colors.append(edge_color)
-	else:
-		for _vertex_index in range(polygon.size()):
-			vertex_colors.append(fill_color)
+	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+		var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
+		vertex_colors.append(edge_color.lerp(center_color, center_weight))
+	for _side_index in range(LIQUID_SIDE_SAMPLES):
+		vertex_colors.append(edge_color)
+	vertex_colors.append(bottom_color)
+	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
+		vertex_colors.append(edge_color)
 	draw_polygon(polygon, vertex_colors)
+
+	# Only this thin cap moves. It uses one flat colour, so its geometry cannot
+	# make the shaded body appear to flicker or cast a moving colour shadow.
+	if is_surface and wave_edge.size() >= 2:
+		var cap_polygon := wave_edge.duplicate()
+		var cap_bounds := _window_bounds_at(clampf(
+			(body_top_y - rect.position.y) / rect.size.y,
+			_window_top_ratio,
+			_window_bottom_ratio
+		))
+		var cap_left_x: float = rect.position.x + rect.size.x * cap_bounds.x + LIQUID_WALL_INSET
+		var cap_right_x: float = rect.position.x + rect.size.x * cap_bounds.y - LIQUID_WALL_INSET
+		for sample_index in range(LIQUID_SURFACE_SAMPLES, -1, -1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			cap_polygon.append(Vector2(lerpf(cap_left_x, cap_right_x, t), body_top_y))
+		draw_colored_polygon(cap_polygon, fill_color)
 
 	if is_surface:
 		var surface_color: Color = fill_color.lightened(0.34)
 		surface_color.a = 0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025
-		draw_polyline(top_edge, surface_color, 1.1, true)
-
+		draw_polyline(wave_edge, surface_color, 1.1, true)
 
 func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	if visible_layers <= 0 or _window_profile.is_empty():
