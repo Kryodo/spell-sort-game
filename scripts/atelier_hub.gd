@@ -5,7 +5,6 @@ const FIRST_LESSONS_SCENE := "res://scenes/atelier_first_lessons.tscn"
 const PROGRESS_PATH := "user://spell_sort_progress.cfg"
 
 var _first_lessons_complete := false
-var _garden_first_challenge_complete := false
 var _atlas_button: Button
 var _workbench_button: Button
 var _atlas_status: Label
@@ -25,9 +24,6 @@ func _load_progress() -> void:
 
 	_first_lessons_complete = bool(
 		progress.get_value("progress", "first_lessons_complete", false)
-	)
-	_garden_first_challenge_complete = bool(
-		progress.get_value("progress", "garden_first_challenge_complete", false)
 	)
 
 
@@ -224,26 +220,16 @@ func _open_atlas() -> void:
 	divider.color = Color("#b39a6a", 0.30)
 	panel.add_child(divider)
 
-	var note_text := (
-		"FIRST CHAPTER"
-		if not _garden_first_challenge_complete
-		else "FIRST CHAMBER VISITED"
-	)
 	var note := _make_label(
-		note_text,
+		"FIRST DESTINATION",
 		Rect2(44.0, 362.0, 532.0, 22.0),
 		10,
 		Color("#b59a69")
 	)
 	panel.add_child(note)
 
-	var note_body_text := (
-		"The Overgrown Entrance is now recorded in your Atlas. Your next journey begins here."
-		if not _garden_first_challenge_complete
-		else "The first chamber has been recorded. Further rooms remain undiscovered."
-	)
 	var note_body := _make_label(
-		note_body_text,
+		"The Overgrown Entrance is now marked on your Atlas. The conservatory and its forgotten rooms remain unexplored.",
 		Rect2(44.0, 391.0, 532.0, 48.0),
 		13,
 		Color("#aeb8a9")
@@ -257,7 +243,7 @@ func _open_atlas() -> void:
 		13,
 		true
 	)
-	close_button.pressed.connect(overlay.queue_free)
+	close_button.pressed.connect(Callable(overlay, "queue_free"))
 	panel.add_child(close_button)
 
 
