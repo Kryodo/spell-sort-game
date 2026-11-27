@@ -23,6 +23,9 @@ const LIQUID_SIDE_SAMPLES := 32
 const LIQUID_WALL_INSET := -0.9
 const LIQUID_BOTTOM_WALL_OVERDRAW := 2.2
 const LIQUID_BOTTOM_BLEND_START := 0.68
+const LIQUID_APPEARANCE_FADE_LEVEL := 0.12
+const LIQUID_MIN_BAND_HEIGHT := 0.05
+const LIQUID_BAND_FADE_HEIGHT := 1.5
 
 # Preserve the generated vessel artwork exactly; reflections are added as a
 # separate liquid-aware Godot pass after the illustration and liquid.
@@ -631,6 +634,9 @@ func _draw_liquid(_rect: Rect2) -> void:
 		var top_ratio: float = bottom_ratio - layer_height * amount
 		var essence: String = String(_visual_contents[layer_index])
 		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
+		# Each incoming layer fades in over its first fraction instead of
+		# appearing at full opacity on the first non-zero preview value.
+		liquid_color.a *= smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, amount)
 		_draw_liquid_band(
 			rect,
 			top_ratio,
@@ -655,8 +661,16 @@ func _draw_liquid_band(
 	if not is_bottom:
 		bottom_y += 0.8
 	var top_y: float = rect.position.y + rect.size.y * top_ratio
-	if bottom_y - top_y <= 1.2:
+	var band_height: float = bottom_y - top_y
+	if band_height <= LIQUID_MIN_BAND_HEIGHT:
 		return
+	# Fade the first sub-pixel band in gradually instead of revealing it at
+	# the old hard 1.2px cutoff.
+	var band_alpha: float = smoothstep(
+		LIQUID_MIN_BAND_HEIGHT,
+		LIQUID_BAND_FADE_HEIGHT,
+		band_height
+	)
 
 	# The animated surface is the actual top boundary of the liquid body.
 	# Keeping one continuous body all the way to its floor prevents the
@@ -697,7 +711,7 @@ func _draw_liquid_band(
 			# within the current liquid band.
 			# Keep the moving surface entirely above the stable body boundary.
 			# This forms a simple, non-self-intersecting strip every frame.
-			var wave_height: float = clampf(4.0 + wave, 1.0, 8.0)
+			var wave_height: float = clampf(4.0 + wave, 1.0, 8.0) * liquid_color.a
 			var wave_y: float = top_y - wave_height
 			var base_point: Vector2 = body_top_edge[sample_index]
 			wave_edge.append(Vector2(base_point.x, wave_y))
@@ -753,6 +767,7 @@ func _draw_liquid_band(
 		))
 
 	var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.12), 0.10)
+	fill_color.a *= band_alpha
 	var edge_color: Color = fill_color.darkened(0.10)
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
@@ -784,7 +799,7 @@ func _draw_liquid_band(
 		draw_polygon(surface_polygon, surface_colours)
 
 		var surface_color: Color = fill_color.lightened(0.34)
-		surface_color.a = 0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025
+		surface_color.a = (0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025) * fill_color.a
 		draw_polyline(wave_edge, surface_color, 1.1, true)
 
 
@@ -796,6 +811,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	if visible_layers <= 0 or _window_profile.is_empty():
 		return
 
+	var appearance_alpha: float = smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, _liquid_level)
 	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
 	var layer_height: float = chamber_span / float(CAPACITY)
 	var surface_ratio: float = _window_bottom_ratio - (
@@ -833,7 +849,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		var bubble_size: float = BUBBLE_SIZES[bubble_index]
 		var travel_fade: float = sin(PI * phase)
 		var pulse: float = 0.55 + 0.45 * sin(_wave_time * 1.15 + float(bubble_index) * 1.37)
-		var bubble_alpha: float = (0.18 + 0.06 * pulse) * travel_fade
+		var bubble_alpha: float = (0.18 + 0.06 * pulse) * travel_fade * appearance_alpha
 		if bubble_alpha <= 0.004:
 			continue
 
@@ -876,7 +892,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			continue
 		var mote_x: float = rect.get_center().x + sin(_wave_time * 0.27 + float(mote_index) * 2.1) * mote_half_width
 		var mote_position := Vector2(mote_x, mote_y)
-		var mote_alpha: float = (0.065 + 0.035 * sin(_wave_time * 0.8 + float(mote_index))) * sin(PI * mote_phase)
+		var mote_alpha: float = (0.065 + 0.035 * sin(_wave_time * 0.8 + float(mote_index))) * sin(PI * mote_phase) * appearance_alpha
 		var mote_layer: int = clampi(
 			int(floor((_window_bottom_ratio - mote_ratio) / maxf(0.0001, layer_height))),
 			0,
@@ -1053,10 +1069,14 @@ func _draw_chamber_reflections(rect: Rect2) -> void:
 		var geometry: Dictionary = _glass_layer_reflections[layer_index]
 		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
 		var reflection_color := Color(0.66, 0.82, 0.86, 1.0)
-		if layer_index < _visual_contents.size() and amount > 0.001:
+		if layer_index < _visual_contents.size() and amount > 0.0:
 			var essence: String = String(_visual_contents[layer_index])
 			var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-			reflection_color = _glass_reflection_color(liquid_color)
+			var tint_blend: float = smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, amount)
+			reflection_color = reflection_color.lerp(
+				_glass_reflection_color(liquid_color),
+				tint_blend
+			)
 
 		var halo_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.25)
 		var main_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.62)
@@ -1107,7 +1127,8 @@ func _draw_liquid_surface_reflection(rect: Rect2) -> void:
 	# One restrained reflection that borrows the active top essence hue.
 	# Avoid the separate white glow stroke, which reads like a hard divider.
 	var surface_color: Color = _get_top_liquid_color().lightened(0.16)
-	surface_color.a = 0.22
+	var appearance_alpha: float = smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, _liquid_level)
+	surface_color.a = 0.22 * appearance_alpha
 	draw_polyline(surface_points, surface_color, maxf(1.0, rect.size.x * 0.012), true)
 
 
