@@ -86,6 +86,7 @@ static var _texture_analysis_cache: Dictionary = {}
 
 var vial_art: Texture2D = DEFAULT_VIAL_ART
 var _window_profile := PackedVector3Array()
+var _reflection_profile := PackedVector3Array()
 var _window_top_ratio: float = 0.28
 var _window_bottom_ratio: float = 0.76
 var _reflection_bottom_ratio: float = 0.76
@@ -134,6 +135,7 @@ func set_vial_art(texture: Texture2D) -> void:
 
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
+	_reflection_profile.clear()
 	_window_top_contour.clear()
 	if vial_art == null:
 		return
@@ -259,6 +261,34 @@ func _build_inner_window_profile() -> void:
 		push_warning("Vial renderer: chamber profile could not be sampled reliably.")
 		return
 
+	# Rebuild the original conservative profile specifically for glass strokes:
+	# original 8% lower-width cutoff and original 14-row smoothing throughout.
+	for sample_index in range(PROFILE_SAMPLES):
+		var t: float = float(sample_index) / float(PROFILE_SAMPLES - 1)
+		var sample_row: int = roundi(lerpf(float(chamber_top), float(reflection_chamber_bottom), t))
+		var sum_left: float = 0.0
+		var sum_right: float = 0.0
+		var sample_count: int = 0
+		for row in range(
+			maxi(chamber_top, sample_row - PROFILE_SMOOTH_RADIUS),
+			mini(reflection_chamber_bottom, sample_row + PROFILE_SMOOTH_RADIUS) + 1
+		):
+			if row_width[row] <= 0:
+				continue
+			sum_left += float(row_left[row])
+			sum_right += float(row_right[row] + 1)
+			sample_count += 1
+		if sample_count == 0:
+			continue
+		_reflection_profile.append(Vector3(
+			float(sample_row) / float(image_height),
+			(sum_left / float(sample_count)) / float(image_width),
+			(sum_right / float(sample_count)) / float(image_width)
+		))
+
+	if _reflection_profile.size() < 8:
+		_reflection_profile = _window_profile.duplicate()
+
 	# Extend slightly past the first/last transparent sample so the fill reaches
 	# underneath the anti-aliased chamber rim instead of leaving a hairline gap.
 	_window_top_ratio = maxf(0.0, _window_profile[0].x - 1.25 / float(image_height))
@@ -273,6 +303,7 @@ func _build_inner_window_profile() -> void:
 
 	_texture_analysis_cache[cache_key] = {
 		"profile": _window_profile,
+		"reflection_profile": _reflection_profile,
 		"top_contour": _window_top_contour,
 		"top": _window_top_ratio,
 		"bottom": _window_bottom_ratio,
@@ -284,6 +315,7 @@ func _build_inner_window_profile() -> void:
 
 func _apply_cached_analysis(analysis: Dictionary) -> void:
 	_window_profile = analysis["profile"]
+	_reflection_profile = analysis.get("reflection_profile", _window_profile).duplicate()
 	_window_top_contour = analysis.get("top_contour", PackedVector2Array())
 	_window_top_ratio = float(analysis["top"])
 	_window_bottom_ratio = float(analysis["bottom"])
@@ -1079,6 +1111,36 @@ func _draw_liquid_surface_reflection(rect: Rect2) -> void:
 	draw_polyline(surface_points, surface_color, maxf(1.0, rect.size.x * 0.012), true)
 
 
+func _reflection_bounds_at(y_ratio: float) -> Vector2:
+	if _reflection_profile.is_empty():
+		return _window_bounds_at(y_ratio)
+	var profile_count: int = _reflection_profile.size()
+	var first: Vector3 = _reflection_profile[0]
+	if y_ratio <= first.x:
+		return Vector2(first.y, first.z)
+	var last: Vector3 = _reflection_profile[profile_count - 1]
+	if y_ratio >= last.x:
+		return Vector2(last.y, last.z)
+
+	var low_index: int = 0
+	var high_index: int = profile_count - 1
+	while high_index - low_index > 1:
+		var middle_index: int = (low_index + high_index) >> 1
+		if _reflection_profile[middle_index].x <= y_ratio:
+			low_index = middle_index
+		else:
+			high_index = middle_index
+
+	first = _reflection_profile[low_index]
+	last = _reflection_profile[high_index]
+	var span: float = maxf(0.000001, last.x - first.x)
+	var weight: float = clampf((y_ratio - first.x) / span, 0.0, 1.0)
+	return Vector2(
+		lerpf(first.y, last.y, weight),
+		lerpf(first.z, last.z, weight)
+	)
+
+
 func _chamber_edge_points(
 	rect: Rect2,
 	left_side: bool,
@@ -1092,7 +1154,7 @@ func _chamber_edge_points(
 		var amount: float = float(index) / float(SAMPLE_COUNT - 1)
 		var profile_ratio: float = lerpf(start_ratio, end_ratio, amount)
 		var y_ratio: float = lerpf(_window_top_ratio, _reflection_bottom_ratio, profile_ratio)
-		var bounds: Vector2 = _window_bounds_at(y_ratio)
+		var bounds: Vector2 = _reflection_bounds_at(y_ratio)
 		var edge_ratio: float = bounds.x if left_side else bounds.y
 		var x: float = rect.position.x + rect.size.x * edge_ratio
 		x += inset if left_side else -inset
