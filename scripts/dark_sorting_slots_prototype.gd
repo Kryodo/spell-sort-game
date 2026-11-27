@@ -1098,9 +1098,8 @@ func _begin_drag(pointer: Vector2) -> void:
 		vial.z_index = 50
 		vial.call("set_feedback", true, false, true)
 		vial.call("set_drag_motion", false)
-		# Pick up with the same pronounced, directional lean as the main sorting scene.
-		var pickup_tilt_direction: float = _get_drag_tilt_direction(index)
-		vial.call("set_pose", Vector2(18.0, deg_to_rad(38.0) * pickup_tilt_direction))
+		# Begin upright; horizontal movement will build the tilt gradually.
+		vial.call("set_pose", Vector2(18.0, 0.0))
 		vial.call("set_draw_scale", 1.035)
 
 		_set_status("Vial lifted. Guide its open mouth to a receiving vessel.")
@@ -1119,13 +1118,10 @@ func _update_drag(pointer: Vector2) -> void:
 	var source: Control = bottle_nodes[selected_vial]
 	source.call("set_drag_motion", pointer_delta.length() > 0.65)
 
-	# Match the main scene: the vial leans decisively toward the side
-	# of the slot the pointer is moving over, rather than staying upright.
-	var delta_x: float = pointer.x - (drag_origin.x + source.size.x * 0.5)
-	var tilt_direction: float = signf(delta_x)
-	if is_zero_approx(tilt_direction):
-		tilt_direction = _get_drag_tilt_direction(selected_vial)
-	source.call("set_pose", Vector2(18.0, deg_to_rad(38.0) * tilt_direction))
+	# Tilt follows horizontal pointer travel continuously, avoiding a sudden
+	# left/right flip when the pointer crosses the vial's original centre.
+	var tilt_angle: float = _get_drag_tilt_angle(pointer.x)
+	source.call("set_pose", Vector2(18.0, tilt_angle))
 
 	var pose: Vector2 = source.call("get_pose")
 	_drag_target_position = pointer - source.call("get_drag_anchor_local", grab_offset, pose)
@@ -1136,14 +1132,11 @@ func _process(delta: float) -> void:
 	if selected_vial >= 0 and is_dragging and not is_animating:
 		var source: Control = bottle_nodes[selected_vial]
 		_drag_swing_time += delta
-		var delta_x: float = _drag_pointer.x - (drag_origin.x + source.size.x * 0.5)
-		var tilt_direction: float = signf(delta_x)
-		if is_zero_approx(tilt_direction):
-			tilt_direction = _get_drag_tilt_direction(selected_vial)
+		var tilt_angle: float = _get_drag_tilt_angle(_drag_pointer.x)
 		var inertial_tilt: float = clampf(_drag_pointer_velocity.x / 2400.0, -0.035, 0.035)
 		inertial_tilt += sin(_drag_swing_time * 3.6) * 0.006
 		var gentle_bob: float = sin(_drag_swing_time * 2.1) * 0.6
-		source.call("set_pose", Vector2(18.0 + gentle_bob, deg_to_rad(38.0) * tilt_direction + inertial_tilt))
+		source.call("set_pose", Vector2(18.0 + gentle_bob, tilt_angle + inertial_tilt))
 		source.call("set_drag_motion", _drag_pointer_velocity.length() > 20.0)
 
 		var pose: Vector2 = source.call("get_pose")
@@ -1181,22 +1174,13 @@ func _refresh_drag_target() -> void:
 		_set_status("Guide the source opening onto an empty or matching vial.")
 
 
-func _get_drag_tilt_direction(source_index: int) -> float:
-	var source: Control = bottle_nodes[source_index]
-	var source_center_x: float = drag_origin.x + source.size.x * 0.5
-	var closest_delta: float = 0.0
-	var closest_distance: float = INF
-
-	for index in range(bottle_nodes.size()):
-		if index == source_index or not _can_pour(source_index, index):
-			continue
-		var target: Control = bottle_nodes[index]
-		var delta_x: float = target.position.x + target.size.x * 0.5 - source_center_x
-		if absf(delta_x) < closest_distance:
-			closest_distance = absf(delta_x)
-			closest_delta = delta_x
-
-	return 1.0 if is_zero_approx(closest_delta) else signf(closest_delta)
+func _get_drag_tilt_angle(pointer_x: float) -> float:
+	# Base the lean on movement since pickup, not pointer position relative to
+	# the vial centre. A small dead-simple linear response keeps vertical drags
+	# upright and makes left/right changes pass smoothly through zero.
+	var horizontal_travel: float = pointer_x - _drag_start_pointer.x
+	var normalized_travel: float = clampf(horizontal_travel / 110.0, -1.0, 1.0)
+	return deg_to_rad(38.0) * normalized_travel
 
 
 func _find_target_for_mouth(source_index: int, source_mouth: Vector2) -> int:
