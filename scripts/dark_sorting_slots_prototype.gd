@@ -1108,10 +1108,10 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_highlight.visible = true
 	_stream_glint.visible = true
 	_update_stream()
+	for drop in _stream_drops:
+		drop.visible = true
 	if not DEBUG_BARE_POUR_STREAM:
 		_splash_ring.visible = true
-		for drop in _stream_drops:
-			drop.visible = true
 
 	var pour_tween := create_tween()
 	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.95).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -1124,10 +1124,10 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_glow.visible = false
 	_stream_highlight.visible = false
 	_stream_glint.visible = false
+	for drop in _stream_drops:
+		drop.visible = false
 	if not DEBUG_BARE_POUR_STREAM:
 		_splash_ring.visible = false
-		for drop in _stream_drops:
-			drop.visible = false
 
 	var return_tween := create_tween().set_parallel(true)
 	return_tween.tween_property(source, "position", slot_positions[source_index], 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
@@ -1218,9 +1218,7 @@ func _build_stream_layers() -> void:
 	_stream_glint.visible = false
 	add_child(_stream_glint)
 
-	if DEBUG_BARE_POUR_STREAM:
-		return
-
+	# Create droplets before the diagnostic early return so they can be tested alone.
 	for index in range(3):
 		var drop := Polygon2D.new()
 		drop.polygon = PackedVector2Array([
@@ -1236,6 +1234,9 @@ func _build_stream_layers() -> void:
 		drop.visible = false
 		add_child(drop)
 		_stream_drops.append(drop)
+
+	if DEBUG_BARE_POUR_STREAM:
+		return
 
 	_splash_ring = Line2D.new()
 	_splash_ring.width = 1.8
@@ -1425,6 +1426,15 @@ func _update_bare_stream() -> void:
 		1.0,
 		0.52 * sin(PI * glint_progress)
 	)
+
+	for index in range(_stream_drops.size()):
+		var travel: float = clampf(_pour_progress * 1.5 - float(index) * 0.25, 0.0, 1.0)
+		var drop_position: Vector2 = start.bezier_interpolate(control_one, control_two, finish, travel)
+		var drop: Polygon2D = _stream_drops[index]
+		drop.position = drop_position
+		drop.rotation = atan2(span.y, span.x) + PI * 0.5
+		drop.scale = Vector2(0.75 + 0.25 * sin(PI * travel), 0.90 + 0.4 * sin(PI * travel))
+		drop.color = Color(1.0, 1.0, 1.0, 0.46 * sin(PI * travel))
 
 func _get_stream_centre_point(
 	start: Vector2,
