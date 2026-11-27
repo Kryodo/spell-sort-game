@@ -1088,7 +1088,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	source.call("set_feedback", false, false, false)
 	target.call("set_preview", _pour_target_preview, _pour_target_start)
 	source.call("set_preview", _pour_source_preview, _pour_source_start)
-	target.call("set_feedback", false, not DEBUG_BARE_POUR_STREAM, false)
+	target.call("set_feedback", false, true, false)
 
 	_set_status("Aligning the glass spouts...")
 	var approach := create_tween().set_parallel(true)
