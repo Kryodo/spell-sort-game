@@ -1,6 +1,7 @@
 extends "res://scripts/sorting_direction_prototype.gd"
 
-# Isolated comparison copy: renderer frozen to the version immediately before 964962d.\nconst AssetFantasyBottleScript = preload("res://scripts/asset_fantasy_alchemy_bottle_pre_wavy.gd")
+# Isolated comparison copy: renderer frozen to the version immediately before 964962d.
+const AssetFantasyBottleScript = preload("res://scripts/asset_fantasy_alchemy_bottle_pre_wavy.gd")
 const TEST_VIAL_SOURCE_SIZE := Vector2(160.0, 365.0)
 
 
