@@ -1260,19 +1260,21 @@ func _update_stream() -> void:
 	var right_glow := PackedVector2Array()
 	var left_edge := PackedVector2Array()
 	var right_edge := PackedVector2Array()
-	const POINT_COUNT := 27
 
-	for index in range(POINT_COUNT):
-		var t: float = float(index) / float(POINT_COUNT - 1)
-		var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
-		var before: Vector2 = start.bezier_interpolate(control_one, control_two, finish, maxf(0.0, t - 0.015))
-		var after: Vector2 = start.bezier_interpolate(control_one, control_two, finish, minf(1.0, t + 0.015))
-		var tangent: Vector2 = (after - before).normalized()
+	# Keep curve sampling consistent in screen space. A fixed 27 points left
+	# long falls visibly under-sampled, making the animated edge shimmer.
+	var estimated_curve_length: float = (
+		start.distance_to(control_one)
+		+ control_one.distance_to(control_two)
+		+ control_two.distance_to(finish)
+	)
+	var point_count: int = clampi(ceili(estimated_curve_length / 7.0) + 1, 27, 112)
+
+	for index in range(point_count):
+		var t: float = float(index) / float(point_count - 1)
+		var point: Vector2 = _get_stream_centre_point(start, control_one, control_two, finish, t)
+		var tangent: Vector2 = _get_stream_tangent(control_one, start, control_two, finish, t)
 		var normal := Vector2(-tangent.y, tangent.x)
-		# A little lateral movement makes the stream feel fluid without making it wobble wildly.
-		var drift: float = sin(t * 16.0 + _stream_phase * TAU) * 0.85
-		drift += sin(t * 31.0 - _stream_phase * TAU * 1.4) * 0.32
-		point += normal * drift
 		centres.append(point)
 		var pulse_width: float = sin(PI * t)
 		var irregularity: float = 0.94 + 0.06 * sin(t * 19.0 + _stream_phase * TAU)
@@ -1301,14 +1303,22 @@ func _update_stream() -> void:
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 0.94)
 	_stream_highlight.points = centres
 	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.25 + 0.12 * sin(PI * _pour_progress))
-	# A short, brighter glint travels down the stream like a moving reflection.
+	# Calculate the travelling glint at continuous curve positions rather than
+	# selecting a few coarse centre samples. Its length and movement stay smooth
+	# even when the stream becomes much longer.
 	var glint_start: float = fposmod(_stream_phase + 0.18, 1.0) * 0.72 + 0.12
 	var glint_end: float = minf(0.98, glint_start + 0.16)
 	var glint_points := PackedVector2Array()
-	for index in range(centres.size()):
-		var point_t: float = float(index) / float(centres.size() - 1)
-		if point_t >= glint_start and point_t <= glint_end:
-			glint_points.append(centres[index])
+	const GLINT_SAMPLES := 9
+	for index in range(GLINT_SAMPLES):
+		var glint_t: float = lerpf(
+			glint_start,
+			glint_end,
+			float(index) / float(GLINT_SAMPLES - 1)
+		)
+		glint_points.append(
+			_get_stream_centre_point(start, control_one, control_two, finish, glint_t)
+		)
 	_stream_glint.points = glint_points
 	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.82)
 
@@ -1324,14 +1334,51 @@ func _update_stream() -> void:
 		)
 		drop.color = Color(1.0, 1.0, 1.0, 0.62 + 0.30 * sin(PI * travel))
 
-	# The impact ring expands and fades continuously while the stream is flowing.
-	var ring_radius: float = 4.5 + 13.0 * _stream_phase
+	# Use a smooth periodic expansion so the ring returns to its initial state
+	# without a radius/opacity jump at the phase wrap.
+	var ring_progress: float = 0.5 - 0.5 * cos(TAU * _stream_phase)
+	var ring_radius: float = 4.5 + 13.0 * ring_progress
 	var ring_points := PackedVector2Array()
 	for index in range(25):
 		var angle: float = TAU * float(index) / 24.0
 		ring_points.append(finish + Vector2(cos(angle) * ring_radius, sin(angle) * ring_radius * 0.42))
 	_splash_ring.points = ring_points
-	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.08 + 0.28 * (1.0 - _stream_phase))
+	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.08 + 0.28 * (1.0 - ring_progress))
+
+
+func _get_stream_centre_point(
+	start: Vector2,
+	control_one: Vector2,
+	control_two: Vector2,
+	finish: Vector2,
+	t: float
+) -> Vector2:
+	var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
+	var tangent: Vector2 = _get_stream_tangent(control_one, start, control_two, finish, t)
+	var normal := Vector2(-tangent.y, tangent.x)
+	# Retain the gentle liquid drift, but sample it at continuous curve positions.
+	var drift: float = sin(t * 16.0 + _stream_phase * TAU) * 0.85
+	drift += sin(t * 31.0 - _stream_phase * TAU * 1.4) * 0.32
+	return point + normal * drift
+
+
+func _get_stream_tangent(
+	control_one: Vector2,
+	start: Vector2,
+	control_two: Vector2,
+	finish: Vector2,
+	t: float
+) -> Vector2:
+	# Analytic cubic-Bezier derivative avoids a sample-spacing-dependent normal.
+	var inverse_t: float = 1.0 - t
+	var tangent: Vector2 = (
+		3.0 * inverse_t * inverse_t * (control_one - start)
+		+ 6.0 * inverse_t * t * (control_two - control_one)
+		+ 3.0 * t * t * (finish - control_two)
+	)
+	if tangent.length_squared() <= 0.000001:
+		tangent = finish - start
+	return tangent.normalized()
 
 
 func _load_level() -> void:
