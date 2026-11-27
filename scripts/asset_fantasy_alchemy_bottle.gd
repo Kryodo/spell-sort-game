@@ -580,7 +580,8 @@ func _draw_liquid(_rect: Rect2) -> void:
 			bottom_ratio,
 			liquid_color,
 			layer_index == visible_layers - 1,
-			layer_index == 0
+			layer_index == 0,
+			layer_index
 		)
 
 	_draw_window_bubbles(rect, visible_layers)
@@ -592,7 +593,8 @@ func _draw_liquid_band(
 	bottom_ratio: float,
 	liquid_color: Color,
 	is_surface: bool,
-	is_bottom: bool
+	is_bottom: bool,
+	layer_index: int
 ) -> void:
 	var bottom_y: float = rect.position.y + rect.size.y * bottom_ratio
 	if not is_bottom:
@@ -601,25 +603,40 @@ func _draw_liquid_band(
 	if bottom_y - top_y <= 1.2:
 		return
 
-	# A deeper buffer lets the meniscus move naturally without being clipped
-	# against the static body when the vial tilts or sloshes during pickup.
+	# Keep the moving top meniscus on its existing, stable body buffer.
+	# Internal colour interfaces use their own shared, gently rolling curves.
 	var body_top_y: float = top_y + SURFACE_CAP_DEPTH if is_surface else top_y
 	body_top_y = minf(body_top_y, bottom_y - 1.0)
 
 	var body_top_edge := PackedVector2Array()
-	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		var body_ratio: float = clampf(
-			(body_top_y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		)
-		var bounds := _window_bounds_at(body_ratio)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
-		body_top_edge.append(Vector2(lerpf(left_x, right_x, t), body_top_y))
+	if is_surface:
+		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			var bounds := _window_bounds_at(clampf(
+				(body_top_y - rect.position.y) / rect.size.y,
+				_window_top_ratio,
+				_window_bottom_ratio
+			))
+			var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
+			var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
+			body_top_edge.append(Vector2(lerpf(left_x, right_x, t), body_top_y))
+	else:
+		body_top_edge = _build_layer_boundary_edge(rect, top_ratio, layer_index + 1)
 
-	if body_top_edge.size() < 2:
+	var body_bottom_edge := PackedVector2Array()
+	if is_bottom:
+		var bottom_bounds := _window_bounds_at(bottom_ratio)
+		var bottom_left_x: float = rect.position.x + rect.size.x * bottom_bounds.x + LIQUID_WALL_INSET
+		var bottom_right_x: float = rect.position.x + rect.size.x * bottom_bounds.y - LIQUID_WALL_INSET
+		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			body_bottom_edge.append(Vector2(lerpf(bottom_left_x, bottom_right_x, t), bottom_y))
+	else:
+		# The upper band overlaps the lower band by 0.8 px, matching the old
+		# seam protection while using exactly the same boundary wave.
+		body_bottom_edge = _build_layer_boundary_edge(rect, bottom_ratio, layer_index, 0.8)
+
+	if body_top_edge.size() < 2 or body_bottom_edge.size() < 2:
 		return
 
 	var wave_edge := PackedVector2Array()
@@ -641,16 +658,17 @@ func _draw_liquid_band(
 			var base_point: Vector2 = body_top_edge[sample_index]
 			wave_edge.append(Vector2(base_point.x, wave_y))
 
+	# Build one closed liquid body from two curved horizontal interfaces and
+	# softly profiled glass walls. Adjacent bands share the same boundary wave.
 	var polygon := body_top_edge.duplicate()
 	var right_top_y: float = body_top_edge[-1].y
+	var right_bottom_y: float = body_bottom_edge[-1].y
+	var left_bottom_y: float = body_bottom_edge[0].y
 	var left_top_y: float = body_top_edge[0].y
-	var bottom_bounds := _window_bounds_at(bottom_ratio)
-	var bottom_left_x: float = rect.position.x + rect.size.x * bottom_bounds.x + LIQUID_WALL_INSET
-	var bottom_right_x: float = rect.position.x + rect.size.x * bottom_bounds.y - LIQUID_WALL_INSET
 
 	for side_index in range(1, LIQUID_SIDE_SAMPLES + 1):
 		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(right_top_y, bottom_y, t)
+		var y: float = lerpf(right_top_y, right_bottom_y, t)
 		var bounds := _window_bounds_at(clampf(
 			(y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
@@ -661,10 +679,12 @@ func _draw_liquid_band(
 			y
 		))
 
-	polygon.append(Vector2(bottom_left_x, bottom_y))
+	for edge_index in range(body_bottom_edge.size() - 2, -1, -1):
+		polygon.append(body_bottom_edge[edge_index])
+
 	for side_index in range(1, LIQUID_SIDE_SAMPLES):
 		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(bottom_y, left_top_y, t)
+		var y: float = lerpf(left_bottom_y, left_top_y, t)
 		var bounds := _window_bounds_at(clampf(
 			(y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
@@ -680,22 +700,23 @@ func _draw_liquid_band(
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
 
-	# The liquid body retains its stable horizontal centre/edge gradient.
+	# Retain the existing stable centre/edge gradient across every curved strip.
 	var vertex_colors := PackedColorArray()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
-		vertex_colors.append(edge_color.lerp(center_color, center_weight))
+		vertex_colors.append(_surface_gradient_colour(t, edge_color, center_color))
 	for _side_index in range(LIQUID_SIDE_SAMPLES):
 		vertex_colors.append(edge_color)
-	vertex_colors.append(bottom_color)
+	for edge_index in range(body_bottom_edge.size() - 2, -1, -1):
+		var t: float = float(edge_index) / float(LIQUID_SURFACE_SAMPLES)
+		var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.24
+		vertex_colors.append(bottom_color.lerp(edge_color, center_weight))
 	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
 		vertex_colors.append(edge_color)
 	draw_polygon(polygon, vertex_colors)
 
-	# Draw the moving surface as a strip of small triangles instead of one large
-	# concave polygon. Degenerate triangles are skipped, so Godot's triangulator
-	# never receives the self-touching/zero-area cap that caused the runtime error.
+	# Draw the moving top surface as a safe strip of small triangles.
+	# The internal colour boundaries above remain independent of this cap.
 	if is_surface and wave_edge.size() == body_top_edge.size():
 		for sample_index in range(LIQUID_SURFACE_SAMPLES):
 			var t0: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
@@ -719,6 +740,47 @@ func _draw_liquid_band(
 		var surface_color: Color = fill_color.lightened(0.34)
 		surface_color.a = 0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025
 		draw_polyline(wave_edge, surface_color, 1.1, true)
+
+
+func _build_layer_boundary_edge(
+	rect: Rect2,
+	boundary_ratio: float,
+	boundary_index: int,
+	overlap_y: float = 0.0
+) -> PackedVector2Array:
+	var edge := PackedVector2Array()
+	var base_y: float = rect.position.y + rect.size.y * boundary_ratio
+	var bounds := _window_bounds_at(boundary_ratio)
+	var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
+	var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
+
+	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+		var normalized_x: float = t * 2.0 - 1.0
+		var wave_y: float = _get_layer_boundary_wave_offset(normalized_x, boundary_index)
+		edge.append(Vector2(
+			lerpf(left_x, right_x, t),
+			base_y + wave_y + overlap_y
+		))
+	return edge
+
+
+func _get_layer_boundary_wave_offset(normalized_x: float, boundary_index: int) -> float:
+	# Scale the wave down when the layer above the boundary is only a thin pour.
+	var upper_layer_amount: float = clampf(_liquid_level - float(boundary_index), 0.0, 1.0)
+	var fill_blend: float = smoothstep(0.08, 0.68, upper_layer_amount)
+	var amplitude: float = 2.30 + _surface_activity * 1.10 + absf(_slosh) * 0.85
+	amplitude *= fill_blend
+
+	# Each interface has its own phase, but both adjacent colours sample the
+	# exact same curve so the boundary stays sealed as it rolls.
+	var boundary_phase: float = _surface_wave_phase * 0.72 + float(boundary_index) * 1.17
+	var primary_wave: float = sin(boundary_phase + normalized_x * 3.35) * 0.72
+	var secondary_wave: float = sin(boundary_phase * 1.31 - normalized_x * 5.65) * 0.28
+	var edge_envelope: float = sin((normalized_x + 1.0) * PI * 0.5)
+	edge_envelope = pow(maxf(0.0, edge_envelope), 0.48)
+	var slosh_bias: float = clampf(_slosh * normalized_x * 1.8, -1.8, 1.8)
+	return (primary_wave + secondary_wave) * amplitude * edge_envelope + slosh_bias * 0.22
 
 
 func _surface_gradient_colour(normalized_x: float, edge_color: Color, center_color: Color) -> Color:
