@@ -21,7 +21,7 @@ const CENTRE_SEED_SEARCH_RATIO := 0.12
 const LIQUID_SURFACE_SAMPLES := 48
 const LIQUID_SIDE_SAMPLES := 32
 const LIQUID_WALL_INSET := -0.9
-const LIQUID_BOTTOM_WALL_OVERDRAW := 1.8
+const LIQUID_BOTTOM_WALL_OVERDRAW := 4.5
 const LIQUID_BOTTOM_BLEND_START := 0.68
 
 # Preserve the generated vessel artwork exactly; reflections are added as a
@@ -224,7 +224,7 @@ func _build_inner_window_profile() -> void:
 		var bottom_blend: float = smoothstep(0.78, 1.0, t)
 		var sample_smooth_radius: int = roundi(lerpf(
 			float(PROFILE_SMOOTH_RADIUS),
-			2.0,
+			0.0,
 			bottom_blend
 		))
 		for row in range(
@@ -253,7 +253,7 @@ func _build_inner_window_profile() -> void:
 	# Extend slightly past the first/last transparent sample so the fill reaches
 	# underneath the anti-aliased chamber rim instead of leaving a hairline gap.
 	_window_top_ratio = maxf(0.0, _window_profile[0].x - 1.25 / float(image_height))
-	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 2.0 / float(image_height))
+	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 14.0 / float(image_height))
 	_window_top_contour = _detect_top_chamber_contour(source_image)
 	_detect_mouth(source_image, x_min, x_max, centre_x, search_radius)
 	_build_static_reflection_geometry()
