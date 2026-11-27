@@ -1,14 +1,24 @@
-# Spell Sort — Illustrated Workbench Sorting Prototype
+# SpellSort — Atelier Opening and Sorting Prototype
 
-This branch presents the core 2D sorting activity in a single illustrated alchemy-workbench setting. The background is artwork; the vessels, liquids, pouring and puzzle state remain live and interactive in Godot.
+This branch now starts with a hand-authored, dark Atelier hub. The player approaches the workbench, completes three guided sorting lessons, then returns to find the Atlas awakened and the Botanical Garden marked as the first destination.
+
+The Atelier room is a hand-authored SVG composition, not a generated full-screen environment. The existing live vial, liquid, pouring and sorting systems remain separate and reusable.
 
 ## Run
 
-Open the project in Godot 4.7 and run the configured main scene:
+Open the project in Godot 4.7 and press **F5** to run the project:
 
-`res://scenes/alchemy_interaction_test.tscn`
+`res://scenes/atelier_hub.tscn`
 
-The design viewport is portrait, 720 × 1280.
+Opening flow:
+1. Select **Approach the Workbench**.
+2. Complete the first three classic sorting lessons in sequence.
+3. Select **Return** after the third lesson. The Atelier saves the unlock locally and reveals the Atlas.
+4. Select the Atlas to view the first marked destination: **The Overgrown Entrance** in the Botanical Garden.
+
+The design viewport is portrait, 720 × 1280. Opening progress is stored at `user://spell_sort_progress.cfg`.
+
+For the unrestricted sorting mechanics prototype, open `scenes/dark_sorting_slots_prototype.tscn` and press **F6**. The earlier four-vial workbench test remains at `scenes/alchemy_interaction_test.tscn`.
 
 ## Environment artwork
 
