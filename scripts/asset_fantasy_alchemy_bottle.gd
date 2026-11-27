@@ -5,6 +5,9 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 
 const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_Base_V1.2.png")
 
+# Diagnostic switch: re-enable the older bubble/glow pass to compare behaviour.
+const ENABLE_INHERITED_LIQUID_OVERLAYS_FOR_DIAGNOSTIC := false
+
 const ALPHA_CUTOFF := 0.14
 const SCAN_TOP_RATIO := 0.16
 const SCAN_BOTTOM_RATIO := 0.88
@@ -473,6 +476,12 @@ func get_liquid_surface_position_in_parent() -> Vector2:
 		Vector2(_lift, _tilt),
 		_draw_scale
 	)
+
+
+func _draw_fantasy_liquid_overlays(rect: Rect2) -> void:
+    if not ENABLE_INHERITED_LIQUID_OVERLAYS_FOR_DIAGNOSTIC:
+        return
+    super._draw_fantasy_liquid_overlays(rect)
 
 
 func _draw_liquid(_rect: Rect2) -> void:
