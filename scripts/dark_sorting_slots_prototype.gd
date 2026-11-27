@@ -1105,9 +1105,9 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 1.0)
 	_stream_shape.visible = true
 	_stream_glow.visible = true
+	_stream_highlight.visible = true
 	_update_stream()
 	if not DEBUG_BARE_POUR_STREAM:
-		_stream_highlight.visible = true
 		_stream_glint.visible = true
 		_splash_ring.visible = true
 		for drop in _stream_drops:
@@ -1122,8 +1122,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	target.z_index = target_original_z
 	_stream_shape.visible = false
 	_stream_glow.visible = false
+	_stream_highlight.visible = false
 	if not DEBUG_BARE_POUR_STREAM:
-		_stream_highlight.visible = false
 		_stream_glint.visible = false
 		_splash_ring.visible = false
 		for drop in _stream_drops:
@@ -1200,10 +1200,18 @@ func _build_stream_layers() -> void:
 	_stream_glow.visible = false
 	add_child(_stream_glow)
 
+	# Keep the thin highlight available as the next isolated FX layer.
+	_stream_highlight = Line2D.new()
+	_stream_highlight.width = 1.2
+	_stream_highlight.antialiased = true
+	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.62)
+	_stream_highlight.z_index = 10
+	_stream_highlight.visible = false
+	add_child(_stream_highlight)
+
 	if DEBUG_BARE_POUR_STREAM:
 		return
 
-	_stream_highlight = Line2D.new()
 	_stream_highlight.width = 1.2
 	_stream_highlight.antialiased = true
 	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.62)
@@ -1357,6 +1365,7 @@ func _update_bare_stream() -> void:
 	var control_one := start + Vector2(horizontal_bend, vertical_fall * 0.28)
 	var control_two := finish - Vector2(horizontal_bend, -vertical_fall * 0.28)
 
+	var centres := PackedVector2Array()
 	var left_edge := PackedVector2Array()
 	var right_edge := PackedVector2Array()
 	var left_glow := PackedVector2Array()
@@ -1367,6 +1376,7 @@ func _update_bare_stream() -> void:
 		var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
 		var tangent: Vector2 = _get_stream_tangent(control_one, start, control_two, finish, t)
 		var normal := Vector2(-tangent.y, tangent.x)
+		centres.append(point)
 		var half_width: float = 1.8 + 1.2 * sin(PI * t)
 		left_edge.append(point + normal * half_width)
 		right_edge.append(point - normal * half_width)
@@ -1394,6 +1404,13 @@ func _update_bare_stream() -> void:
 
 	_stream_shape.polygon = polygon
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 1.0)
+	_stream_highlight.points = centres
+	_stream_highlight.default_color = Color(
+		1.0,
+		1.0,
+		1.0,
+		0.25 + 0.12 * sin(PI * _pour_progress)
+	)
 
 func _get_stream_centre_point(
 	start: Vector2,
