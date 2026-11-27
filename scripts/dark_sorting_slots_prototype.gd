@@ -1334,16 +1334,16 @@ func _update_stream() -> void:
 		)
 		drop.color = Color(1.0, 1.0, 1.0, 0.62 + 0.30 * sin(PI * travel))
 
-	# Use a smooth periodic expansion so the ring returns to its initial state
-	# without a radius/opacity jump at the phase wrap.
-	var ring_progress: float = 0.5 - 0.5 * cos(TAU * _stream_phase)
-	var ring_radius: float = 4.5 + 13.0 * ring_progress
+	# Expand the ripple once per cycle, then fade it to transparent before
+	# the radius wraps back to its starting size. This hides the reset cleanly.
+	var ring_radius: float = 4.5 + 13.0 * _stream_phase
+	var ring_alpha: float = 0.34 * sin(PI * _stream_phase)
 	var ring_points := PackedVector2Array()
 	for index in range(25):
 		var angle: float = TAU * float(index) / 24.0
 		ring_points.append(finish + Vector2(cos(angle) * ring_radius, sin(angle) * ring_radius * 0.42))
 	_splash_ring.points = ring_points
-	_splash_ring.default_color = Color(1.0, 1.0, 1.0, 0.08 + 0.28 * (1.0 - ring_progress))
+	_splash_ring.default_color = Color(1.0, 1.0, 1.0, ring_alpha)
 
 
 func _get_stream_centre_point(
