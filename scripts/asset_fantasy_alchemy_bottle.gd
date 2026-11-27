@@ -184,6 +184,7 @@ class DynamicSurfaceReflectionLayer extends Control:
 
 
 static var _texture_analysis_cache: Dictionary = {}
+static var _bubble_sprite_cache: Dictionary = {}
 
 var vial_art: Texture2D = DEFAULT_VIAL_ART
 var _window_profile := PackedVector3Array()
@@ -1163,6 +1164,81 @@ func _draw_cached_liquid_surface(band: Dictionary) -> void:
 	draw_polyline(wave_edge, surface_color, 1.1, true)
 
 
+func _get_cached_bubble_sprite(
+	base_color: Color,
+	core_color: Color,
+	core_radius_ratio: float,
+	halo_alpha: float,
+	core_alpha: float,
+	include_glint: bool
+) -> Texture2D:
+	var cache_key: String = "%s|%s|%.4f|%.4f|%.4f|%s" % [
+		base_color.to_html(true),
+		core_color.to_html(true),
+		core_radius_ratio,
+		halo_alpha,
+		core_alpha,
+		str(include_glint)
+	]
+	if _bubble_sprite_cache.has(cache_key):
+		return _bubble_sprite_cache[cache_key] as Texture2D
+
+	const TEXTURE_SIZE := 48
+	var image := Image.create(TEXTURE_SIZE, TEXTURE_SIZE, false, Image.FORMAT_RGBA8)
+	var outer_radius: float = float(TEXTURE_SIZE) * 0.5 - 1.0
+	var core_radius: float = outer_radius * core_radius_ratio
+	var glint_centre := Vector2(-0.30 / 2.35, -0.34 / 2.35) * outer_radius
+	var glint_radius: float = outer_radius * (0.22 / 2.35)
+
+	for y in range(TEXTURE_SIZE):
+		for x in range(TEXTURE_SIZE):
+			var local := Vector2(
+				float(x) + 0.5 - float(TEXTURE_SIZE) * 0.5,
+				float(y) + 0.5 - float(TEXTURE_SIZE) * 0.5
+			)
+			var distance: float = local.length()
+			var outer_coverage: float = clampf(outer_radius - distance + 0.5, 0.0, 1.0)
+			if outer_coverage <= 0.0:
+				continue
+
+			var alpha: float = halo_alpha * outer_coverage
+			var pixel_color: Color = base_color
+			var core_coverage: float = clampf(core_radius - distance + 0.5, 0.0, 1.0)
+			var effective_core_alpha: float = core_alpha * core_coverage
+			if effective_core_alpha > 0.0:
+				var combined_alpha: float = effective_core_alpha + alpha * (1.0 - effective_core_alpha)
+				pixel_color = (
+					core_color * effective_core_alpha
+					+ base_color * (alpha * (1.0 - effective_core_alpha))
+				) / maxf(0.0001, combined_alpha)
+				alpha = combined_alpha
+
+			if include_glint:
+				var glint_coverage: float = clampf(
+					glint_radius - local.distance_to(glint_centre) + 0.5,
+					0.0,
+					1.0
+				)
+				var glint_alpha: float = 0.95 * glint_coverage
+				if glint_alpha > 0.0:
+					var combined_alpha: float = glint_alpha + alpha * (1.0 - glint_alpha)
+					pixel_color = (
+						Color.WHITE * glint_alpha
+						+ pixel_color * (alpha * (1.0 - glint_alpha))
+					) / maxf(0.0001, combined_alpha)
+					alpha = combined_alpha
+
+			image.set_pixel(
+				x,
+				y,
+				Color(pixel_color.r, pixel_color.g, pixel_color.b, alpha)
+			)
+
+	var texture := ImageTexture.create_from_image(image)
+	_bubble_sprite_cache[cache_key] = texture
+	return texture
+
+
 func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	if visible_layers <= 0 or _window_profile.is_empty():
 		return
@@ -1176,8 +1252,8 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
 
-	# A small mix of bubbles rises at different speeds. Each particle borrows
-	# the colour of the essence layer it is travelling through.
+	# Four reusable sprites retain the layered bubble look without issuing
+	# three separately tessellated circles for every moving bubble.
 	const BUBBLE_SIZES := [1.65, 2.25, 1.85, 2.35]
 	for bubble_index in range(BUBBLE_SIZES.size()):
 		var speed: float = 0.082 + float(bubble_index % 3) * 0.021 + float(bubble_index / 3) * 0.008
@@ -1216,20 +1292,24 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		)
 		var essence: String = String(_visual_contents[layer_index])
 		var bubble_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-		var glow_color := Color(bubble_color.r, bubble_color.g, bubble_color.b, bubble_alpha * 0.34)
 		var core_color: Color = bubble_color.lightened(0.56)
-		core_color.a = bubble_alpha * 0.52
-
-		# Soft coloured halo, translucent bubble body and a restrained glassy glint.
-		draw_circle(bubble_position, bubble_size * 2.35, glow_color)
-		draw_circle(bubble_position, bubble_size, core_color)
-		draw_circle(
-			bubble_position + Vector2(-bubble_size * 0.30, -bubble_size * 0.34),
-			maxf(0.60, bubble_size * 0.22),
-			Color(1.0, 1.0, 1.0, bubble_alpha * 0.95)
+		var bubble_texture := _get_cached_bubble_sprite(
+			bubble_color,
+			core_color,
+			1.0 / 2.35,
+			0.34,
+			0.52,
+			true
+		)
+		var bubble_diameter: float = bubble_size * 4.70
+		draw_texture_rect(
+			bubble_texture,
+			Rect2(bubble_position - Vector2.ONE * (bubble_diameter * 0.5), Vector2.ONE * bubble_diameter),
+			false,
+			Color(1.0, 1.0, 1.0, bubble_alpha)
 		)
 
-	# A few much smaller alchemical motes add life between the larger bubbles.
+	# Tiny motes use the same one-draw approach, with a tighter bright centre.
 	for mote_index in range(2):
 		var mote_phase: float = fposmod(
 			_wave_time * (0.055 + float(mote_index) * 0.012)
@@ -1256,16 +1336,22 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		)
 		var mote_essence: String = String(_visual_contents[mote_layer])
 		var mote_color: Color = _palette.get(mote_essence, Color(0.45, 0.78, 0.75, 1.0))
-		draw_circle(
-			mote_position,
-			2.2,
-			Color(mote_color.r, mote_color.g, mote_color.b, mote_alpha * 0.24)
+		var mote_texture := _get_cached_bubble_sprite(
+			mote_color,
+			Color(0.95, 1.0, 0.92, 1.0),
+			0.75 / 2.2,
+			0.24,
+			0.72,
+			false
 		)
-		draw_circle(
-			mote_position,
-			0.75,
-			Color(0.95, 1.0, 0.92, mote_alpha * 0.72)
+		var mote_diameter := 4.4
+		draw_texture_rect(
+			mote_texture,
+			Rect2(mote_position - Vector2.ONE * (mote_diameter * 0.5), Vector2.ONE * mote_diameter),
+			false,
+			Color(1.0, 1.0, 1.0, mote_alpha)
 		)
+
 
 func _draw_glass_back(_rect: Rect2) -> void:
 	# The complete PNG is drawn once, above the live liquid.
