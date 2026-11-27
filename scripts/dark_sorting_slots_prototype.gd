@@ -1303,10 +1303,11 @@ func _update_stream() -> void:
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 0.94)
 	_stream_highlight.points = centres
 	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.25 + 0.12 * sin(PI * _pour_progress))
-	# Calculate the travelling glint at continuous curve positions rather than
-	# selecting a few coarse centre samples. Its length and movement stay smooth
-	# even when the stream becomes much longer.
-	var glint_start: float = fposmod(_stream_phase + 0.18, 1.0) * 0.72 + 0.12
+	# The glint travels in one direction, then fades out before returning to
+	# the top. Its path is sampled continuously, so it neither snaps between
+	# centre vertices nor teleports visibly at the loop boundary.
+	var glint_progress: float = _stream_phase
+	var glint_start: float = lerpf(0.08, 0.76, glint_progress)
 	var glint_end: float = minf(0.98, glint_start + 0.16)
 	var glint_points := PackedVector2Array()
 	const GLINT_SAMPLES := 9
@@ -1320,7 +1321,8 @@ func _update_stream() -> void:
 			_get_stream_centre_point(start, control_one, control_two, finish, glint_t)
 		)
 	_stream_glint.points = glint_points
-	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.82)
+	var glint_alpha: float = 0.82 * sin(PI * glint_progress)
+	_stream_glint.default_color = Color(1.0, 1.0, 1.0, glint_alpha)
 
 	for index in range(_stream_drops.size()):
 		var travel: float = fposmod(_stream_phase + float(index) / float(_stream_drops.size()), 1.0)
@@ -1332,7 +1334,10 @@ func _update_stream() -> void:
 			0.75 + 0.25 * sin(PI * travel),
 			0.90 + 0.4 * sin(PI * travel)
 		)
-		drop.color = Color(1.0, 1.0, 1.0, 0.62 + 0.30 * sin(PI * travel))
+		# Fade droplets at both ends of their loop so they disappear before
+		# returning to the source instead of visibly popping back into place.
+		var drop_alpha: float = 0.82 * sin(PI * travel)
+		drop.color = Color(1.0, 1.0, 1.0, drop_alpha)
 
 	# Expand the ripple once per cycle, then fade it to transparent before
 	# the radius wraps back to its starting size. This hides the reset cleanly.
