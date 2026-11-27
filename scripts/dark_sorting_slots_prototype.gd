@@ -1452,14 +1452,9 @@ func _get_stream_centre_point(
 	finish: Vector2,
 	t: float
 ) -> Vector2:
-	var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
-	var tangent: Vector2 = _get_stream_tangent(control_one, start, control_two, finish, t)
-	var normal := Vector2(-tangent.y, tangent.x)
-	# The main ribbon keeps a stable contour. Animated vertex movement here
-	# can make long filled polygons shimmer; the glint and droplets supply flow.
-	var drift: float = sin(t * 16.0) * 0.85
-	drift += sin(t * 31.0) * 0.32
-	return point + normal * drift
+	# Diagnostic: remove the spatial centreline drift while preserving the
+	# original adaptive sampling, ribbon width, glow and all other FX.
+	return start.bezier_interpolate(control_one, control_two, finish, t)
 
 
 func _get_stream_tangent(
