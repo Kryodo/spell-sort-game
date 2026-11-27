@@ -1080,16 +1080,17 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 14.0, -14.0)
 	var staging_position: Vector2 = desired_source_mouth - source.call("get_mouth_local_for_pose", pour_pose, POUR_DRAW_SCALE)
 	var target_original_z: int = target.z_index
-	# Let the stream pass in front of the receiver's rear lip. Its separate
-	# foreground-lip child stays above the stream to preserve the near edge.
-	target.z_index = 7
+	# Keep the receiver's normal draw order in bare diagnostic mode so this
+	# test also excludes the temporary layer-order change.
+	if not DEBUG_BARE_POUR_STREAM:
+		target.z_index = 7
 	target.call("set_front_mouth_lip_active", not DEBUG_BARE_POUR_STREAM)
 
 	source.call("set_drag_motion", false)
 	source.call("set_feedback", false, false, false)
 	target.call("set_preview", _pour_target_preview, _pour_target_start)
 	source.call("set_preview", _pour_source_preview, _pour_source_start)
-	target.call("set_feedback", false, true, false)
+	target.call("set_feedback", false, not DEBUG_BARE_POUR_STREAM, false)
 
 	_set_status("Aligning the glass spouts...")
 	var approach := create_tween().set_parallel(true)
