@@ -1080,7 +1080,10 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 14.0, -14.0)
 	var staging_position: Vector2 = desired_source_mouth - source.call("get_mouth_local_for_pose", pour_pose, POUR_DRAW_SCALE)
 	var target_original_z: int = target.z_index
-	target.z_index = 13
+	# Let the stream pass in front of the receiver's rear lip. Its separate
+	# foreground-lip child stays above the stream to preserve the near edge.
+	target.z_index = 7
+	target.call("set_front_mouth_lip_active", true)
 
 	source.call("set_drag_motion", false)
 	source.call("set_feedback", false, false, false)
@@ -1113,6 +1116,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	await pour_tween.finished
 
 	_pour_stream_active = false
+	target.call("set_front_mouth_lip_active", false)
 	target.z_index = target_original_z
 	_stream_glow.visible = false
 	_stream_shape.visible = false
