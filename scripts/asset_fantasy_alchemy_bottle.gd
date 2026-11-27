@@ -6,7 +6,7 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_Base_V1.2.png")
 
 # Keep the animated meniscus separate from the static shaded liquid body.
-const SURFACE_CAP_DEPTH := 4.0
+const SURFACE_CAP_DEPTH := 10.0
 
 const ALPHA_CUTOFF := 0.14
 const SCAN_TOP_RATIO := 0.16
@@ -535,8 +535,8 @@ func _draw_liquid_band(
 		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
 			var normalized_x: float = t * 2.0 - 1.0
-			var wave: float = _get_surface_wave_offset(normalized_x) * 0.50
-			var wave_y: float = clampf(top_y + wave, top_y - 2.0, body_top_y)
+			var wave: float = _get_surface_wave_offset(normalized_x) * 1.80
+			var wave_y: float = clampf(top_y + wave, top_y - 4.5, body_top_y)
 			var bounds := _window_bounds_at(clampf(
 				(wave_y - rect.position.y) / rect.size.y,
 				_window_top_ratio,
@@ -615,10 +615,16 @@ func _draw_liquid_band(
 		vertex_colors.append(edge_color)
 	draw_polygon(polygon, vertex_colors)
 
-	# Only this thin cap moves. It uses one flat colour, so its geometry cannot
-	# make the shaded body appear to flicker or cast a moving colour shadow.
+	# The surface has enough depth to read as moving liquid, not just a thin line.
+	# Keep its colour gradient horizontal and identical at both edges: the wave
+	# can move vertically without shifting the shading or bringing back flicker.
 	if is_surface and wave_edge.size() >= 2:
 		var cap_polygon := wave_edge.duplicate()
+		var cap_vertex_colors := PackedColorArray()
+		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
+			cap_vertex_colors.append(edge_color.lerp(center_color, center_weight))
 		var cap_bounds := _window_bounds_at(clampf(
 			(body_top_y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
@@ -629,7 +635,9 @@ func _draw_liquid_band(
 		for sample_index in range(LIQUID_SURFACE_SAMPLES, -1, -1):
 			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
 			cap_polygon.append(Vector2(lerpf(cap_left_x, cap_right_x, t), body_top_y))
-		draw_colored_polygon(cap_polygon, fill_color)
+			var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
+			cap_vertex_colors.append(edge_color.lerp(center_color, center_weight))
+		draw_polygon(cap_polygon, cap_vertex_colors)
 
 	if is_surface:
 		var surface_color: Color = fill_color.lightened(0.34)
