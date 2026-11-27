@@ -123,6 +123,7 @@ func reset_motion() -> void:
 	_lift = 0.0
 	_tilt = 0.0
 	_draw_scale = 1.0
+	_drag_motion_release_timer = 0.0
 	_slosh = 0.0
 	_slosh_velocity = 0.0
 	_drag_motion = false
