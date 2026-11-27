@@ -7,13 +7,13 @@ const BOTTLE_SOURCE_SIZE := Vector2(116.0, 365.0)
 # A-G are the standard essences used by the expandable track. D is also the
 # Dusk result used by the alchemy transmutation levels.
 const PALETTE := {
-	"A": Color(0.24, 0.77, 0.76, 1.0), # Tide
-	"B": Color(0.96, 0.51, 0.24, 1.0), # Ember
-	"C": Color(0.66, 0.54, 0.91, 1.0), # Moon
-	"D": Color(0.48, 0.68, 0.52, 1.0), # Moss / Dusk result
-	"E": Color(0.91, 0.69, 0.32, 1.0), # Amber
-	"F": Color(0.46, 0.60, 0.91, 1.0), # Azure
-	"G": Color(0.80, 0.48, 0.72, 1.0)  # Violet
+	"A": Color(0.13, 0.83, 0.79, 1.0), # Tide — luminous turquoise
+	"B": Color(0.98, 0.39, 0.20, 1.0), # Ember — saturated coral orange
+	"C": Color(0.65, 0.44, 0.98, 1.0), # Moon — vivid amethyst
+	"D": Color(0.35, 0.79, 0.47, 1.0), # Moss / Dusk result — enchanted green
+	"E": Color(0.98, 0.69, 0.22, 1.0), # Amber — rich golden yellow
+	"F": Color(0.32, 0.60, 0.99, 1.0), # Azure — bright alchemical blue
+	"G": Color(0.89, 0.39, 0.78, 1.0)  # Violet — glowing orchid
 }
 
 const TRACK_A_LEVELS := [
