@@ -1221,13 +1221,6 @@ func _build_stream_layers() -> void:
 	if DEBUG_BARE_POUR_STREAM:
 		return
 
-	_stream_glint.width = 1.0
-	_stream_glint.antialiased = true
-	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.88)
-	_stream_glint.z_index = 11
-	_stream_glint.visible = false
-	add_child(_stream_glint)
-
 	for index in range(3):
 		var drop := Polygon2D.new()
 		drop.polygon = PackedVector2Array([
