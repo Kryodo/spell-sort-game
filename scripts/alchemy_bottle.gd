@@ -30,6 +30,7 @@ var _selected: bool = false
 var _targeted: bool = false
 var _dragging: bool = false
 var _drag_motion: bool = false
+var _drag_motion_release_timer: float = 0.0
 var _surface_activity: float = 0.0
 var _lift: float = 0.0
 var _tilt: float = 0.0
@@ -83,11 +84,18 @@ func set_feedback(selected: bool, targeted: bool, dragging: bool) -> void:
 	_dragging = dragging
 	if not dragging:
 		_drag_motion = false
+		_drag_motion_release_timer = 0.0
 	queue_redraw()
 
 
 func set_drag_motion(active: bool) -> void:
-	_drag_motion = active and _dragging
+	if not _dragging:
+		_drag_motion = false
+		_drag_motion_release_timer = 0.0
+		return
+	if active:
+		_drag_motion = true
+		_drag_motion_release_timer = 0.14
 
 func set_pose(pose: Vector2) -> void:
 	var tilt_change: float = pose.y - _tilt
@@ -178,13 +186,20 @@ func is_pointer_over_mouth(pointer_local: Vector2) -> bool:
 
 
 func _process(delta: float) -> void:
+	if _drag_motion:
+		_drag_motion_release_timer = maxf(0.0, _drag_motion_release_timer - delta)
+		if _drag_motion_release_timer <= 0.0:
+			_drag_motion = false
+
 	var target_activity: float = 0.18
 	if _dragging:
 		target_activity = 0.82 if _drag_motion else 0.42
 	elif _selected:
 		target_activity = 0.28
 
-	_surface_activity = move_toward(_surface_activity, target_activity, delta * 4.8)
+	# Ease state changes over a longer interval so crossing the pointer-speed
+	# threshold does not cause a visible jump in the liquid animation.
+	_surface_activity = move_toward(_surface_activity, target_activity, delta * 2.8)
 	_wave_time += delta * lerpf(1.25, 2.65, _surface_activity)
 
 	_slosh_velocity += (-_slosh * 15.0 - _slosh_velocity * 5.2) * delta
