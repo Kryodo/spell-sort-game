@@ -532,10 +532,17 @@ func _draw_liquid_band(
 	body_top_y = minf(body_top_y, bottom_y - 1.0)
 	var wave_edge := PackedVector2Array()
 	if is_surface:
+		# Keep idle and initial pickup motion restrained, then smoothly recover
+		# the fuller wave as the vial is actively moved.
+		var wave_strength: float = lerpf(
+			1.50,
+			1.80,
+			clampf((_surface_activity - 0.42) / 0.40, 0.0, 1.0)
+		)
 		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
 			var normalized_x: float = t * 2.0 - 1.0
-			var wave: float = _get_surface_wave_offset(normalized_x) * 1.80
+			var wave: float = _get_surface_wave_offset(normalized_x) * wave_strength
 			var wave_y: float = clampf(top_y + wave, top_y - 4.5, body_top_y)
 			var bounds := _window_bounds_at(clampf(
 				(wave_y - rect.position.y) / rect.size.y,
