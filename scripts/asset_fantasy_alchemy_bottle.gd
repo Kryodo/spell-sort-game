@@ -26,6 +26,60 @@ const LIQUID_WALL_INSET := -0.9
 # separate liquid-aware Godot pass after the illustration and liquid.
 const GLASS_MODULATE := Color.WHITE
 
+# Draw only the near/front arc of the mouth after the pour stream.
+# The rest of the illustration remains on the vial's normal draw layer.
+class FrontMouthLipOverlay extends Control:
+	var _bottle: Control
+	var _art: Texture2D
+
+	func configure(bottle: Control, art: Texture2D) -> void:
+		_bottle = bottle
+		_art = art
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		z_index = 6
+		z_as_relative = true
+		visible = false
+		queue_redraw()
+
+	func set_art(art: Texture2D) -> void:
+		_art = art
+		queue_redraw()
+
+	func _draw() -> void:
+		if not is_instance_valid(_bottle) or _art == null:
+			return
+
+		var pose: Vector2 = _bottle.call("get_pose")
+		var applied_scale: float = float(_bottle.call("get_draw_scale"))
+		var pivot := Vector2(_bottle.size.x * 0.5, _bottle.size.y * 0.86)
+		var draw_origin := pivot + Vector2(0.0, -pose.x) - pivot.rotated(pose.y) * applied_scale
+		var vessel_rect: Rect2 = _bottle.call("_get_vessel_rect")
+		var texture_size: Vector2 = _art.get_size()
+
+		# This normalized crop contains the lower/front half of the illustrated
+		# mouth ring, not the upper/rear arc.
+		var source_rect := Rect2(
+			texture_size.x * 0.38,
+			texture_size.y * 0.092,
+			texture_size.x * 0.24,
+			texture_size.y * 0.052
+		)
+		var destination_rect := Rect2(
+			vessel_rect.position + Vector2(
+				vessel_rect.size.x * source_rect.position.x / texture_size.x,
+				vessel_rect.size.y * source_rect.position.y / texture_size.y
+			),
+			Vector2(
+				vessel_rect.size.x * source_rect.size.x / texture_size.x,
+				vessel_rect.size.y * source_rect.size.y / texture_size.y
+			)
+		)
+
+		draw_set_transform(draw_origin, pose.y, Vector2(applied_scale, applied_scale))
+		draw_texture_rect_region(_art, destination_rect, source_rect, Color.WHITE)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
 static var _texture_analysis_cache: Dictionary = {}
 
 var vial_art: Texture2D = DEFAULT_VIAL_ART
@@ -37,11 +91,30 @@ var _mouth_width_ratio: float = 0.15
 # Static chamber highlight paths are built once per vial instance, not every draw.
 var _glass_layer_reflections: Array[Dictionary] = []
 var _window_top_contour := PackedVector2Array()
+var _front_mouth_lip_overlay: FrontMouthLipOverlay
 
 
 func _ready() -> void:
 	super._ready()
 	_build_inner_window_profile()
+	_front_mouth_lip_overlay = FrontMouthLipOverlay.new()
+	_front_mouth_lip_overlay.name = "FrontMouthLipOverlay"
+	add_child(_front_mouth_lip_overlay)
+	_front_mouth_lip_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_front_mouth_lip_overlay.configure(self, vial_art)
+
+
+func _process(delta: float) -> void:
+	super._process(delta)
+	if is_instance_valid(_front_mouth_lip_overlay) and _front_mouth_lip_overlay.visible:
+		_front_mouth_lip_overlay.queue_redraw()
+
+
+func set_front_mouth_lip_active(active: bool) -> void:
+	if not is_instance_valid(_front_mouth_lip_overlay):
+		return
+	_front_mouth_lip_overlay.visible = active
+	_front_mouth_lip_overlay.queue_redraw()
 
 
 func set_vial_art(texture: Texture2D) -> void:
@@ -49,6 +122,8 @@ func set_vial_art(texture: Texture2D) -> void:
 		push_warning("Vial renderer: cannot assign a null illustration.")
 		return
 	vial_art = texture
+	if is_instance_valid(_front_mouth_lip_overlay):
+		_front_mouth_lip_overlay.set_art(texture)
 	if is_node_ready():
 		_build_inner_window_profile()
 	queue_redraw()
