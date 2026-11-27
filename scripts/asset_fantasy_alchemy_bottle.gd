@@ -795,17 +795,19 @@ func _draw_liquid_band(
 	# single-layer case from becoming a short, separately capped polygon.
 	var body_top_y: float = top_y
 	var body_top_edge := PackedVector2Array()
+	# The top edge is horizontal, so every sample uses the same chamber bounds.
+	# Resolve them once instead of repeating the identical profile lookup 49 times.
+	var body_ratio: float = clampf(
+		(body_top_y - rect.position.y) / rect.size.y,
+		_window_top_ratio,
+		_window_bottom_ratio
+	)
+	var body_bounds := _window_bounds_at(body_ratio)
+	var body_left_x: float = rect.position.x + rect.size.x * body_bounds.x + LIQUID_WALL_INSET
+	var body_right_x: float = rect.position.x + rect.size.x * body_bounds.y - LIQUID_WALL_INSET
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		var body_ratio: float = clampf(
-			(body_top_y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		)
-		var bounds := _window_bounds_at(body_ratio)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
-		body_top_edge.append(Vector2(lerpf(left_x, right_x, t), body_top_y))
+		body_top_edge.append(Vector2(lerpf(body_left_x, body_right_x, t), body_top_y))
 
 	if body_top_edge.size() < 2:
 		return
@@ -911,9 +913,9 @@ func _draw_liquid_band(
 			surface_polygon.append(wave_edge[sample_index])
 			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
 		for sample_index in range(body_top_edge.size() - 1, -1, -1):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
 			surface_polygon.append(body_top_edge[sample_index])
-			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
+			# The lower edge uses the exact same gradient in reverse order.
+			surface_colours.append(surface_colours[sample_index])
 		draw_polygon(surface_polygon, surface_colours)
 
 		var surface_color: Color = fill_color.lightened(0.34)
