@@ -903,7 +903,7 @@ func _process(delta: float) -> void:
 
 		_drag_pointer_velocity = _drag_pointer_velocity.move_toward(Vector2.ZERO, delta * 210.0)
 
-	if _pour_stream_active and not DEBUG_BARE_POUR_STREAM:
+	if _pour_stream_active:
 		_update_stream()
 
 
@@ -1182,8 +1182,7 @@ func _set_pour_progress(progress: float) -> void:
 	var target_level: float = lerpf(_pour_target_start, _pour_target_start + float(_pour_amount), progress)
 	bottle_nodes[_pour_source].call("set_preview", _pour_source_preview, source_level)
 	bottle_nodes[_pour_target].call("set_preview", _pour_target_preview, target_level)
-	if not DEBUG_BARE_POUR_STREAM:
-		_update_stream()
+	_update_stream()
 
 
 func _build_stream_layers() -> void:
@@ -1343,9 +1342,9 @@ func _update_stream() -> void:
 
 
 func _update_bare_stream() -> void:
-	# Build one steady ribbon once, at the moment the pour starts. The endpoint
-	# is intentionally fixed for this diagnostic run: no moving surface target,
-	# animated vertex positions, opacity pulses, or secondary effects.
+	# Rebuild only the bare ribbon from the current spout and receiver surface.
+	# No glows, highlights, droplets, ripples, opacity pulses, or layer changes
+	# are enabled, so this isolates whether moving geometry causes the flash.
 	var source: Control = bottle_nodes[_pour_source]
 	var target: Control = bottle_nodes[_pour_target]
 	var start: Vector2 = source.call("get_mouth_position_in_parent", source.call("get_pose")) + Vector2(0.0, -4.0)
