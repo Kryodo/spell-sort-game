@@ -3,7 +3,7 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 ## One complete illustration per vial. The transparent inner chamber is analysed
 ## once per texture; every essence layer then shares the resulting body profile.
 
-const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_Base_V1.0.png")
+const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_Base_V1.1.png")
 
 const ALPHA_CUTOFF := 0.14
 const SCAN_TOP_RATIO := 0.16
