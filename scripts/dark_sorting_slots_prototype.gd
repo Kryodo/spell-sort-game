@@ -270,6 +270,136 @@ class AmbientAtmosphere extends Control:
 		)
 
 
+class MouthEssenceMotes extends Control:
+	const MAX_MOTES_PER_VIAL := 2
+
+	var _bottles: Array = []
+	var _palette: Dictionary = {}
+	var _emit_timers: Array[float] = []
+	var _particles: Array[Dictionary] = []
+	var _time: float = 0.0
+
+	func configure(bottles: Array, palette: Dictionary) -> void:
+		_bottles = bottles.duplicate()
+		_palette = palette.duplicate()
+		_emit_timers.clear()
+		_particles.clear()
+		for _index in range(_bottles.size()):
+			_emit_timers.append(randf_range(0.25, 1.6))
+		queue_redraw()
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_process(true)
+
+	func _process(delta: float) -> void:
+		_time += delta
+		_update_particles(delta)
+
+		for vial_index in range(_bottles.size()):
+			var vial_value: Variant = _bottles[vial_index]
+			if not is_instance_valid(vial_value):
+				continue
+			var vial := vial_value as Control
+			# Vials raised for dragging or pouring do not emit ambient motes.
+			if vial.z_index != 2:
+				continue
+
+			var contents: Array = vial.call("get_contents")
+			if contents.is_empty():
+				continue
+
+			_emit_timers[vial_index] = float(_emit_timers[vial_index]) - delta
+			if float(_emit_timers[vial_index]) <= 0.0:
+				if _count_vial_particles(vial_index) < MAX_MOTES_PER_VIAL:
+					_spawn_mote(vial_index, vial, String(contents.back()))
+				_emit_timers[vial_index] = randf_range(1.25, 2.2)
+
+		if not _particles.is_empty():
+			queue_redraw()
+
+	func _update_particles(delta: float) -> void:
+		for particle_index in range(_particles.size() - 1, -1, -1):
+			var particle: Dictionary = _particles[particle_index]
+			var life: float = maxf(0.0, float(particle["life"]) - delta)
+			var position_value: Vector2 = particle["position"]
+			var velocity: Vector2 = particle["velocity"]
+			position_value += velocity * delta
+			position_value.x += sin(
+				_time * float(particle["sway_speed"]) + float(particle["phase"])
+			) * 3.2 * delta
+			particle["position"] = position_value
+			particle["life"] = life
+
+			if life <= 0.0:
+				_particles.remove_at(particle_index)
+			else:
+				_particles[particle_index] = particle
+
+	func _count_vial_particles(vial_index: int) -> int:
+		var count := 0
+		for particle in _particles:
+			if int(particle["vial_index"]) == vial_index:
+				count += 1
+		return count
+
+	func _spawn_mote(vial_index: int, vial: Control, essence: String) -> void:
+		var pose: Vector2 = vial.call("get_pose")
+		var mouth: Vector2 = vial.call("get_mouth_position_in_parent", pose)
+		var lifetime := randf_range(0.95, 1.4)
+		var essence_color: Color = _palette.get(
+			essence,
+			Color(0.45, 0.78, 0.75, 1.0)
+		)
+		var mote_color: Color = essence_color.lerp(Color(0.88, 1.0, 0.96, 1.0), 0.32)
+
+		_particles.append({
+			"vial_index": vial_index,
+			"position": mouth + Vector2(randf_range(-5.0, 5.0), -3.0),
+			"velocity": Vector2(randf_range(-6.0, 6.0), -randf_range(13.0, 22.0)),
+			"life": lifetime,
+			"lifetime": lifetime,
+			"radius": randf_range(0.8, 1.45),
+			"phase": randf_range(0.0, TAU),
+			"sway_speed": randf_range(1.0, 2.0),
+			"color": mote_color
+		})
+
+		queue_redraw()
+
+	func _draw() -> void:
+		for particle in _particles:
+			var life: float = float(particle["life"])
+			var lifetime: float = maxf(0.001, float(particle["lifetime"]))
+			var age_ratio: float = 1.0 - life / lifetime
+			var fade: float = sin(PI * clampf(age_ratio, 0.0, 1.0))
+			if fade <= 0.005:
+				continue
+
+			var position_value: Vector2 = particle["position"]
+			var radius: float = float(particle["radius"])
+			var mote_color: Color = particle["color"]
+			var halo_color := Color(
+				mote_color.r,
+				mote_color.g,
+				mote_color.b,
+				0.12 * fade
+			)
+			var core_color := Color(
+				mote_color.r,
+				mote_color.g,
+				mote_color.b,
+				0.42 * fade
+			)
+			draw_circle(position_value, radius * 3.0, halo_color)
+			draw_circle(position_value, radius, core_color)
+			draw_circle(
+				position_value + Vector2(-radius * 0.25, -radius * 0.30),
+				maxf(0.45, radius * 0.28),
+				Color(1.0, 1.0, 0.94, 0.52 * fade)
+			)
+
+
 const VIAL_LEVELS := {
 	4: 0,
 	6: 4,
@@ -337,6 +467,7 @@ var _stream_highlight: Line2D
 var _stream_glint: Line2D
 var _stream_drops: Array[Polygon2D] = []
 var _splash_ring: Line2D
+var _mouth_mote_layer: MouthEssenceMotes
 
 
 func _draw() -> void:
@@ -482,6 +613,12 @@ func _build_interface() -> void:
 	add_child(atmosphere)
 
 	_build_stream_layers()
+
+	_mouth_mote_layer = MouthEssenceMotes.new()
+	_mouth_mote_layer.name = "MouthEssenceMotes"
+	_mouth_mote_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_mouth_mote_layer.z_index = 13
+	add_child(_mouth_mote_layer)
 	set_process(true)
 
 
@@ -1484,6 +1621,8 @@ func _load_level() -> void:
 	_pour_source = -1
 	_pour_target = -1
 	super._load_level()
+	if is_instance_valid(_mouth_mote_layer):
+		_mouth_mote_layer.configure(bottle_nodes, PALETTE)
 
 
 func _continue_from_completion() -> void:
