@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280" viewBox="0 0 720 1280">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0.15" y2="1">
+      <stop offset="0" stop-color="#202923"/>
+      <stop offset="0.48" stop-color="#18211d"/>
+      <stop offset="1" stop-color="#101815"/>
+    </linearGradient>
+    <linearGradient id="recess" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101a18"/>
+      <stop offset="0.55" stop-color="#0b1212"/>
+      <stop offset="1" stop-color="#17231c"/>
+    </linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#29322a"/>
+      <stop offset="0.5" stop-color="#30392e"/>
+      <stop offset="1" stop-color="#1b251f"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#775338"/>
+      <stop offset="0.18" stop-color="#523a2a"/>
+      <stop offset="1" stop-color="#241e18"/>
+    </linearGradient>
+    <linearGradient id="woodTop" x1="0" y1="0" x2="0.1" y2="1">
+      <stop offset="0" stop-color="#8a6544"/>
+      <stop offset="0.36" stop-color="#64462f"/>
+      <stop offset="1" stop-color="#3c2d22"/>
+    </linearGradient>
+    <linearGradient id="parchment" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#696248"/>
+      <stop offset="1" stop-color="#34382d"/>
+    </linearGradient>
+    <radialGradient id="windowGlow" cx="52%" cy="42%" r="62%">
+      <stop offset="0" stop-color="#82927a" stop-opacity="0.17"/>
+      <stop offset="0.55" stop-color="#587064" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#1b2926" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="candleGlow">
+      <stop offset="0" stop-color="#e4a95c" stop-opacity="0.16"/>
+      <stop offset="0.45" stop-color="#bd8146" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#bd8146" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a68a5c"/>
+      <stop offset="0.5" stop-color="#69583d"/>
+      <stop offset="1" stop-color="#382f24"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Deep room shell -->
+  <rect width="720" height="1280" fill="#0c1311"/>
+  <rect width="720" height="1100" fill="url(#wall)"/>
+  <path d="M0 0H720V84L651 112H68L0 83Z" fill="#111a16"/>
+  <path d="M0 86L72 110V918L0 1000Z" fill="#141d18"/>
+  <path d="M720 86L650 110V918L720 1000Z" fill="#111a16"/>
+  <path d="M0 118H720" stroke="#394137" stroke-opacity="0.22" stroke-width="2"/>
+  <path d="M44 120V742M676 120V742" stroke="#6b6449" stroke-opacity="0.16" stroke-width="3"/>
+
+  <!-- Recessed arched wall and distant window -->
+  <path d="M236 742V370C236 220 290 142 360 142C430 142 484 220 484 370V742Z" fill="#121b18" stroke="#514d3a" stroke-opacity="0.48" stroke-width="13"/>
+  <path d="M258 720V372C258 244 303 171 360 171C417 171 462 244 462 372V720Z" fill="url(#recess)"/>
+  <path d="M270 708V370C270 252 309 190 360 190C411 190 450 252 450 370V708Z" fill="url(#windowGlow)"/>
+  <path d="M360 192V706M272 432H448M278 570H442" stroke="#566456" stroke-opacity="0.15" stroke-width="7"/>
+  <path d="M286 705V372C286 272 316 212 360 212C404 212 434 272 434 372V705" fill="none" stroke="#8a7852" stroke-opacity="0.25" stroke-width="5"/>
+  <path d="M236 741H484" stroke="#796a4a" stroke-opacity="0.34" stroke-width="10"/>
+  <path d="M248 750H472" stroke="#101713" stroke-width="9"/>
+
+  <!-- Ceiling beams and wall joints -->
+  <path d="M38 160L682 160" stroke="#59604a" stroke-opacity="0.20" stroke-width="10"/>
+  <path d="M46 177L674 177" stroke="#090f0d" stroke-opacity="0.52" stroke-width="4"/>
+  <path d="M104 120V300M616 120V300" stroke="#5b5943" stroke-opacity="0.18" stroke-width="8"/>
+  <path d="M112 125V297M608 125V297" stroke="#0c1411" stroke-opacity="0.72" stroke-width="3"/>
+  <path d="M30 286H690" stroke="#0a110e" stroke-opacity="0.28" stroke-width="2"/>
+  <path d="M31 292H690" stroke="#59604a" stroke-opacity="0.10" stroke-width="1"/>
+
+  <!-- Left wall: framed, still dormant Atlas -->
+  <path d="M48 342L260 330L270 660L54 674Z" fill="#0a100e" opacity="0.76"/>
+  <path d="M58 350L250 340L258 646L64 658Z" fill="#493b2b" stroke="#8b7149" stroke-opacity="0.52" stroke-width="5"/>
+  <path d="M72 364L237 355L244 628L78 638Z" fill="url(#parchment)" stroke="#b09665" stroke-opacity="0.30" stroke-width="2"/>
+  <path d="M89 385L224 378L230 607L93 615Z" fill="#252d26" stroke="#8f8058" stroke-opacity="0.34" stroke-width="1.5"/>
+  <path d="M111 422C128 407 143 420 150 436C159 453 177 460 190 447C204 434 214 447 215 466" fill="none" stroke="#aa9868" stroke-opacity="0.24" stroke-width="2"/>
+  <path d="M104 485C122 473 135 480 143 497C152 515 169 518 184 505C197 493 209 501 220 522" fill="none" stroke="#aa9868" stroke-opacity="0.20" stroke-width="2"/>
+  <path d="M130 398L137 453L166 482L158 534L189 574" fill="none" stroke="#c1a77a" stroke-opacity="0.28" stroke-width="2"/>
+  <circle cx="158" cy="483" r="7" fill="#c6a66f" fill-opacity="0.18"/>
+  <circle cx="189" cy="574" r="4" fill="#c6a66f" fill-opacity="0.22"/>
+  <path d="M58 350L77 364M250 340L237 355M64 658L78 638M258 646L244 628" stroke="#c5a36d" stroke-opacity="0.34" stroke-width="3"/>
+  <path d="M53 678L269 664" stroke="#1b221b" stroke-width="12"/>
+
+  <!-- Right wall: recessed shelves, books and specimen jars -->
+  <path d="M488 352L684 360V662L488 652Z" fill="#0c1310" opacity="0.74"/>
+  <path d="M496 366L674 373V635L496 628Z" fill="#111a16" stroke="#5b523a" stroke-opacity="0.38" stroke-width="4"/>
+  <path d="M488 420L682 427L680 442L490 435Z" fill="url(#wood)"/>
+  <path d="M487 526L682 533L680 548L489 541Z" fill="url(#wood)"/>
+  <path d="M496 630L680 636L678 651L497 644Z" fill="url(#wood)"/>
+  <path d="M507 382L520 383V416L507 415Z" fill="#4a3a2a"/>
+  <path d="M526 380L544 381V416L526 416Z" fill="#5a4530"/>
+  <path d="M548 382L563 383V418L548 417Z" fill="#374238"/>
+  <path d="M568 382L590 383V419L568 418Z" fill="#554330"/>
+  <path d="M596 385L612 385V420L596 420Z" fill="#40372a"/>
+  <path d="M616 385L643 386V421L616 420Z" fill="#594630"/>
+  <path d="M651 386L664 387V422L651 421Z" fill="#343d35"/>
+  <path d="M513 489L529 488L533 513L509 513Z" fill="#4d6b5b" fill-opacity="0.45" stroke="#829078" stroke-opacity="0.24" stroke-width="2"/>
+  <path d="M509 489L533 490L531 483L511 482Z" fill="#7e8d76" fill-opacity="0.30"/>
+  <path d="M548 476L567 477L571 514L545 514Z" fill="#786348" fill-opacity="0.42" stroke="#b39a69" stroke-opacity="0.24" stroke-width="2"/>
+  <path d="M545 476L571 477L568 469L548 469Z" fill="#9a8158" fill-opacity="0.28"/>
+  <path d="M590 474L609 475L612 514L587 514Z" fill="#5c6e5f" fill-opacity="0.36" stroke="#9ba98c" stroke-opacity="0.19" stroke-width="2"/>
+  <path d="M587 474L612 475L609 468L590 467Z" fill="#9ba98c" fill-opacity="0.22"/>
+  <path d="M630 486L653 487L656 515L627 515Z" fill="#67523a" fill-opacity="0.58"/>
+  <path d="M630 486L653 487" stroke="#bd9b64" stroke-opacity="0.24" stroke-width="2"/>
+
+  <!-- Shadowed side furniture -->
+  <path d="M20 690L111 685L119 760L14 772Z" fill="#131b16" opacity="0.78"/>
+  <path d="M610 682L704 690L708 758L602 750Z" fill="#0d1512" opacity="0.78"/>
+  <path d="M26 720L115 715M608 716L698 723" stroke="#766747" stroke-opacity="0.22" stroke-width="5"/>
+
+  <!-- Workbench legs and dark apron -->
+  <path d="M66 936L654 936L632 1144L92 1144Z" fill="#201b15"/>
+  <path d="M92 968L154 968L144 1191L102 1191Z" fill="url(#wood)"/>
+  <path d="M566 968L628 968L618 1191L576 1191Z" fill="url(#wood)"/>
+  <path d="M113 1004L134 1004L129 1172L108 1172Z" fill="#171c17" opacity="0.48"/>
+  <path d="M587 1004L608 1004L603 1172L582 1172Z" fill="#171c17" opacity="0.48"/>
+  <path d="M86 944L634 944L625 1083L95 1083Z" fill="url(#wood)"/>
+  <path d="M99 970L621 970" stroke="#a57d4f" stroke-opacity="0.28" stroke-width="4"/>
+  <path d="M110 1010L610 1010M108 1072L612 1072" stroke="#120f0c" stroke-opacity="0.44" stroke-width="3"/>
+  <path d="M119 1031L601 1031" stroke="#9a7145" stroke-opacity="0.13" stroke-width="2"/>
+  <path d="M134 1090L586 1090" stroke="#b58a54" stroke-opacity="0.12" stroke-width="2"/>
+
+  <!-- Broad, shallow work surface -->
+  <path d="M20 770L700 770L718 955L2 955Z" fill="#171a15" opacity="0.92"/>
+  <path d="M30 776L690 776L704 936L16 936Z" fill="url(#woodTop)" stroke="#a27c4f" stroke-opacity="0.37" stroke-width="5"/>
+  <path d="M42 789L678 789L689 921L31 921Z" fill="#59402d" opacity="0.56"/>
+  <path d="M43 797L676 797" stroke="#d0a16a" stroke-opacity="0.18" stroke-width="3"/>
+  <path d="M22 940L698 940L718 970L2 970Z" fill="#98704a" opacity="0.60"/>
+  <path d="M18 951L702 951" stroke="#d0a46e" stroke-opacity="0.24" stroke-width="3"/>
+  <path d="M32 968L688 968" stroke="#130f0c" stroke-opacity="0.72" stroke-width="7"/>
+  <path d="M85 818C192 807 253 811 346 819M372 844C472 850 563 841 648 850M88 894C198 884 258 889 326 891" stroke="#d0a16a" stroke-opacity="0.085" stroke-width="2" fill="none"/>
+  <path d="M110 828L113 883M604 817L609 884" stroke="#251e17" stroke-opacity="0.30" stroke-width="2"/>
+  <ellipse cx="360" cy="859" rx="136" ry="48" fill="none" stroke="#c3a16d" stroke-opacity="0.20" stroke-width="2"/>
+  <ellipse cx="360" cy="859" rx="116" ry="34" fill="none" stroke="#c3a16d" stroke-opacity="0.11" stroke-width="1.5"/>
+  <path d="M346 859L360 845L374 859L360 873Z" fill="#bba071" fill-opacity="0.13"/>
+
+  <!-- A closed book at the edge of the work surface -->
+  <path d="M82 827L169 815L190 867L101 883Z" fill="#171b17" opacity="0.70"/>
+  <path d="M86 818L169 808L187 855L103 869Z" fill="#59432e" stroke="#96734a" stroke-opacity="0.43" stroke-width="2"/>
+  <path d="M94 821L163 813L177 851L108 861Z" fill="#202820"/>
+  <path d="M104 863L189 851L195 862L110 878Z" fill="#b49a67" fill-opacity="0.38"/>
+  <path d="M116 832L154 827M120 840L158 835M124 848L161 843" stroke="#b9a177" stroke-opacity="0.18" stroke-width="1.5"/>
+
+  <!-- Candle and restrained warm light -->
+  <ellipse cx="590" cy="758" rx="105" ry="116" fill="url(#candleGlow)"/>
+  <path d="M573 768L578 713L603 711L610 768Z" fill="#b1a181" fill-opacity="0.48"/>
+  <path d="M580 716L601 715L603 726L579 728Z" fill="#dbcca4" fill-opacity="0.66"/>
+  <path d="M590 715C576 699 585 680 591 670C602 687 604 701 590 715Z" fill="#c88a45" fill-opacity="0.82"/>
+  <path d="M591 707C585 697 591 687 594 684C600 695 597 703 591 707Z" fill="#f3d9a2" fill-opacity="0.82"/>
+  <path d="M591 719L592 710" stroke="#2b2117" stroke-width="2"/>
+
+  <!-- Near-edge plant silhouettes: framing, not a bright garden room -->
+  <g fill="#101a15" stroke="#2c3b2b" stroke-opacity="0.42" stroke-width="2">
+    <path d="M-12 1030C24 960 35 895 24 824C65 872 74 944 45 1029Z"/>
+    <path d="M5 1008C39 951 72 926 104 919C91 964 54 1000 5 1008Z"/>
+    <path d="M-3 1090C45 1029 77 1007 113 1004C88 1057 46 1086 -3 1090Z"/>
+    <path d="M725 1015C682 958 670 899 687 824C644 876 635 946 675 1022Z"/>
+    <path d="M716 1007C682 951 652 924 617 915C631 965 668 994 716 1007Z"/>
+    <path d="M728 1100C682 1039 650 1012 615 1005C638 1060 680 1090 728 1100Z"/>
+  </g>
+  <g fill="none" stroke="#3d5038" stroke-opacity="0.20" stroke-width="3">
+    <path d="M9 1122C42 1028 47 951 24 824"/>
+    <path d="M710 1118C678 1032 676 943 687 824"/>
+  </g>
+
+  <!-- Foreground floor and low room shadow -->
+  <path d="M0 1130L720 1130V1280H0Z" fill="#101714"/>
+  <path d="M0 1144L720 1144" stroke="#5a553e" stroke-opacity="0.13" stroke-width="3"/>
+  <path d="M68 1178L650 1178M115 1232L604 1232" stroke="#79806a" stroke-opacity="0.07" stroke-width="2"/>
+  <path d="M360 1145L360 1280" stroke="#5b604a" stroke-opacity="0.045" stroke-width="2"/>
+  <rect width="720" height="1280" fill="#030807" opacity="0.13"/>
+</svg>
