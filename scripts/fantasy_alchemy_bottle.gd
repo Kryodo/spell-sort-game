@@ -103,11 +103,7 @@ func _profile_points() -> Array[Vector2]:
 
 
 func _draw_liquid(rect: Rect2) -> void:
-    super._draw_liquid(rect)
-    _draw_fantasy_liquid_overlays(rect)
-
-
-func _draw_fantasy_liquid_overlays(rect: Rect2) -> void:
+	super._draw_liquid(rect)
     if _visual_contents.is_empty() or _liquid_level <= 0.02:
         return
 
@@ -202,7 +198,6 @@ func _draw_fantasy_liquid_overlays(rect: Rect2) -> void:
             2.0,
             true
         )
-
 
 func _get_surface_wave_offset(normalized_x: float) -> float:
     var inherited_wave: float = super._get_surface_wave_offset(normalized_x)
