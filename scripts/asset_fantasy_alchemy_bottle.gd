@@ -611,11 +611,10 @@ func _draw_liquid_band(
 	if bottom_y - top_y <= 1.2:
 		return
 
-	# A deeper buffer lets the meniscus move naturally without being clipped
-	# against the static body when the vial tilts or sloshes during pickup.
-	var body_top_y: float = top_y + SURFACE_CAP_DEPTH if is_surface else top_y
-	body_top_y = minf(body_top_y, bottom_y - 1.0)
-
+	# The animated surface is the actual top boundary of the liquid body.
+	# Keeping one continuous body all the way to its floor prevents the
+	# single-layer case from becoming a short, separately capped polygon.
+	var body_top_y: float = top_y
 	var body_top_edge := PackedVector2Array()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
@@ -647,16 +646,17 @@ func _draw_liquid_band(
 			var wave: float = _get_surface_wave_offset(normalized_x) * wave_strength
 			# At the current maximum slosh/tilt this keeps the whole wave inside
 			# the cap. It cannot fold over the base edge or create a self-crossing.
-			# Keep a tiny separation from the static body edge. This makes the
-			# animated meniscus a simple non-self-touching polygon when batched.
-			var wave_upper_limit: float = maxf(top_y, body_top_y - 0.35)
+			# Let the top edge move in both directions while keeping the wave
+			# within the current liquid band.
+			var wave_upper_limit: float = minf(top_y + SURFACE_CAP_DEPTH, bottom_y - 1.0)
 			var wave_y: float = clampf(top_y + wave, top_y - 17.5, wave_upper_limit)
 			var base_point: Vector2 = body_top_edge[sample_index]
 			wave_edge.append(Vector2(base_point.x, wave_y))
 
-	var polygon := body_top_edge.duplicate()
-	var right_top_y: float = body_top_edge[-1].y
-	var left_top_y: float = body_top_edge[0].y
+	var liquid_top_edge: PackedVector2Array = wave_edge if is_surface else body_top_edge
+	var polygon := liquid_top_edge.duplicate()
+	var right_top_y: float = liquid_top_edge[-1].y
+	var left_top_y: float = liquid_top_edge[0].y
 	var bottom_bounds := _window_bounds_at(bottom_ratio)
 	var bottom_left_x: float = (
 		rect.position.x
@@ -719,30 +719,6 @@ func _draw_liquid_band(
 	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
 		vertex_colors.append(edge_color)
 	draw_polygon(polygon, vertex_colors)
-
-	# The wave edge and its fixed backing edge form one simple strip. Submit it
-	# as a single polygon rather than 96 tiny triangles on every animated frame.
-	if is_surface and wave_edge.size() == body_top_edge.size():
-		var surface_polygon := PackedVector2Array()
-		var surface_colours := PackedColorArray()
-		for sample_index in range(wave_edge.size()):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			surface_polygon.append(wave_edge[sample_index])
-			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
-		for sample_index in range(body_top_edge.size() - 1, -1, -1):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			surface_polygon.append(body_top_edge[sample_index])
-			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
-
-		var twice_area: float = 0.0
-		for point_index in range(surface_polygon.size()):
-			var next_index: int = (point_index + 1) % surface_polygon.size()
-			twice_area += (
-				surface_polygon[point_index].x * surface_polygon[next_index].y
-				- surface_polygon[next_index].x * surface_polygon[point_index].y
-			)
-		if surface_polygon.size() >= 3 and absf(twice_area) > 0.02:
-			draw_polygon(surface_polygon, surface_colours)
 
 	if is_surface and wave_edge.size() >= 2:
 		var surface_color: Color = fill_color.lightened(0.34)
