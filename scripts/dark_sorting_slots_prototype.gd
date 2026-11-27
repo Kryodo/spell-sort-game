@@ -1107,6 +1107,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_glow.visible = true
 	_stream_shape.visible = true
 	_stream_highlight.visible = true
+	_stream_glint.visible = true
 	_splash_ring.visible = true
 	for drop in _stream_drops:
 		drop.visible = true
@@ -1122,6 +1123,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_glow.visible = false
 	_stream_shape.visible = false
 	_stream_highlight.visible = false
+	_stream_glint.visible = false
 	_splash_ring.visible = false
 	for drop in _stream_drops:
 		drop.visible = false
