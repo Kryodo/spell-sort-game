@@ -88,6 +88,7 @@ var vial_art: Texture2D = DEFAULT_VIAL_ART
 var _window_profile := PackedVector3Array()
 var _window_top_ratio: float = 0.28
 var _window_bottom_ratio: float = 0.76
+var _reflection_bottom_ratio: float = 0.76
 var _mouth_y_ratio: float = 0.065
 var _mouth_width_ratio: float = 0.15
 # Static chamber highlight paths are built once per vial instance, not every draw.
@@ -201,6 +202,14 @@ func _build_inner_window_profile() -> void:
 	# Keeping only the broad central region prevents liquid from climbing into
 	# the neck or appearing in the narrow decorative base.
 	var top_chamber_width: int = maxi(12, int(round(float(peak_width) * CHAMBER_WIDTH_RATIO)))
+	# Keep a second, conservative endpoint for glass highlights. The liquid can
+	# follow the narrower transparent foot, but reflections must stop at the
+	# original broad-chamber boundary so they do not paint across the inner rim.
+	var reflection_bottom_width: int = maxi(10, int(round(float(peak_width) * 0.08)))
+	var reflection_chamber_bottom: int = peak_row
+	while reflection_chamber_bottom < bottom_scan and row_width[reflection_chamber_bottom + 1] >= reflection_bottom_width:
+		reflection_chamber_bottom += 1
+
 	var bottom_chamber_width: int = maxi(4, int(round(float(peak_width) * 0.025)))
 	var chamber_top: int = peak_row
 	var chamber_bottom: int = peak_row
@@ -254,6 +263,10 @@ func _build_inner_window_profile() -> void:
 	# underneath the anti-aliased chamber rim instead of leaving a hairline gap.
 	_window_top_ratio = maxf(0.0, _window_profile[0].x - 1.25 / float(image_height))
 	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 6.0 / float(image_height))
+	_reflection_bottom_ratio = minf(
+		1.0,
+		float(reflection_chamber_bottom) / float(image_height) + 1.25 / float(image_height)
+	)
 	_window_top_contour = _detect_top_chamber_contour(source_image)
 	_detect_mouth(source_image, x_min, x_max, centre_x, search_radius)
 	_build_static_reflection_geometry()
@@ -263,6 +276,7 @@ func _build_inner_window_profile() -> void:
 		"top_contour": _window_top_contour,
 		"top": _window_top_ratio,
 		"bottom": _window_bottom_ratio,
+		"reflection_bottom": _reflection_bottom_ratio,
 		"mouth_y": _mouth_y_ratio,
 		"mouth_width": _mouth_width_ratio
 	}
@@ -273,6 +287,7 @@ func _apply_cached_analysis(analysis: Dictionary) -> void:
 	_window_top_contour = analysis.get("top_contour", PackedVector2Array())
 	_window_top_ratio = float(analysis["top"])
 	_window_bottom_ratio = float(analysis["bottom"])
+	_reflection_bottom_ratio = float(analysis.get("reflection_bottom", analysis["bottom"]))
 	_mouth_y_ratio = float(analysis["mouth_y"])
 	_mouth_width_ratio = float(analysis["mouth_width"])
 
@@ -648,9 +663,10 @@ func _draw_liquid_band(
 			# the cap. It cannot fold over the base edge or create a self-crossing.
 			# Let the top edge move in both directions while keeping the wave
 			# within the current liquid band.
-			# Keep the moving meniscus as a small highlight variation instead
-			# of letting it reshape the entire filled body polygon every frame.
-			var wave_y: float = clampf(top_y + wave, top_y - 3.5, top_y + 3.5)
+			# Keep the moving surface entirely above the stable body boundary.
+			# This forms a simple, non-self-intersecting strip every frame.
+			var wave_height: float = clampf(4.0 + wave, 1.0, 8.0)
+			var wave_y: float = top_y - wave_height
 			var base_point: Vector2 = body_top_edge[sample_index]
 			wave_edge.append(Vector2(base_point.x, wave_y))
 
@@ -722,7 +738,19 @@ func _draw_liquid_band(
 		vertex_colors.append(edge_color)
 	draw_polygon(polygon, vertex_colors)
 
-	if is_surface and wave_edge.size() >= 2:
+	if is_surface and wave_edge.size() == body_top_edge.size():
+		var surface_polygon := PackedVector2Array()
+		var surface_colours := PackedColorArray()
+		for sample_index in range(wave_edge.size()):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			surface_polygon.append(wave_edge[sample_index])
+			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
+		for sample_index in range(body_top_edge.size() - 1, -1, -1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			surface_polygon.append(body_top_edge[sample_index])
+			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
+		draw_polygon(surface_polygon, surface_colours)
+
 		var surface_color: Color = fill_color.lightened(0.34)
 		surface_color.a = 0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025
 		draw_polyline(wave_edge, surface_color, 1.1, true)
@@ -1063,7 +1091,7 @@ func _chamber_edge_points(
 	for index in range(SAMPLE_COUNT):
 		var amount: float = float(index) / float(SAMPLE_COUNT - 1)
 		var profile_ratio: float = lerpf(start_ratio, end_ratio, amount)
-		var y_ratio: float = lerpf(_window_top_ratio, _window_bottom_ratio, profile_ratio)
+		var y_ratio: float = lerpf(_window_top_ratio, _reflection_bottom_ratio, profile_ratio)
 		var bounds: Vector2 = _window_bounds_at(y_ratio)
 		var edge_ratio: float = bounds.x if left_side else bounds.y
 		var x: float = rect.position.x + rect.size.x * edge_ratio
