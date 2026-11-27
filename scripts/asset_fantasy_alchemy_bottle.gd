@@ -7,6 +7,8 @@ const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial
 
 # Diagnostic switch: re-enable the older bubble/glow pass to compare behaviour.
 const ENABLE_INHERITED_LIQUID_OVERLAYS_FOR_DIAGNOSTIC := false
+# Temporarily flatten per-vertex liquid shading to isolate moving colour interpolation.
+const ENABLE_VERTEX_COLOUR_LIQUID_SHADING := false
 
 const ALPHA_CUTOFF := 0.14
 const SCAN_TOP_RATIO := 0.16
@@ -588,18 +590,22 @@ func _draw_liquid_band(
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
 
-	# Per-vertex tinting gives each essence a gentle luminous centre and
-	# slightly deeper side/bottom colour without adding extra meshes or layers.
+	# Diagnostic: flatten the fill to a single static tint while checking whether
+	# animated top-edge vertices are moving the per-vertex colour interpolation.
 	var vertex_colors := PackedColorArray()
-	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
-		vertex_colors.append(edge_color.lerp(center_color, center_weight))
-	for _side_index in range(LIQUID_SIDE_SAMPLES):
-		vertex_colors.append(edge_color)
-	vertex_colors.append(bottom_color)
-	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
-		vertex_colors.append(edge_color)
+	if ENABLE_VERTEX_COLOUR_LIQUID_SHADING:
+		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
+			vertex_colors.append(edge_color.lerp(center_color, center_weight))
+		for _side_index in range(LIQUID_SIDE_SAMPLES):
+			vertex_colors.append(edge_color)
+		vertex_colors.append(bottom_color)
+		for _side_index in range(1, LIQUID_SIDE_SAMPLES):
+			vertex_colors.append(edge_color)
+	else:
+		for _vertex_index in range(polygon.size()):
+			vertex_colors.append(fill_color)
 	draw_polygon(polygon, vertex_colors)
 
 	if is_surface:
