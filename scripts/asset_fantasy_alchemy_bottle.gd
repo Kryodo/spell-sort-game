@@ -21,7 +21,7 @@ const CENTRE_SEED_SEARCH_RATIO := 0.12
 const LIQUID_SURFACE_SAMPLES := 48
 const LIQUID_SIDE_SAMPLES := 32
 const LIQUID_WALL_INSET := -0.9
-const LIQUID_BOTTOM_WALL_OVERDRAW := 4.5
+const LIQUID_BOTTOM_WALL_OVERDRAW := 2.2
 const LIQUID_BOTTOM_BLEND_START := 0.68
 
 # Preserve the generated vessel artwork exactly; reflections are added as a
@@ -253,7 +253,7 @@ func _build_inner_window_profile() -> void:
 	# Extend slightly past the first/last transparent sample so the fill reaches
 	# underneath the anti-aliased chamber rim instead of leaving a hairline gap.
 	_window_top_ratio = maxf(0.0, _window_profile[0].x - 1.25 / float(image_height))
-	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 14.0 / float(image_height))
+	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 6.0 / float(image_height))
 	_window_top_contour = _detect_top_chamber_contour(source_image)
 	_detect_mouth(source_image, x_min, x_max, centre_x, search_radius)
 	_build_static_reflection_geometry()
@@ -648,15 +648,17 @@ func _draw_liquid_band(
 			# the cap. It cannot fold over the base edge or create a self-crossing.
 			# Let the top edge move in both directions while keeping the wave
 			# within the current liquid band.
-			var wave_upper_limit: float = minf(top_y + SURFACE_CAP_DEPTH, bottom_y - 1.0)
-			var wave_y: float = clampf(top_y + wave, top_y - 17.5, wave_upper_limit)
+			# Keep the moving meniscus as a small highlight variation instead
+			# of letting it reshape the entire filled body polygon every frame.
+			var wave_y: float = clampf(top_y + wave, top_y - 3.5, top_y + 3.5)
 			var base_point: Vector2 = body_top_edge[sample_index]
 			wave_edge.append(Vector2(base_point.x, wave_y))
 
-	var liquid_top_edge: PackedVector2Array = wave_edge if is_surface else body_top_edge
-	var polygon := liquid_top_edge.duplicate()
-	var right_top_y: float = liquid_top_edge[-1].y
-	var left_top_y: float = liquid_top_edge[0].y
+	# The body uses the stable chamber profile. The meniscus animates as a
+	# separate highlight so changing wave triangulation cannot expose seams.
+	var polygon := body_top_edge.duplicate()
+	var right_top_y: float = body_top_edge[-1].y
+	var left_top_y: float = body_top_edge[0].y
 	var bottom_bounds := _window_bounds_at(bottom_ratio)
 	var bottom_left_x: float = (
 		rect.position.x
