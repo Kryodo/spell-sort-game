@@ -271,7 +271,7 @@ class AmbientAtmosphere extends Control:
 
 
 class MouthEssenceMotes extends Control:
-	const MAX_MOTES_PER_VIAL := 2
+	const MAX_MOTES_PER_VIAL := 3
 
 	var _bottles: Array = []
 	var _palette: Dictionary = {}
@@ -285,7 +285,7 @@ class MouthEssenceMotes extends Control:
 		_emit_timers.clear()
 		_particles.clear()
 		for _index in range(_bottles.size()):
-			_emit_timers.append(randf_range(0.25, 1.6))
+			_emit_timers.append(randf_range(0.18, 1.1))
 		queue_redraw()
 
 	func _ready() -> void:
@@ -313,7 +313,7 @@ class MouthEssenceMotes extends Control:
 			if float(_emit_timers[vial_index]) <= 0.0:
 				if _count_vial_particles(vial_index) < MAX_MOTES_PER_VIAL:
 					_spawn_mote(vial_index, vial, String(contents.back()))
-				_emit_timers[vial_index] = randf_range(1.25, 2.2)
+				_emit_timers[vial_index] = randf_range(0.95, 1.65)
 
 		if not _particles.is_empty():
 			queue_redraw()
