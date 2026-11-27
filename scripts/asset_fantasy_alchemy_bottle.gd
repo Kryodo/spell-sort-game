@@ -545,19 +545,33 @@ func _window_bounds_at(y_ratio: float) -> Vector2:
 	if y_ratio >= last.x:
 		return Vector2(last.y, last.z)
 
-	# Binary search keeps mesh construction logarithmic. This lookup runs many
-	# times per layer, per vial, on every animated frame.
-	var low_index: int = 0
-	var high_index: int = profile_count - 1
-	while high_index - low_index > 1:
-		var middle_index: int = (low_index + high_index) >> 1
-		if _window_profile[middle_index].x <= y_ratio:
-			low_index = middle_index
-		else:
-			high_index = middle_index
+	# Profile samples are generated at nearly uniform vertical intervals.
+	# Estimate the lower sample directly, then correct the bracket against the
+	# actual profile values. This preserves the exact interpolation segment
+	# while avoiding a binary search for every point in every animated band.
+	var profile_span: float = maxf(0.000001, last.x - first.x)
+	var normalized_position: float = clampf(
+		(y_ratio - first.x) / profile_span,
+		0.0,
+		1.0
+	)
+	var low_index: int = clampi(
+		floori(normalized_position * float(profile_count - 1)),
+		0,
+		profile_count - 2
+	)
+	if _window_profile[low_index].x > y_ratio:
+		while low_index > 0 and _window_profile[low_index].x > y_ratio:
+			low_index -= 1
+	else:
+		while (
+			low_index < profile_count - 2
+			and _window_profile[low_index + 1].x <= y_ratio
+		):
+			low_index += 1
 
 	first = _window_profile[low_index]
-	last = _window_profile[high_index]
+	last = _window_profile[low_index + 1]
 	var span: float = maxf(0.000001, last.x - first.x)
 	var weight: float = clampf((y_ratio - first.x) / span, 0.0, 1.0)
 	return Vector2(
