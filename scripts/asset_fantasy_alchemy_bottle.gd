@@ -479,9 +479,9 @@ func get_liquid_surface_position_in_parent() -> Vector2:
 
 
 func _draw_fantasy_liquid_overlays(rect: Rect2) -> void:
-    if not ENABLE_INHERITED_LIQUID_OVERLAYS_FOR_DIAGNOSTIC:
-        return
-    super._draw_fantasy_liquid_overlays(rect)
+	if not ENABLE_INHERITED_LIQUID_OVERLAYS_FOR_DIAGNOSTIC:
+		return
+	super._draw_fantasy_liquid_overlays(rect)
 
 
 func _draw_liquid(_rect: Rect2) -> void:
