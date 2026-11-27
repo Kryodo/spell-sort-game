@@ -1311,7 +1311,9 @@ func _update_stream() -> void:
 	# The glint travels in one direction, then fades out before returning to
 	# the top. Its path is sampled continuously, so it neither snaps between
 	# centre vertices nor teleports visibly at the loop boundary.
-	var glint_progress: float = _stream_phase
+	# One highlight travels during the pour itself; using the looping
+	# droplet clock here caused two bright glint pulses in a single transfer.
+	var glint_progress: float = clampf(_pour_progress, 0.0, 1.0)
 	var glint_start: float = lerpf(0.08, 0.76, glint_progress)
 	var glint_end: float = minf(0.98, glint_start + 0.16)
 	var glint_points := PackedVector2Array()
@@ -1326,7 +1328,7 @@ func _update_stream() -> void:
 			_get_stream_centre_point(start, control_one, control_two, finish, glint_t)
 		)
 	_stream_glint.points = glint_points
-	var glint_alpha: float = 0.82 * sin(PI * glint_progress)
+	var glint_alpha: float = 0.52 * sin(PI * glint_progress)
 	_stream_glint.default_color = Color(1.0, 1.0, 1.0, glint_alpha)
 
 	for index in range(_stream_drops.size()):
@@ -1346,8 +1348,10 @@ func _update_stream() -> void:
 
 	# Expand the ripple once per cycle, then fade it to transparent before
 	# the radius wraps back to its starting size. This hides the reset cleanly.
-	var ring_radius: float = 4.5 + 13.0 * _stream_phase
-	var ring_alpha: float = 0.34 * sin(PI * _stream_phase)
+	# The impact ring swells once per transfer instead of pulsing with
+	# the faster loop used by the travelling droplets.
+	var ring_radius: float = 4.5 + 13.0 * _pour_progress
+	var ring_alpha: float = 0.16 * sin(PI * _pour_progress)
 	var ring_points := PackedVector2Array()
 	for index in range(25):
 		var angle: float = TAU * float(index) / 24.0
