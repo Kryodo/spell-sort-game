@@ -10,7 +10,7 @@ const SURFACE_CAP_DEPTH := 22.0
 
 const ALPHA_CUTOFF := 0.14
 const SCAN_TOP_RATIO := 0.16
-const SCAN_BOTTOM_RATIO := 0.88
+const SCAN_BOTTOM_RATIO := 0.90
 const SCAN_LEFT_RATIO := 0.28
 const SCAN_RIGHT_RATIO := 0.72
 const CHAMBER_WIDTH_RATIO := 0.62
@@ -199,7 +199,7 @@ func _build_inner_window_profile() -> void:
 	# Keeping only the broad central region prevents liquid from climbing into
 	# the neck or appearing in the narrow decorative base.
 	var top_chamber_width: int = maxi(12, int(round(float(peak_width) * CHAMBER_WIDTH_RATIO)))
-	var bottom_chamber_width: int = maxi(10, int(round(float(peak_width) * 0.08)))
+	var bottom_chamber_width: int = maxi(4, int(round(float(peak_width) * 0.025)))
 	var chamber_top: int = peak_row
 	var chamber_bottom: int = peak_row
 	while chamber_top > top_scan and row_width[chamber_top - 1] >= top_chamber_width:
@@ -217,9 +217,17 @@ func _build_inner_window_profile() -> void:
 		var sum_left: float = 0.0
 		var sum_right: float = 0.0
 		var sample_count: int = 0
+		# Keep the middle smooth, but let the final rounded rows follow their
+		# actual silhouette instead of averaging across the narrowing base.
+		var bottom_blend: float = smoothstep(0.78, 1.0, t)
+		var sample_smooth_radius: int = roundi(lerpf(
+			float(PROFILE_SMOOTH_RADIUS),
+			2.0,
+			bottom_blend
+		))
 		for row in range(
-			maxi(chamber_top, sample_row - PROFILE_SMOOTH_RADIUS),
-			mini(chamber_bottom, sample_row + PROFILE_SMOOTH_RADIUS) + 1
+			maxi(chamber_top, sample_row - sample_smooth_radius),
+			mini(chamber_bottom, sample_row + sample_smooth_radius) + 1
 		):
 			if row_width[row] <= 0:
 				continue
@@ -243,7 +251,7 @@ func _build_inner_window_profile() -> void:
 	# Extend slightly past the first/last transparent sample so the fill reaches
 	# underneath the anti-aliased chamber rim instead of leaving a hairline gap.
 	_window_top_ratio = maxf(0.0, _window_profile[0].x - 1.25 / float(image_height))
-	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 1.25 / float(image_height))
+	_window_bottom_ratio = minf(1.0, _window_profile[-1].x + 2.0 / float(image_height))
 	_window_top_contour = _detect_top_chamber_contour(source_image)
 	_detect_mouth(source_image, x_min, x_max, centre_x, search_radius)
 	_build_static_reflection_geometry()
@@ -377,7 +385,7 @@ func _find_centre_transparent_span(
 		right_x = cursor
 		cursor += 1
 
-	if right_x - left_x < 8:
+	if right_x - left_x < 4:
 		return Vector2i(-1, -1)
 	return Vector2i(left_x, right_x)
 
@@ -637,7 +645,10 @@ func _draw_liquid_band(
 			var wave: float = _get_surface_wave_offset(normalized_x) * wave_strength
 			# At the current maximum slosh/tilt this keeps the whole wave inside
 			# the cap. It cannot fold over the base edge or create a self-crossing.
-			var wave_y: float = clampf(top_y + wave, top_y - 17.5, body_top_y)
+			# Keep a tiny separation from the static body edge. This makes the
+			# animated meniscus a simple non-self-touching polygon when batched.
+			var wave_upper_limit: float = maxf(top_y, body_top_y - 0.35)
+			var wave_y: float = clampf(top_y + wave, top_y - 17.5, wave_upper_limit)
 			var base_point: Vector2 = body_top_edge[sample_index]
 			wave_edge.append(Vector2(base_point.x, wave_y))
 
@@ -693,27 +704,29 @@ func _draw_liquid_band(
 		vertex_colors.append(edge_color)
 	draw_polygon(polygon, vertex_colors)
 
-	# Draw the moving surface as a strip of small triangles instead of one large
-	# concave polygon. Degenerate triangles are skipped, so Godot's triangulator
-	# never receives the self-touching/zero-area cap that caused the runtime error.
+	# The wave edge and its fixed backing edge form one simple strip. Submit it
+	# as a single polygon rather than 96 tiny triangles on every animated frame.
 	if is_surface and wave_edge.size() == body_top_edge.size():
-		for sample_index in range(LIQUID_SURFACE_SAMPLES):
-			var t0: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			var t1: float = float(sample_index + 1) / float(LIQUID_SURFACE_SAMPLES)
-			var colour0: Color = _surface_gradient_colour(t0, edge_color, center_color)
-			var colour1: Color = _surface_gradient_colour(t1, edge_color, center_color)
-			var wave_left: Vector2 = wave_edge[sample_index]
-			var wave_right: Vector2 = wave_edge[sample_index + 1]
-			var base_left: Vector2 = body_top_edge[sample_index]
-			var base_right: Vector2 = body_top_edge[sample_index + 1]
+		var surface_polygon := PackedVector2Array()
+		var surface_colours := PackedColorArray()
+		for sample_index in range(wave_edge.size()):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			surface_polygon.append(wave_edge[sample_index])
+			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
+		for sample_index in range(body_top_edge.size() - 1, -1, -1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			surface_polygon.append(body_top_edge[sample_index])
+			surface_colours.append(_surface_gradient_colour(t, edge_color, center_color))
 
-			var first_triangle := PackedVector2Array([wave_left, wave_right, base_right])
-			if absf((wave_right - wave_left).cross(base_right - wave_left)) > 0.02:
-				draw_polygon(first_triangle, PackedColorArray([colour0, colour1, colour1]))
-
-			var second_triangle := PackedVector2Array([wave_left, base_right, base_left])
-			if absf((base_right - wave_left).cross(base_left - wave_left)) > 0.02:
-				draw_polygon(second_triangle, PackedColorArray([colour0, colour1, colour0]))
+		var twice_area: float = 0.0
+		for point_index in range(surface_polygon.size()):
+			var next_index: int = (point_index + 1) % surface_polygon.size()
+			twice_area += (
+				surface_polygon[point_index].x * surface_polygon[next_index].y
+				- surface_polygon[next_index].x * surface_polygon[point_index].y
+			)
+		if surface_polygon.size() >= 3 and absf(twice_area) > 0.02:
+			draw_polygon(surface_polygon, surface_colours)
 
 	if is_surface and wave_edge.size() >= 2:
 		var surface_color: Color = fill_color.lightened(0.34)
@@ -739,7 +752,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 
 	# A small mix of bubbles rises at different speeds. Each particle borrows
 	# the colour of the essence layer it is travelling through.
-	const BUBBLE_SIZES := [1.45, 1.95, 2.55, 1.65, 2.25, 1.85]
+	const BUBBLE_SIZES := [1.65, 2.25, 1.85, 2.35]
 	for bubble_index in range(BUBBLE_SIZES.size()):
 		var speed: float = 0.082 + float(bubble_index % 3) * 0.021 + float(bubble_index / 3) * 0.008
 		var phase: float = fposmod(
@@ -784,16 +797,6 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		# Soft coloured halo, translucent bubble body and a restrained glassy glint.
 		draw_circle(bubble_position, bubble_size * 2.35, glow_color)
 		draw_circle(bubble_position, bubble_size, core_color)
-		draw_arc(
-			bubble_position + Vector2(-0.2, -0.2),
-			bubble_size,
-			deg_to_rad(205.0),
-			deg_to_rad(325.0),
-			10,
-			Color(1.0, 1.0, 1.0, bubble_alpha * 0.82),
-			0.75,
-			true
-		)
 		draw_circle(
 			bubble_position + Vector2(-bubble_size * 0.30, -bubble_size * 0.34),
 			maxf(0.60, bubble_size * 0.22),
@@ -801,7 +804,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		)
 
 	# A few much smaller alchemical motes add life between the larger bubbles.
-	for mote_index in range(3):
+	for mote_index in range(2):
 		var mote_phase: float = fposmod(
 			_wave_time * (0.055 + float(mote_index) * 0.012)
 			+ float(mote_index) * 0.317,
