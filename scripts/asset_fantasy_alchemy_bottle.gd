@@ -712,7 +712,7 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 			# A small coloured bubble swells through the existing meniscus, then
 			# disappears as it breaks. Its centre is kept just above the surface.
 			var swell: float = smoothstep(0.0, 0.46, progress)
-			var bubble_radius: float = lerpf(0.85, 2.35, swell)
+			var bubble_radius: float = lerpf(0.95, 2.75, swell)
 			var bubble_fade: float = 1.0 - smoothstep(0.34, 0.52, progress)
 			var bubble_centre := centre + Vector2(0.0, -bubble_radius * 0.20)
 			var bubble_tint: Color = liquid_color.lerp(
@@ -722,28 +722,28 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 			draw_circle(
 				bubble_centre,
 				bubble_radius * 2.0,
-				Color(bubble_tint.r, bubble_tint.g, bubble_tint.b, 0.10 * bubble_fade)
+				Color(bubble_tint.r, bubble_tint.g, bubble_tint.b, 0.14 * bubble_fade)
 			)
 			draw_circle(
 				bubble_centre,
 				bubble_radius,
-				Color(bubble_tint.r, bubble_tint.g, bubble_tint.b, 0.58 * bubble_fade)
+				Color(bubble_tint.r, bubble_tint.g, bubble_tint.b, 0.66 * bubble_fade)
 			)
 			draw_arc(
 				bubble_centre + Vector2(-0.25, -0.25),
-				bubble_radius * 0.70,
+				bubble_radius * 0.74,
 				PI * 1.12,
 				PI * 1.88,
 				10,
-				Color(0.96, 1.0, 0.96, 0.62 * bubble_fade),
-				0.75,
+				Color(0.96, 1.0, 0.96, 0.70 * bubble_fade),
+				0.9,
 				true
 			)
 		else:
 			# The pop leaves one very shallow, quickly fading surface ripple.
 			var pop_progress: float = (progress - 0.52) / 0.48
-			var ripple_radius: float = lerpf(2.0, 7.5, pop_progress)
-			var ripple_alpha: float = 0.24 * (1.0 - smoothstep(0.25, 1.0, pop_progress))
+			var ripple_radius: float = lerpf(2.5, 8.5, pop_progress)
+			var ripple_alpha: float = 0.30 * (1.0 - smoothstep(0.25, 1.0, pop_progress))
 			var ripple_points := PackedVector2Array()
 			const RIPPLE_SEGMENTS := 20
 			for point_index in range(RIPPLE_SEGMENTS + 1):
@@ -762,7 +762,7 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 					liquid_color.b,
 					ripple_alpha * appearance_alpha
 				),
-				0.9,
+				1.05,
 				true
 			)
 
