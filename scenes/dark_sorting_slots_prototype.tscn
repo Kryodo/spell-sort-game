@@ -1,15 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cmhsqvpf4tkdp"]
 
-[ext_resource type="Script" path="res://scripts/dark_sorting_slots_prototype.gd" id="1_slots"]
+[ext_resource type="Script" uid="uid://cmijph43qg44n" path="res://scripts/dark_sorting_slots_prototype.gd" id="1_slots"]
 
-[node name="DarkSortingSlotsPrototype" type="Control"]
+[node name="DarkSortingSlotsPrototype" type="Control" unique_id=1172187287]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 script = ExtResource("1_slots")
 launch_track = "B"
-launch_level = 0
