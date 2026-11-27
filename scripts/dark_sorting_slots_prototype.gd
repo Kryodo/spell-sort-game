@@ -1106,9 +1106,9 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_shape.visible = true
 	_stream_glow.visible = true
 	_stream_highlight.visible = true
+	_stream_glint.visible = true
 	_update_stream()
 	if not DEBUG_BARE_POUR_STREAM:
-		_stream_glint.visible = true
 		_splash_ring.visible = true
 		for drop in _stream_drops:
 			drop.visible = true
@@ -1123,8 +1123,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_shape.visible = false
 	_stream_glow.visible = false
 	_stream_highlight.visible = false
+	_stream_glint.visible = false
 	if not DEBUG_BARE_POUR_STREAM:
-		_stream_glint.visible = false
 		_splash_ring.visible = false
 		for drop in _stream_drops:
 			drop.visible = false
@@ -1209,17 +1209,18 @@ func _build_stream_layers() -> void:
 	_stream_highlight.visible = false
 	add_child(_stream_highlight)
 
+	# Keep the moving glint available for isolated testing.
+	_stream_glint = Line2D.new()
+	_stream_glint.width = 1.0
+	_stream_glint.antialiased = true
+	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.88)
+	_stream_glint.z_index = 11
+	_stream_glint.visible = false
+	add_child(_stream_glint)
+
 	if DEBUG_BARE_POUR_STREAM:
 		return
 
-	_stream_highlight.width = 1.2
-	_stream_highlight.antialiased = true
-	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.62)
-	_stream_highlight.z_index = 10
-	_stream_highlight.visible = false
-	add_child(_stream_highlight)
-
-	_stream_glint = Line2D.new()
 	_stream_glint.width = 1.0
 	_stream_glint.antialiased = true
 	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.88)
@@ -1410,6 +1411,26 @@ func _update_bare_stream() -> void:
 		1.0,
 		1.0,
 		0.25 + 0.12 * sin(PI * _pour_progress)
+	)
+
+	var glint_progress: float = clampf(_pour_progress, 0.0, 1.0)
+	var glint_start: float = lerpf(0.08, 0.76, glint_progress)
+	var glint_end: float = minf(0.98, glint_start + 0.16)
+	var glint_points := PackedVector2Array()
+	const GLINT_SAMPLES := 9
+	for index in range(GLINT_SAMPLES):
+		var glint_t: float = lerpf(
+			glint_start,
+			glint_end,
+			float(index) / float(GLINT_SAMPLES - 1)
+		)
+		glint_points.append(start.bezier_interpolate(control_one, control_two, finish, glint_t))
+	_stream_glint.points = glint_points
+	_stream_glint.default_color = Color(
+		1.0,
+		1.0,
+		1.0,
+		0.52 * sin(PI * glint_progress)
 	)
 
 func _get_stream_centre_point(
