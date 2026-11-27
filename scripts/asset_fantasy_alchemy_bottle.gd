@@ -6,7 +6,7 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/bottles/SpellSort_Vial_Base_V1.2.png")
 
 # Keep the animated meniscus separate from the static shaded liquid body.
-const SURFACE_CAP_DEPTH := 10.0
+const SURFACE_CAP_DEPTH := 22.0
 
 const ALPHA_CUTOFF := 0.14
 const SCAN_TOP_RATIO := 0.16
@@ -526,32 +526,10 @@ func _draw_liquid_band(
 	if bottom_y - top_y <= 1.2:
 		return
 
-	# The wave is rendered as a separate, very shallow cap. The main fill starts
-	# below it, so its vertices and colour interpolation never move with the wave.
+	# A deeper buffer lets the meniscus move naturally without being clipped
+	# against the static body when the vial tilts or sloshes during pickup.
 	var body_top_y: float = top_y + SURFACE_CAP_DEPTH if is_surface else top_y
 	body_top_y = minf(body_top_y, bottom_y - 1.0)
-	var wave_edge := PackedVector2Array()
-	if is_surface:
-		# Keep idle and initial pickup motion restrained, then smoothly recover
-		# the fuller wave as the vial is actively moved.
-		var wave_strength: float = lerpf(
-			1.50,
-			1.80,
-			clampf((_surface_activity - 0.42) / 0.40, 0.0, 1.0)
-		)
-		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			var normalized_x: float = t * 2.0 - 1.0
-			var wave: float = _get_surface_wave_offset(normalized_x) * wave_strength
-			var wave_y: float = clampf(top_y + wave, top_y - 4.5, body_top_y)
-			var bounds := _window_bounds_at(clampf(
-				(wave_y - rect.position.y) / rect.size.y,
-				_window_top_ratio,
-				_window_bottom_ratio
-			))
-			var left_x: float = rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET
-			var right_x: float = rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET
-			wave_edge.append(Vector2(lerpf(left_x, right_x, t), wave_y))
 
 	var body_top_edge := PackedVector2Array()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
@@ -568,6 +546,33 @@ func _draw_liquid_band(
 
 	if body_top_edge.size() < 2:
 		return
+
+	var wave_edge := PackedVector2Array()
+	if is_surface:
+		# Idle and pickup stay calm; active dragging gradually adds a little more
+		# movement. The pickup tilt itself is handled by the slosh response.
+		var wave_strength: float = 1.20
+		if _dragging:
+			if _drag_motion:
+				wave_strength = lerpf(
+					1.35,
+					1.75,
+					clampf((_surface_activity - 0.42) / 0.40, 0.0, 1.0)
+				)
+			else:
+				wave_strength = 1.30
+		elif _selected:
+			wave_strength = 1.30
+
+		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			var normalized_x: float = t * 2.0 - 1.0
+			var wave: float = _get_surface_wave_offset(normalized_x) * wave_strength
+			# At the current maximum slosh/tilt this keeps the whole wave inside
+			# the cap. It cannot fold over the base edge or create a self-crossing.
+			var wave_y: float = clampf(top_y + wave, top_y - 17.5, body_top_y)
+			var base_point: Vector2 = body_top_edge[sample_index]
+			wave_edge.append(Vector2(base_point.x, wave_y))
 
 	var polygon := body_top_edge.duplicate()
 	var right_top_y: float = body_top_edge[-1].y
@@ -608,8 +613,7 @@ func _draw_liquid_band(
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
 
-	# The body geometry is stationary while idle. Its gentle centre/edge gradient
-	# therefore remains stable instead of being re-interpolated over moving waves.
+	# The liquid body retains its stable horizontal centre/edge gradient.
 	var vertex_colors := PackedColorArray()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
@@ -622,34 +626,37 @@ func _draw_liquid_band(
 		vertex_colors.append(edge_color)
 	draw_polygon(polygon, vertex_colors)
 
-	# The surface has enough depth to read as moving liquid, not just a thin line.
-	# Keep its colour gradient horizontal and identical at both edges: the wave
-	# can move vertically without shifting the shading or bringing back flicker.
-	if is_surface and wave_edge.size() >= 2:
-		var cap_polygon := wave_edge.duplicate()
-		var cap_vertex_colors := PackedColorArray()
-		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
-			cap_vertex_colors.append(edge_color.lerp(center_color, center_weight))
-		var cap_bounds := _window_bounds_at(clampf(
-			(body_top_y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		))
-		var cap_left_x: float = rect.position.x + rect.size.x * cap_bounds.x + LIQUID_WALL_INSET
-		var cap_right_x: float = rect.position.x + rect.size.x * cap_bounds.y - LIQUID_WALL_INSET
-		for sample_index in range(LIQUID_SURFACE_SAMPLES, -1, -1):
-			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			cap_polygon.append(Vector2(lerpf(cap_left_x, cap_right_x, t), body_top_y))
-			var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
-			cap_vertex_colors.append(edge_color.lerp(center_color, center_weight))
-		draw_polygon(cap_polygon, cap_vertex_colors)
+	# Draw the moving surface as a strip of small triangles instead of one large
+	# concave polygon. Degenerate triangles are skipped, so Godot's triangulator
+	# never receives the self-touching/zero-area cap that caused the runtime error.
+	if is_surface and wave_edge.size() == body_top_edge.size():
+		for sample_index in range(LIQUID_SURFACE_SAMPLES):
+			var t0: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+			var t1: float = float(sample_index + 1) / float(LIQUID_SURFACE_SAMPLES)
+			var colour0: Color = _surface_gradient_colour(t0, edge_color, center_color)
+			var colour1: Color = _surface_gradient_colour(t1, edge_color, center_color)
+			var wave_left: Vector2 = wave_edge[sample_index]
+			var wave_right: Vector2 = wave_edge[sample_index + 1]
+			var base_left: Vector2 = body_top_edge[sample_index]
+			var base_right: Vector2 = body_top_edge[sample_index + 1]
 
-	if is_surface:
+			var first_triangle := PackedVector2Array([wave_left, wave_right, base_right])
+			if absf((wave_right - wave_left).cross(base_right - wave_left)) > 0.02:
+				draw_polygon(first_triangle, PackedColorArray([colour0, colour1, colour1]))
+
+			var second_triangle := PackedVector2Array([wave_left, base_right, base_left])
+			if absf((base_right - wave_left).cross(base_left - wave_left)) > 0.02:
+				draw_polygon(second_triangle, PackedColorArray([colour0, colour1, colour0]))
+
+	if is_surface and wave_edge.size() >= 2:
 		var surface_color: Color = fill_color.lightened(0.34)
 		surface_color.a = 0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025
 		draw_polyline(wave_edge, surface_color, 1.1, true)
+
+
+func _surface_gradient_colour(normalized_x: float, edge_color: Color, center_color: Color) -> Color:
+	var center_weight: float = pow(maxf(0.0, sin(PI * normalized_x)), 0.85) * 0.42
+	return edge_color.lerp(center_color, center_weight)
 
 func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	if visible_layers <= 0 or _window_profile.is_empty():
