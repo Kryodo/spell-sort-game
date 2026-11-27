@@ -39,6 +39,7 @@ var _draw_scale: float = 1.0
 var _slosh: float = 0.0
 var _slosh_velocity: float = 0.0
 var _wave_time: float = 0.0
+var _surface_wave_phase: float = 0.0
 var _max_half_width: float = 0.44
 
 
@@ -202,6 +203,9 @@ func _process(delta: float) -> void:
 	# threshold does not cause a visible jump in the liquid animation.
 	_surface_activity = move_toward(_surface_activity, target_activity, delta * 2.8)
 	_wave_time += delta * lerpf(1.25, 2.65, _surface_activity)
+	# Integrate wave frequency into its own phase; never multiply a changing
+	# frequency by total elapsed time, which creates a phase spike on activity changes.
+	_surface_wave_phase += delta * lerpf(1.8, 3.2, _surface_activity)
 
 	_slosh_velocity += (-_slosh * 15.0 - _slosh_velocity * 5.2) * delta
 	_slosh += _slosh_velocity * delta
@@ -527,12 +531,13 @@ func _draw_liquid_band(
 func _get_surface_wave_offset(normalized_x: float) -> float:
 	var maximum_wave: float = 0.90 + _surface_activity * 1.75 + absf(_slosh) * 1.20
 	var secondary_wave: float = 0.18 + _surface_activity * 0.48 + absf(_slosh) * 0.50
-	var wave_frequency: float = lerpf(1.8, 3.2, _surface_activity)
 	var edge_envelope: float = sin((normalized_x + 1.0) * PI * 0.5)
 	edge_envelope = pow(maxf(0.0, edge_envelope), 0.55)
 
-	var wave_one: float = sin(_wave_time * wave_frequency + normalized_x * 3.1) * maximum_wave
-	var wave_two: float = sin(_wave_time * (wave_frequency * 1.37) - normalized_x * 6.3) * secondary_wave
+	# Frequency changes are accumulated into _surface_wave_phase in _process.
+	# This keeps the wave continuous when activity rises or falls.
+	var wave_one: float = sin(_surface_wave_phase + normalized_x * 3.1) * maximum_wave
+	var wave_two: float = sin(_surface_wave_phase * 1.37 - normalized_x * 6.3) * secondary_wave
 	var tilt_offset: float = clampf(-tan(_tilt) * normalized_x * 10.0 * 0.035, -3.0, 3.0)
 	return (wave_one + wave_two) * edge_envelope + tilt_offset
 
