@@ -664,62 +664,33 @@ func _draw_liquid_band(
 			var base_point: Vector2 = body_top_edge[sample_index]
 			wave_edge.append(Vector2(base_point.x, wave_y))
 
-	# Build one closed liquid body from two curved horizontal interfaces and
-	# softly profiled glass walls. Adjacent bands share the same boundary wave.
-	var polygon := body_top_edge.duplicate()
-	var right_top_y: float = body_top_edge[-1].y
-	var right_bottom_y: float = body_bottom_edge[-1].y
-	var left_bottom_y: float = body_bottom_edge[0].y
-	var left_top_y: float = body_top_edge[0].y
-
-	for side_index in range(1, LIQUID_SIDE_SAMPLES + 1):
-		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(right_top_y, right_bottom_y, t)
-		var bounds := _window_bounds_at(clampf(
-			(y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		))
-		polygon.append(Vector2(
-			rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET,
-			y
-		))
-
-	for edge_index in range(body_bottom_edge.size() - 2, -1, -1):
-		polygon.append(body_bottom_edge[edge_index])
-
-	for side_index in range(1, LIQUID_SIDE_SAMPLES):
-		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(left_bottom_y, left_top_y, t)
-		var bounds := _window_bounds_at(clampf(
-			(y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		))
-		polygon.append(Vector2(
-			rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET,
-			y
-		))
-
+	# Shade the moving liquid body with fixed-colour vertical strips.
+	# A single gradient polygon changes its triangulation as both boundaries
+	# move, which makes the colour itself shimmer. Here each strip keeps one
+	# colour based only on its horizontal position; only its silhouette moves.
 	var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.12), 0.10)
 	var edge_color: Color = fill_color.darkened(0.10)
-	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
 
-	# Retain the existing stable centre/edge gradient across every curved strip.
-	var vertex_colors := PackedColorArray()
-	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		vertex_colors.append(_surface_gradient_colour(t, edge_color, center_color))
-	for _side_index in range(LIQUID_SIDE_SAMPLES):
-		vertex_colors.append(edge_color)
-	for edge_index in range(body_bottom_edge.size() - 2, -1, -1):
-		var t: float = float(edge_index) / float(LIQUID_SURFACE_SAMPLES)
-		var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.24
-		vertex_colors.append(bottom_color.lerp(edge_color, center_weight))
-	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
-		vertex_colors.append(edge_color)
-	draw_polygon(polygon, vertex_colors)
+	for sample_index in range(LIQUID_SURFACE_SAMPLES):
+		var t0: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+		var t1: float = float(sample_index + 1) / float(LIQUID_SURFACE_SAMPLES)
+		var top_left: Vector2 = body_top_edge[sample_index]
+		var top_right: Vector2 = body_top_edge[sample_index + 1]
+		var bottom_right: Vector2 = body_bottom_edge[sample_index + 1]
+		var bottom_left: Vector2 = body_bottom_edge[sample_index]
+		var strip := PackedVector2Array([
+			top_left,
+			top_right,
+			bottom_right,
+			bottom_left
+		])
+		var strip_colour: Color = _surface_gradient_colour(
+			(t0 + t1) * 0.5,
+			edge_color,
+			center_color
+		)
+		draw_colored_polygon(strip, strip_colour)
 
 	# Draw the moving top surface as a safe strip of small triangles.
 	# The internal colour boundaries above remain independent of this cap.
