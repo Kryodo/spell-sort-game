@@ -535,7 +535,7 @@ func _draw_liquid_band(
 		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
 			var normalized_x: float = t * 2.0 - 1.0
-			var wave: float = _get_surface_wave_offset(normalized_x) * 0.36
+			var wave: float = _get_surface_wave_offset(normalized_x) * 0.50
 			var wave_y: float = clampf(top_y + wave, top_y - 2.0, body_top_y)
 			var bounds := _window_bounds_at(clampf(
 				(wave_y - rect.position.y) / rect.size.y,
@@ -650,7 +650,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 
 	# A small mix of bubbles rises at different speeds. Each particle borrows
 	# the colour of the essence layer it is travelling through.
-	const BUBBLE_SIZES := [0.9, 1.45, 1.9, 1.05, 1.65, 1.2]
+	const BUBBLE_SIZES := [1.45, 1.95, 2.55, 1.65, 2.25, 1.85]
 	for bubble_index in range(BUBBLE_SIZES.size()):
 		var speed: float = 0.082 + float(bubble_index % 3) * 0.021 + float(bubble_index / 3) * 0.008
 		var phase: float = fposmod(
@@ -677,7 +677,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		var bubble_size: float = BUBBLE_SIZES[bubble_index]
 		var travel_fade: float = sin(PI * phase)
 		var pulse: float = 0.55 + 0.45 * sin(_wave_time * 1.15 + float(bubble_index) * 1.37)
-		var bubble_alpha: float = (0.075 + 0.055 * pulse) * travel_fade
+		var bubble_alpha: float = (0.18 + 0.06 * pulse) * travel_fade
 		if bubble_alpha <= 0.004:
 			continue
 
@@ -688,12 +688,12 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		)
 		var essence: String = String(_visual_contents[layer_index])
 		var bubble_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-		var glow_color := Color(bubble_color.r, bubble_color.g, bubble_color.b, bubble_alpha * 0.24)
+		var glow_color := Color(bubble_color.r, bubble_color.g, bubble_color.b, bubble_alpha * 0.34)
 		var core_color: Color = bubble_color.lightened(0.56)
-		core_color.a = bubble_alpha * 0.34
+		core_color.a = bubble_alpha * 0.52
 
 		# Soft coloured halo, translucent bubble body and a restrained glassy glint.
-		draw_circle(bubble_position, bubble_size * 2.5, glow_color)
+		draw_circle(bubble_position, bubble_size * 2.35, glow_color)
 		draw_circle(bubble_position, bubble_size, core_color)
 		draw_arc(
 			bubble_position + Vector2(-0.2, -0.2),
@@ -701,14 +701,14 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			deg_to_rad(205.0),
 			deg_to_rad(325.0),
 			10,
-			Color(1.0, 1.0, 1.0, bubble_alpha * 0.62),
+			Color(1.0, 1.0, 1.0, bubble_alpha * 0.82),
 			0.75,
 			true
 		)
 		draw_circle(
 			bubble_position + Vector2(-bubble_size * 0.30, -bubble_size * 0.34),
-			maxf(0.45, bubble_size * 0.20),
-			Color(1.0, 1.0, 1.0, bubble_alpha * 0.72)
+			maxf(0.60, bubble_size * 0.22),
+			Color(1.0, 1.0, 1.0, bubble_alpha * 0.95)
 		)
 
 	# A few much smaller alchemical motes add life between the larger bubbles.
@@ -730,7 +730,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			continue
 		var mote_x: float = rect.get_center().x + sin(_wave_time * 0.27 + float(mote_index) * 2.1) * mote_half_width
 		var mote_position := Vector2(mote_x, mote_y)
-		var mote_alpha: float = (0.035 + 0.025 * sin(_wave_time * 0.8 + float(mote_index))) * sin(PI * mote_phase)
+		var mote_alpha: float = (0.065 + 0.035 * sin(_wave_time * 0.8 + float(mote_index))) * sin(PI * mote_phase)
 		var mote_layer: int = clampi(
 			int(floor((_window_bottom_ratio - mote_ratio) / maxf(0.0001, layer_height))),
 			0,
