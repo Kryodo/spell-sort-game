@@ -6,17 +6,43 @@ const TEST_VIAL_SOURCE_SIZE := Vector2(160.0, 365.0)
 
 
 class SlotMarkerSurface extends Control:
+	const COMPLETION_STAGGER := 0.115
+	const COMPLETION_BLOOM_DURATION := 0.90
+
 	var slot_markers: Array = []
+	var _completion_active: bool = false
+	var _completion_time: float = 0.0
+
+	func _ready() -> void:
+		set_process(false)
 
 	func configure(markers: Array) -> void:
 		slot_markers = markers.duplicate(true)
 		queue_redraw()
 
+	func set_completion_state(completed: bool) -> void:
+		if completed == _completion_active:
+			return
+		_completion_active = completed
+		_completion_time = 0.0
+		set_process(_completion_active)
+		queue_redraw()
+
+	func _process(delta: float) -> void:
+		if not _completion_active:
+			return
+		_completion_time += delta
+		queue_redraw()
+
 	func _draw() -> void:
-		for marker in slot_markers:
+		for marker_index in range(slot_markers.size()):
+			var marker: Dictionary = slot_markers[marker_index]
 			var centre: Vector2 = marker["centre"]
 			var radius: Vector2 = marker["radius"]
 			var scale_value: float = float(marker["scale"])
+			var has_contents: bool = bool(marker.get("has_contents", false))
+			var glow_color: Color = marker.get("glow_color", Color(0.54, 0.84, 0.72, 1.0))
+			var glow_strength: float = _get_completion_strength(marker_index) if has_contents else 0.0
 
 			var shadow := _ellipse_points(
 				centre + Vector2(0.0, 5.0),
@@ -26,11 +52,35 @@ class SlotMarkerSurface extends Control:
 			)
 			draw_colored_polygon(shadow, Color(0.0, 0.0, 0.0, 0.38))
 
+			if glow_strength > 0.001:
+				_draw_completion_glow(centre, radius, glow_color, glow_strength)
+
 			var inset := _ellipse_points(centre, radius.x, radius.y, 48)
 			draw_colored_polygon(inset, Color(0.012, 0.025, 0.026, 0.72))
+
+			if glow_strength > 0.001:
+				var inner_light := _ellipse_points(
+					centre,
+					radius.x * 0.88,
+					radius.y * 0.76,
+					48
+				)
+				draw_colored_polygon(
+					inner_light,
+					Color(glow_color.r, glow_color.g, glow_color.b, 0.060 * glow_strength)
+				)
+
+			var rim_color := Color(0.38, 0.60, 0.54, 0.25)
+			if glow_strength > 0.001:
+				rim_color = Color(
+					lerpf(rim_color.r, glow_color.r, 0.38 * glow_strength),
+					lerpf(rim_color.g, glow_color.g, 0.38 * glow_strength),
+					lerpf(rim_color.b, glow_color.b, 0.38 * glow_strength),
+					lerpf(rim_color.a, 0.40, glow_strength)
+				)
 			draw_polyline(
 				_closed_points(inset),
-				Color(0.38, 0.60, 0.54, 0.25),
+				rim_color,
 				maxf(1.0, 1.35 * scale_value),
 				true
 			)
@@ -46,6 +96,39 @@ class SlotMarkerSurface extends Control:
 				Color(0.72, 0.80, 0.69, 0.10),
 				1.0,
 				true
+			)
+
+	func _get_completion_strength(marker_index: int) -> float:
+		if not _completion_active:
+			return 0.0
+		var local_time: float = _completion_time - float(marker_index) * COMPLETION_STAGGER
+		if local_time <= 0.0:
+			return 0.0
+		var progress: float = clampf(local_time / COMPLETION_BLOOM_DURATION, 0.0, 1.0)
+		var bloom: float = 1.0 - pow(1.0 - progress, 3.0)
+		var breathing: float = 0.96 + 0.04 * sin(local_time * 1.15)
+		return bloom * breathing
+
+	func _draw_completion_glow(
+		centre: Vector2,
+		radius: Vector2,
+		glow_color: Color,
+		strength: float
+	) -> void:
+		# Several broad, low-alpha ellipses build a soft pool without a hard neon edge.
+		for layer in range(5, 0, -1):
+			var fraction: float = float(layer) / 5.0
+			var radius_scale: float = lerpf(1.12, 1.92, fraction)
+			var alpha: float = lerpf(0.032, 0.012, fraction) * strength
+			var halo := _ellipse_points(
+				centre + Vector2(0.0, 1.0),
+				radius.x * radius_scale,
+				radius.y * (radius_scale + 0.28),
+				48
+			)
+			draw_colored_polygon(
+				halo,
+				Color(glow_color.r, glow_color.g, glow_color.b, alpha)
 			)
 
 	func _ellipse_points(centre: Vector2, radius_x: float, radius_y: float, segments: int) -> PackedVector2Array:
@@ -733,13 +816,14 @@ func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2,
 	vial.size = size_value
 	vial.z_index = 2
 	vial.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vial_contents: Array = bottle_contents[index]
 	vial.call(
 		"setup",
 		index,
 		"%02d" % (index + 1),
 		index % 4,
 		PALETTE,
-		bottle_contents[index]
+		vial_contents
 	)
 	add_child(vial)
 	bottle_nodes.append(vial)
@@ -749,10 +833,15 @@ func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2,
 		position_value.x + size_value.x * 0.5,
 		position_value.y + _vial_base_offset(size_value)
 	)
+	var slot_glow_color: Color = Color(0.54, 0.84, 0.72, 1.0)
+	if not vial_contents.is_empty():
+		slot_glow_color = PALETTE.get(String(vial_contents.back()), slot_glow_color)
 	markers.append({
 		"centre": foot,
 		"radius": Vector2(size_value.x * 0.47, size_value.x * 0.125),
-		"scale": size_value.x / TEST_VIAL_SOURCE_SIZE.x
+		"scale": size_value.x / TEST_VIAL_SOURCE_SIZE.x,
+		"has_contents": not vial_contents.is_empty(),
+		"glow_color": slot_glow_color
 	})
 
 	if index == int(level_data.get("locked_vial", -1)):
@@ -777,6 +866,9 @@ func _refresh_hud() -> void:
 	super._refresh_hud()
 	if not is_instance_valid(level_label) or not is_instance_valid(_experiment_title):
 		return
+
+	if is_instance_valid(_slot_surface):
+		_slot_surface.set_completion_state(round_complete)
 
 	_selected_vial_count = bottle_contents.size()
 	var level_number := current_level + 1
@@ -1621,6 +1713,8 @@ func _load_level() -> void:
 	_pour_source = -1
 	_pour_target = -1
 	super._load_level()
+	if is_instance_valid(_slot_surface):
+		_slot_surface.set_completion_state(round_complete)
 	if is_instance_valid(_mouth_mote_layer):
 		_mouth_mote_layer.configure(bottle_nodes, PALETTE)
 
