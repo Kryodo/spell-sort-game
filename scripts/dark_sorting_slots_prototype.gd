@@ -1143,7 +1143,7 @@ func _process(delta: float) -> void:
 		_drag_target_position = _drag_pointer - source.call("get_drag_anchor_local", grab_offset, pose)
 
 		# Spring-follow the finger rather than pinning the vessel rigidly to it.
-		var acceleration: Vector2 = (_drag_target_position - source.position) * 108.0 - _drag_follow_velocity * 20.0
+		var acceleration: Vector2 = (_drag_target_position - source.position) * 132.0 - _drag_follow_velocity * 22.5
 		_drag_follow_velocity += acceleration * delta
 		source.position += _drag_follow_velocity * delta
 		_refresh_drag_target()
