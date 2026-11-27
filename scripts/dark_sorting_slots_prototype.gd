@@ -1080,10 +1080,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 14.0, -14.0)
 	var staging_position: Vector2 = desired_source_mouth - source.call("get_mouth_local_for_pose", pour_pose, POUR_DRAW_SCALE)
 	var target_original_z: int = target.z_index
-	# Keep the receiver's normal draw order in bare diagnostic mode so this
-	# test also excludes the temporary layer-order change.
-	if not DEBUG_BARE_POUR_STREAM:
-		target.z_index = 7
+	# Diagnostic: restore only the receiver z-order change; keep overlays and FX off.
+	target.z_index = 7
 	target.call("set_front_mouth_lip_active", not DEBUG_BARE_POUR_STREAM)
 
 	source.call("set_drag_motion", false)
