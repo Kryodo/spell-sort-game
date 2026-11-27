@@ -103,7 +103,7 @@ func _profile_points() -> Array[Vector2]:
 
 
 func _draw_liquid(rect: Rect2) -> void:
-	super._draw_liquid(rect)
+    super._draw_liquid(rect)
     if _visual_contents.is_empty() or _liquid_level <= 0.02:
         return
 
