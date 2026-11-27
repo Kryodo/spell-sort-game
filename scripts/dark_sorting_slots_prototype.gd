@@ -330,7 +330,6 @@ var _pour_progress: float = 0.0
 var _pour_color: Color = Color.WHITE
 var _pour_stream_active: bool = false
 var _stream_phase: float = 0.0
-var _stream_drift_cycles: float = 0.0
 
 var _stream_glow: Polygon2D
 var _stream_shape: Polygon2D
@@ -905,9 +904,6 @@ func _process(delta: float) -> void:
 		_drag_pointer_velocity = _drag_pointer_velocity.move_toward(Vector2.ZERO, delta * 210.0)
 
 	if _pour_stream_active:
-		# Keep the loop phase wrapped for travelling effects, but let liquid drift
-		# advance continuously so non-integer frequencies never jump at the wrap.
-		_stream_drift_cycles += delta * 1.9
 		_stream_phase = fposmod(_stream_phase + delta * 1.9, 1.0)
 		_update_stream()
 
@@ -1281,7 +1277,8 @@ func _update_stream() -> void:
 		var normal := Vector2(-tangent.y, tangent.x)
 		centres.append(point)
 		var pulse_width: float = sin(PI * t)
-		var irregularity: float = 0.94 + 0.06 * sin(t * 19.0 + _stream_phase * TAU)
+		# Keep the body contour deterministic; motion belongs to the travelling effects.
+		var irregularity: float = 0.94 + 0.06 * sin(t * 19.0)
 		# Roughly 25% fuller at the centre, while retaining narrow tapered ends.
 		var half_width: float = (0.85 + pulse_width * 3.0) * 1.28 * irregularity
 		left_edge.append(point + normal * half_width)
@@ -1365,10 +1362,10 @@ func _get_stream_centre_point(
 	var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
 	var tangent: Vector2 = _get_stream_tangent(control_one, start, control_two, finish, t)
 	var normal := Vector2(-tangent.y, tangent.x)
-	# Use the unwrapped cycle clock here: the 1.4x component must not
-	# restart when the separate glint/drop loop phase wraps back to zero.
-	var drift: float = sin(t * 16.0 + _stream_drift_cycles * TAU) * 0.85
-	drift += sin(t * 31.0 - _stream_drift_cycles * TAU * 1.4) * 0.32
+	# The main ribbon keeps a stable contour. Animated vertex movement here
+	# can make long filled polygons shimmer; the glint and droplets supply flow.
+	var drift: float = sin(t * 16.0) * 0.85
+	drift += sin(t * 31.0) * 0.32
 	return point + normal * drift
 
 
