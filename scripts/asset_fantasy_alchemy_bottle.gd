@@ -21,6 +21,8 @@ const CENTRE_SEED_SEARCH_RATIO := 0.12
 const LIQUID_SURFACE_SAMPLES := 48
 const LIQUID_SIDE_SAMPLES := 32
 const LIQUID_WALL_INSET := -0.9
+const LIQUID_BOTTOM_WALL_OVERDRAW := 1.8
+const LIQUID_BOTTOM_BLEND_START := 0.68
 
 # Preserve the generated vessel artwork exactly; reflections are added as a
 # separate liquid-aware Godot pass after the illustration and liquid.
@@ -656,19 +658,31 @@ func _draw_liquid_band(
 	var right_top_y: float = body_top_edge[-1].y
 	var left_top_y: float = body_top_edge[0].y
 	var bottom_bounds := _window_bounds_at(bottom_ratio)
-	var bottom_left_x: float = rect.position.x + rect.size.x * bottom_bounds.x + LIQUID_WALL_INSET
-	var bottom_right_x: float = rect.position.x + rect.size.x * bottom_bounds.y - LIQUID_WALL_INSET
+	var bottom_left_x: float = (
+		rect.position.x
+		+ rect.size.x * bottom_bounds.x
+		+ LIQUID_WALL_INSET
+		- LIQUID_BOTTOM_WALL_OVERDRAW
+	)
+	var bottom_right_x: float = (
+		rect.position.x
+		+ rect.size.x * bottom_bounds.y
+		- LIQUID_WALL_INSET
+		+ LIQUID_BOTTOM_WALL_OVERDRAW
+	)
 
 	for side_index in range(1, LIQUID_SIDE_SAMPLES + 1):
 		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
 		var y: float = lerpf(right_top_y, bottom_y, t)
+		var lower_blend: float = smoothstep(LIQUID_BOTTOM_BLEND_START, 1.0, t)
+		var wall_inset: float = LIQUID_WALL_INSET - LIQUID_BOTTOM_WALL_OVERDRAW * lower_blend
 		var bounds := _window_bounds_at(clampf(
 			(y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
 			_window_bottom_ratio
 		))
 		polygon.append(Vector2(
-			rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET,
+			rect.position.x + rect.size.x * bounds.y - wall_inset,
 			y
 		))
 
@@ -676,13 +690,15 @@ func _draw_liquid_band(
 	for side_index in range(1, LIQUID_SIDE_SAMPLES):
 		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
 		var y: float = lerpf(bottom_y, left_top_y, t)
+		var lower_blend: float = smoothstep(LIQUID_BOTTOM_BLEND_START, 1.0, 1.0 - t)
+		var wall_inset: float = LIQUID_WALL_INSET - LIQUID_BOTTOM_WALL_OVERDRAW * lower_blend
 		var bounds := _window_bounds_at(clampf(
 			(y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
 			_window_bottom_ratio
 		))
 		polygon.append(Vector2(
-			rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET,
+			rect.position.x + rect.size.x * bounds.x + wall_inset,
 			y
 		))
 
