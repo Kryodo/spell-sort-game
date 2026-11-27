@@ -1346,8 +1346,7 @@ func _update_stream() -> void:
 		var drop_alpha: float = 0.82 * sin(PI * travel)
 		drop.color = Color(1.0, 1.0, 1.0, drop_alpha)
 
-	# Expand the ripple once per cycle, then fade it to transparent before
-	# the radius wraps back to its starting size. This hides the reset cleanly.
+	# Expand the ripple once during the transfer, then fade it away. This hides the reset cleanly.
 	# The impact ring swells once per transfer instead of pulsing with
 	# the faster loop used by the travelling droplets.
 	var ring_radius: float = 4.5 + 13.0 * _pour_progress
