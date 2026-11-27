@@ -245,7 +245,10 @@ func _get_vessel_rect() -> Rect2:
 func _draw() -> void:
 	var center_x: float = size.x * 0.5
 	var pivot := Vector2(center_x, size.y * 0.86)
-	draw_circle(Vector2(center_x, size.y * 0.87), size.x * 0.34, Color(0.012, 0.022, 0.027, 0.30))
+	# Keep the vessel shadow flat and oval, matching the perspective of its slot.
+	var shadow_center := Vector2(center_x, size.y * 0.953)
+	var shadow_shape := _ellipse_points(shadow_center, size.x * 0.47, size.x * 0.125, 48)
+	draw_colored_polygon(shadow_shape, Color(0.012, 0.022, 0.027, 0.30))
 
 	var draw_origin := pivot + Vector2(0.0, -_lift) - pivot.rotated(_tilt) * _draw_scale
 	draw_set_transform(draw_origin, _tilt, Vector2(_draw_scale, _draw_scale))
