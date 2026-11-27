@@ -201,7 +201,7 @@ func _draw_liquid(rect: Rect2) -> void:
 
 func _get_surface_wave_offset(normalized_x: float) -> float:
     var inherited_wave: float = super._get_surface_wave_offset(normalized_x)
-    var slow_roll: float = sin(_wave_time * 1.45 + normalized_x * 4.2) * 0.55
+    var slow_roll: float = sin(_surface_wave_phase * 1.45 + normalized_x * 4.2) * 0.55
     return inherited_wave + slow_roll
 
 
