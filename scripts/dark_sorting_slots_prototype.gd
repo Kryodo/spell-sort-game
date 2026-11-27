@@ -1110,8 +1110,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_update_stream()
 	for drop in _stream_drops:
 		drop.visible = true
-	if not DEBUG_BARE_POUR_STREAM:
-		_splash_ring.visible = true
+	_splash_ring.visible = true
 
 	var pour_tween := create_tween()
 	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.95).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -1126,8 +1125,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_stream_glint.visible = false
 	for drop in _stream_drops:
 		drop.visible = false
-	if not DEBUG_BARE_POUR_STREAM:
-		_splash_ring.visible = false
+	_splash_ring.visible = false
 
 	var return_tween := create_tween().set_parallel(true)
 	return_tween.tween_property(source, "position", slot_positions[source_index], 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
@@ -1235,9 +1233,7 @@ func _build_stream_layers() -> void:
 		add_child(drop)
 		_stream_drops.append(drop)
 
-	if DEBUG_BARE_POUR_STREAM:
-		return
-
+	# Keep the splash ring available for the final isolated FX test.
 	_splash_ring = Line2D.new()
 	_splash_ring.width = 1.8
 	_splash_ring.antialiased = true
@@ -1245,6 +1241,10 @@ func _build_stream_layers() -> void:
 	_splash_ring.z_index = 12
 	_splash_ring.visible = false
 	add_child(_splash_ring)
+
+	if DEBUG_BARE_POUR_STREAM:
+		return
+
 
 func _update_stream() -> void:
 	if not _pour_stream_active or _pour_source < 0 or _pour_target < 0:
@@ -1435,6 +1435,15 @@ func _update_bare_stream() -> void:
 		drop.rotation = atan2(span.y, span.x) + PI * 0.5
 		drop.scale = Vector2(0.75 + 0.25 * sin(PI * travel), 0.90 + 0.4 * sin(PI * travel))
 		drop.color = Color(1.0, 1.0, 1.0, 0.46 * sin(PI * travel))
+
+	var ring_radius: float = 4.5 + 13.0 * _pour_progress
+	var ring_alpha: float = 0.16 * sin(PI * _pour_progress)
+	var ring_points := PackedVector2Array()
+	for index in range(25):
+		var angle: float = TAU * float(index) / 24.0
+		ring_points.append(finish + Vector2(cos(angle) * ring_radius, sin(angle) * ring_radius * 0.42))
+	_splash_ring.points = ring_points
+	_splash_ring.default_color = Color(1.0, 1.0, 1.0, ring_alpha)
 
 func _get_stream_centre_point(
 	start: Vector2,
