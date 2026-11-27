@@ -580,8 +580,7 @@ func _draw_liquid(_rect: Rect2) -> void:
 			bottom_ratio,
 			liquid_color,
 			layer_index == visible_layers - 1,
-			layer_index == 0,
-			layer_index
+			layer_index == 0
 		)
 
 	_draw_window_bubbles(rect, visible_layers)
@@ -593,9 +592,16 @@ func _draw_liquid_band(
 	bottom_ratio: float,
 	liquid_color: Color,
 	is_surface: bool,
-	is_bottom: bool,
-	layer_index: int
+	is_bottom: bool
 ) -> void:
+	# Recover this band's stable stack index from its lower boundary. This
+	# preserves the six-argument parent signature required by Godot overrides.
+	var layer_height: float = (_window_bottom_ratio - _window_top_ratio) / float(CAPACITY)
+	var layer_index: int = clampi(
+		roundi((_window_bottom_ratio - bottom_ratio) / maxf(0.0001, layer_height)),
+		0,
+		CAPACITY - 1
+	)
 	var bottom_y: float = rect.position.y + rect.size.y * bottom_ratio
 	if not is_bottom:
 		bottom_y += 0.8
