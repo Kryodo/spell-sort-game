@@ -843,7 +843,9 @@ func _begin_drag(pointer: Vector2) -> void:
 		vial.z_index = 50
 		vial.call("set_feedback", true, false, true)
 		vial.call("set_drag_motion", false)
-		vial.call("set_pose", Vector2(25.0, 0.0))
+		# Pick up with the same pronounced, directional lean as the main sorting scene.
+		var pickup_tilt_direction: float = _get_drag_tilt_direction(index)
+		vial.call("set_pose", Vector2(18.0, deg_to_rad(38.0) * pickup_tilt_direction))
 		vial.call("set_draw_scale", 1.035)
 
 		_set_status("Vial lifted. Guide its open mouth to a receiving vessel.")
@@ -862,14 +864,13 @@ func _update_drag(pointer: Vector2) -> void:
 	var source: Control = bottle_nodes[selected_vial]
 	source.call("set_drag_motion", pointer_delta.length() > 0.65)
 
-	var movement: Vector2 = pointer - _drag_start_pointer
-	var movement_factor: float = clampf(movement.length() / 115.0, 0.0, 1.0)
-	var grip_factor: float = 1.0 - clampf(grab_offset.y / maxf(1.0, source.size.y), 0.0, 1.0)
-	var tilt_magnitude: float = lerpf(deg_to_rad(5.0), deg_to_rad(28.0), grip_factor) * movement_factor
-	var tilt_direction: float = signf(movement.x)
+	# Match the main scene: the vial leans decisively toward the side
+	# of the slot the pointer is moving over, rather than staying upright.
+	var delta_x: float = pointer.x - (drag_origin.x + source.size.x * 0.5)
+	var tilt_direction: float = signf(delta_x)
 	if is_zero_approx(tilt_direction):
 		tilt_direction = _get_drag_tilt_direction(selected_vial)
-	source.call("set_pose", Vector2(25.0, tilt_magnitude * tilt_direction))
+	source.call("set_pose", Vector2(18.0, deg_to_rad(38.0) * tilt_direction))
 
 	var pose: Vector2 = source.call("get_pose")
 	_drag_target_position = pointer - source.call("get_drag_anchor_local", grab_offset, pose)
@@ -880,10 +881,14 @@ func _process(delta: float) -> void:
 	if selected_vial >= 0 and is_dragging and not is_animating:
 		var source: Control = bottle_nodes[selected_vial]
 		_drag_swing_time += delta
-		var inertial_tilt: float = clampf(_drag_pointer_velocity.x / 1500.0, -0.24, 0.24)
-		inertial_tilt += sin(_drag_swing_time * 3.6) * 0.012
-		var gentle_bob: float = sin(_drag_swing_time * 2.1) * 0.8
-		source.call("set_pose", Vector2(25.0 + gentle_bob, inertial_tilt))
+		var delta_x: float = _drag_pointer.x - (drag_origin.x + source.size.x * 0.5)
+		var tilt_direction: float = signf(delta_x)
+		if is_zero_approx(tilt_direction):
+			tilt_direction = _get_drag_tilt_direction(selected_vial)
+		var inertial_tilt: float = clampf(_drag_pointer_velocity.x / 2400.0, -0.035, 0.035)
+		inertial_tilt += sin(_drag_swing_time * 3.6) * 0.006
+		var gentle_bob: float = sin(_drag_swing_time * 2.1) * 0.6
+		source.call("set_pose", Vector2(18.0 + gentle_bob, deg_to_rad(38.0) * tilt_direction + inertial_tilt))
 		source.call("set_drag_motion", _drag_pointer_velocity.length() > 20.0)
 
 		var pose: Vector2 = source.call("get_pose")
@@ -944,6 +949,8 @@ func _find_target_for_mouth(source_index: int, source_mouth: Vector2) -> int:
 	var source: Control = bottle_nodes[source_index]
 	var source_radius: Vector2 = source.call("get_mouth_hit_radius")
 
+	var best_target: int = -1
+	var best_distance: float = INF
 	for index in range(bottle_nodes.size()):
 		if index == source_index or not _can_pour(source_index, index):
 			continue
@@ -951,16 +958,19 @@ func _find_target_for_mouth(source_index: int, source_mouth: Vector2) -> int:
 		var target: Control = bottle_nodes[index]
 		var target_mouth: Vector2 = target.call("get_mouth_position_in_parent")
 		var target_radius: Vector2 = target.call("get_mouth_hit_radius")
+		# Treat the mouths as two real openings: their hit regions should meet
+		# when the rims approach, without requiring the bodies to overlap.
 		var tolerance := Vector2(
-			maxf(20.0, (source_radius.x + target_radius.x) * 0.48),
-			maxf(18.0, (source_radius.y + target_radius.y) * 0.50)
+			maxf(24.0, (source_radius.x + target_radius.x) * 0.84),
+			maxf(22.0, (source_radius.y + target_radius.y) * 0.84)
 		)
 		var delta: Vector2 = source_mouth - target_mouth
 		var normalized_distance: float = pow(delta.x / tolerance.x, 2.0) + pow(delta.y / tolerance.y, 2.0)
-		if normalized_distance <= 1.0:
-			return index
+		if normalized_distance <= 1.0 and normalized_distance < best_distance:
+			best_distance = normalized_distance
+			best_target = index
 
-	return -1
+	return best_target
 
 
 func _finish_drag(pointer: Vector2) -> void:
@@ -1065,8 +1075,12 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var pour_pose := Vector2(24.0, deg_to_rad(103.0) * direction)
 	const POUR_DRAW_SCALE := 0.82
 	var target_mouth: Vector2 = target.call("get_mouth_position_in_parent")
-	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 8.0, -6.0)
+	# Keep the two rims visibly separated: the source mouth sits slightly
+	# above and to the outside of the receiver instead of directly overlapping it.
+	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 14.0, -14.0)
 	var staging_position: Vector2 = desired_source_mouth - source.call("get_mouth_local_for_pose", pour_pose, POUR_DRAW_SCALE)
+	var target_original_z: int = target.z_index
+	target.z_index = 13
 
 	source.call("set_drag_motion", false)
 	source.call("set_feedback", false, false, false)
@@ -1099,6 +1113,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	await pour_tween.finished
 
 	_pour_stream_active = false
+	target.z_index = target_original_z
 	_stream_glow.visible = false
 	_stream_shape.visible = false
 	_stream_highlight.visible = false
@@ -1212,7 +1227,9 @@ func _update_stream() -> void:
 
 	var source: Control = bottle_nodes[_pour_source]
 	var target: Control = bottle_nodes[_pour_target]
-	var start: Vector2 = source.call("get_mouth_position_in_parent", source.call("get_pose"))
+	# The stream begins just above the source lip. Its z-order is behind
+	# both vials, so the oblique mouth rims naturally occlude its ends.
+	var start: Vector2 = source.call("get_mouth_position_in_parent", source.call("get_pose")) + Vector2(0.0, -4.0)
 	var finish: Vector2 = target.call("get_liquid_surface_position_in_parent")
 	var span: Vector2 = finish - start
 	if span.length() < 1.0:
