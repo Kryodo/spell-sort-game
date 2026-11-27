@@ -1104,9 +1104,9 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_pour_stream_active = true
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 1.0)
 	_stream_shape.visible = true
+	_stream_glow.visible = true
 	_update_stream()
 	if not DEBUG_BARE_POUR_STREAM:
-		_stream_glow.visible = true
 		_stream_highlight.visible = true
 		_stream_glint.visible = true
 		_splash_ring.visible = true
@@ -1121,8 +1121,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	target.call("set_front_mouth_lip_active", false)
 	target.z_index = target_original_z
 	_stream_shape.visible = false
+	_stream_glow.visible = false
 	if not DEBUG_BARE_POUR_STREAM:
-		_stream_glow.visible = false
 		_stream_highlight.visible = false
 		_stream_glint.visible = false
 		_splash_ring.visible = false
@@ -1193,14 +1193,15 @@ func _build_stream_layers() -> void:
 	_stream_shape.visible = false
 	add_child(_stream_shape)
 
-	if DEBUG_BARE_POUR_STREAM:
-		return
-
+	# Keep the glow available as the only optional FX layer in bare-stream tests.
 	_stream_glow = Polygon2D.new()
 	_stream_glow.color = Color.WHITE
 	_stream_glow.z_index = 8
 	_stream_glow.visible = false
 	add_child(_stream_glow)
+
+	if DEBUG_BARE_POUR_STREAM:
+		return
 
 	_stream_highlight = Line2D.new()
 	_stream_highlight.width = 1.2
@@ -1358,6 +1359,8 @@ func _update_bare_stream() -> void:
 
 	var left_edge := PackedVector2Array()
 	var right_edge := PackedVector2Array()
+	var left_glow := PackedVector2Array()
+	var right_glow := PackedVector2Array()
 	const POINT_COUNT := 48
 	for index in range(POINT_COUNT):
 		var t: float = float(index) / float(POINT_COUNT - 1)
@@ -1367,12 +1370,28 @@ func _update_bare_stream() -> void:
 		var half_width: float = 1.8 + 1.2 * sin(PI * t)
 		left_edge.append(point + normal * half_width)
 		right_edge.append(point - normal * half_width)
+		left_glow.append(point + normal * half_width * 3.1)
+		right_glow.append(point - normal * half_width * 3.1)
 
 	var polygon := PackedVector2Array()
 	for point in left_edge:
 		polygon.append(point)
 	for index in range(right_edge.size() - 1, -1, -1):
 		polygon.append(right_edge[index])
+
+	var glow_polygon := PackedVector2Array()
+	for point in left_glow:
+		glow_polygon.append(point)
+	for index in range(right_glow.size() - 1, -1, -1):
+		glow_polygon.append(right_glow[index])
+	_stream_glow.polygon = glow_polygon
+	_stream_glow.color = Color(
+		_pour_color.r,
+		_pour_color.g,
+		_pour_color.b,
+		0.16 + 0.12 * sin(PI * _pour_progress)
+	)
+
 	_stream_shape.polygon = polygon
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 1.0)
 
