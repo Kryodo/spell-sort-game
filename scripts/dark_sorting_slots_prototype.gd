@@ -20,13 +20,38 @@ class SlotMarkerSurface extends Control:
 		slot_markers = markers.duplicate(true)
 		queue_redraw()
 
-	func set_completion_state(completed: bool) -> void:
+	func set_completion_state(completed: bool, bottles: Array, palette: Dictionary) -> void:
+		if completed:
+			_update_completion_targets(bottles, palette)
+
 		if completed == _completion_active:
+			if completed:
+				queue_redraw()
 			return
+
 		_completion_active = completed
 		_completion_time = 0.0
 		set_process(_completion_active)
 		queue_redraw()
+
+	func _update_completion_targets(bottles: Array, palette: Dictionary) -> void:
+		# Read the live vial contents after the final pour, not the level's starting layout.
+		for marker_index in range(slot_markers.size()):
+			var marker: Dictionary = slot_markers[marker_index]
+			var has_contents := false
+			var glow_color: Color = Color(0.54, 0.84, 0.72, 1.0)
+
+			if marker_index < bottles.size():
+				var vial_value: Variant = bottles[marker_index]
+				if is_instance_valid(vial_value):
+					var contents: Array = vial_value.call("get_contents")
+					has_contents = not contents.is_empty()
+					if has_contents:
+						glow_color = palette.get(String(contents.back()), glow_color)
+
+			marker["has_contents"] = has_contents
+			marker["glow_color"] = glow_color
+			slot_markers[marker_index] = marker
 
 	func _process(delta: float) -> void:
 		if not _completion_active:
@@ -868,7 +893,7 @@ func _refresh_hud() -> void:
 		return
 
 	if is_instance_valid(_slot_surface):
-		_slot_surface.set_completion_state(round_complete)
+		_slot_surface.set_completion_state(round_complete, bottle_nodes, PALETTE)
 
 	_selected_vial_count = bottle_contents.size()
 	var level_number := current_level + 1
@@ -1714,7 +1739,7 @@ func _load_level() -> void:
 	_pour_target = -1
 	super._load_level()
 	if is_instance_valid(_slot_surface):
-		_slot_surface.set_completion_state(round_complete)
+		_slot_surface.set_completion_state(round_complete, bottle_nodes, PALETTE)
 	if is_instance_valid(_mouth_mote_layer):
 		_mouth_mote_layer.configure(bottle_nodes, PALETTE)
 
