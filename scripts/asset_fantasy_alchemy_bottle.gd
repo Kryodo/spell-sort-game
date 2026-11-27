@@ -647,6 +647,124 @@ func _draw_liquid(_rect: Rect2) -> void:
 		)
 
 	_draw_window_bubbles(rect, visible_layers)
+	_draw_surface_bubble_activity(rect)
+
+
+func _draw_surface_bubble_activity(rect: Rect2) -> void:
+	if _liquid_level <= 0.02 or _visual_contents.is_empty():
+		return
+
+	const EVENT_PERIOD := 8.4
+	const EVENT_DURATION := 1.15
+	const EVENT_COUNT := 2
+	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
+	var surface_ratio: float = _window_bottom_ratio - (
+		chamber_span / float(CAPACITY) * clampf(_liquid_level, 0.0, float(CAPACITY))
+	)
+	var top_index: int = clampi(
+		int(floor(_liquid_level - 0.0001)),
+		0,
+		_visual_contents.size() - 1
+	)
+	var top_amount: float = clampf(_liquid_level - float(top_index), 0.0, 1.0)
+	var appearance_alpha: float = smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, top_amount)
+	if appearance_alpha <= 0.08:
+		return
+
+	var liquid_color: Color = _palette.get(
+		String(_visual_contents[top_index]),
+		Color(0.45, 0.78, 0.75, 1.0)
+	)
+	var pickup_blend: float = smoothstep(0.18, 0.42, _surface_activity)
+	var movement_blend: float = smoothstep(0.42, 0.82, _surface_activity)
+	var wave_strength: float = lerpf(1.20, 1.30, pickup_blend)
+	wave_strength = lerpf(wave_strength, 1.75, movement_blend)
+	var base_surface_y: float = rect.position.y + rect.size.y * surface_ratio
+	var surface_bounds: Vector2 = _window_bounds_at(surface_ratio)
+	var surface_half_width: float = (
+		rect.size.x * (surface_bounds.y - surface_bounds.x) * 0.5 - 3.0
+	)
+	if surface_half_width <= 4.0:
+		return
+
+	for event_index in range(EVENT_COUNT):
+		var event_phase: float = fposmod(
+			_wave_time
+			+ float(vial_index) * 1.71
+			+ float(event_index) * EVENT_PERIOD * 0.5
+			+ 1.35,
+			EVENT_PERIOD
+		)
+		if event_phase > EVENT_DURATION:
+			continue
+
+		var progress: float = event_phase / EVENT_DURATION
+		var side: float = -1.0 if event_index == 0 else 1.0
+		var x_norm: float = side * (0.27 + 0.035 * float(vial_index % 3))
+		x_norm += sin(_wave_time * 0.22 + float(vial_index)) * 0.025
+		var surface_wave: float = _get_surface_wave_offset(x_norm) * wave_strength
+		var surface_height: float = clampf(4.0 + surface_wave, 1.0, 8.0) * appearance_alpha
+		var surface_y: float = base_surface_y - surface_height
+		var surface_x: float = rect.get_center().x + x_norm * surface_half_width
+		var centre := Vector2(surface_x, surface_y)
+
+		if progress < 0.52:
+			# A small coloured bubble swells through the existing meniscus, then
+			# disappears as it breaks. Its centre is kept just above the surface.
+			var swell: float = smoothstep(0.0, 0.46, progress)
+			var bubble_radius: float = lerpf(0.85, 2.35, swell)
+			var bubble_fade: float = 1.0 - smoothstep(0.34, 0.52, progress)
+			var bubble_centre := centre + Vector2(0.0, -bubble_radius * 0.20)
+			var bubble_tint: Color = liquid_color.lerp(
+				Color(0.92, 1.0, 0.97, 1.0),
+				0.46
+			)
+			draw_circle(
+				bubble_centre,
+				bubble_radius * 2.0,
+				Color(bubble_tint.r, bubble_tint.g, bubble_tint.b, 0.10 * bubble_fade)
+			)
+			draw_circle(
+				bubble_centre,
+				bubble_radius,
+				Color(bubble_tint.r, bubble_tint.g, bubble_tint.b, 0.58 * bubble_fade)
+			)
+			draw_arc(
+				bubble_centre + Vector2(-0.25, -0.25),
+				bubble_radius * 0.70,
+				PI * 1.12,
+				PI * 1.88,
+				10,
+				Color(0.96, 1.0, 0.96, 0.62 * bubble_fade),
+				0.75,
+				true
+			)
+		else:
+			# The pop leaves one very shallow, quickly fading surface ripple.
+			var pop_progress: float = (progress - 0.52) / 0.48
+			var ripple_radius: float = lerpf(2.0, 7.5, pop_progress)
+			var ripple_alpha: float = 0.24 * (1.0 - smoothstep(0.25, 1.0, pop_progress))
+			var ripple_points := PackedVector2Array()
+			const RIPPLE_SEGMENTS := 20
+			for point_index in range(RIPPLE_SEGMENTS + 1):
+				var angle: float = TAU * float(point_index) / float(RIPPLE_SEGMENTS)
+				ripple_points.append(
+					centre + Vector2(
+						cos(angle) * ripple_radius,
+						sin(angle) * ripple_radius * 0.28
+					)
+				)
+			draw_polyline(
+				ripple_points,
+				Color(
+					liquid_color.r,
+					liquid_color.g,
+					liquid_color.b,
+					ripple_alpha * appearance_alpha
+				),
+				0.9,
+				true
+			)
 
 
 func _draw_liquid_band(
