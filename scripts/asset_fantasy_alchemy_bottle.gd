@@ -574,34 +574,53 @@ func _draw_liquid_band(
 			y
 		))
 
-	var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.14), 0.08)
-	draw_colored_polygon(polygon, fill_color)
+	var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.12), 0.10)
+	var edge_color: Color = fill_color.darkened(0.10)
+	var bottom_color: Color = fill_color.darkened(0.045)
+	var center_color: Color = fill_color.lightened(0.18)
+
+	# Per-vertex tinting gives each essence a gentle luminous centre and
+	# slightly deeper side/bottom colour without adding extra meshes or layers.
+	var vertex_colors := PackedColorArray()
+	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
+		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
+		var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
+		vertex_colors.append(edge_color.lerp(center_color, center_weight))
+	for _side_index in range(LIQUID_SIDE_SAMPLES):
+		vertex_colors.append(edge_color)
+	vertex_colors.append(bottom_color)
+	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
+		vertex_colors.append(edge_color)
+	draw_polygon(polygon, vertex_colors)
 
 	if is_surface:
-		var surface_color: Color = fill_color.lightened(0.30)
-		surface_color.a = 0.10 + _surface_activity * 0.045 + absf(_slosh) * 0.02
-		draw_polyline(top_edge, surface_color, 1.0, true)
+		var surface_color: Color = fill_color.lightened(0.34)
+		surface_color.a = 0.12 + _surface_activity * 0.05 + absf(_slosh) * 0.025
+		draw_polyline(top_edge, surface_color, 1.1, true)
 
 
 func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 	if visible_layers <= 0 or _window_profile.is_empty():
 		return
 
+	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
+	var layer_height: float = chamber_span / float(CAPACITY)
 	var surface_ratio: float = _window_bottom_ratio - (
-		(_window_bottom_ratio - _window_top_ratio)
-		/ float(CAPACITY)
-		* clampf(_liquid_level, 0.0, float(CAPACITY))
+		layer_height * clampf(_liquid_level, 0.0, float(CAPACITY))
 	)
 	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
 
-	for bubble_index in range(4):
+	# A small mix of bubbles rises at different speeds. Each particle borrows
+	# the colour of the essence layer it is travelling through.
+	const BUBBLE_SIZES := [0.9, 1.45, 1.9, 1.05, 1.65, 1.2]
+	for bubble_index in range(BUBBLE_SIZES.size()):
+		var speed: float = 0.082 + float(bubble_index % 3) * 0.021 + float(bubble_index / 3) * 0.008
 		var phase: float = fposmod(
-			_wave_time * (0.085 + float(bubble_index) * 0.009)
-			+ float(bubble_index) * 0.231,
+			_wave_time * speed + float(bubble_index) * 0.163,
 			1.0
 		)
-		var bubble_y: float = lerpf(bottom_y - 5.0, surface_y + 5.0, phase)
+		var bubble_y: float = lerpf(bottom_y - 5.0, surface_y + 3.0, phase)
 		var normalized_y: float = clampf(
 			(bubble_y - rect.position.y) / rect.size.y,
 			_window_top_ratio,
@@ -613,34 +632,85 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 		if right_x - left_x <= 7.0:
 			continue
 
-		var sway: float = sin(_wave_time * 0.43 + float(bubble_index) * 1.71)
+		var sway: float = sin(_wave_time * (0.34 + float(bubble_index % 3) * 0.09) + float(bubble_index) * 1.71)
 		var bubble_position := Vector2(
-			lerpf(left_x, right_x, 0.5 + sway * 0.22),
+			lerpf(left_x, right_x, 0.5 + sway * 0.24),
 			bubble_y
 		)
-		var bubble_size: float = 1.1 + fposmod(float(bubble_index) * 0.47, 1.0)
+		var bubble_size: float = BUBBLE_SIZES[bubble_index]
 		var travel_fade: float = sin(PI * phase)
-		var bubble_alpha: float = (
-			0.07 + 0.045 * (0.5 + 0.5 * sin(_wave_time * 0.85 + float(bubble_index)))
-		) * travel_fade
-		if bubble_alpha <= 0.005:
+		var pulse: float = 0.55 + 0.45 * sin(_wave_time * 1.15 + float(bubble_index) * 1.37)
+		var bubble_alpha: float = (0.075 + 0.055 * pulse) * travel_fade
+		if bubble_alpha <= 0.004:
 			continue
-		draw_circle(
-			bubble_position,
-			bubble_size * 1.8,
-			Color(1.0, 1.0, 1.0, bubble_alpha * 0.16)
+
+		var layer_index: int = clampi(
+			int(floor((_window_bottom_ratio - normalized_y) / maxf(0.0001, layer_height))),
+			0,
+			mini(_visual_contents.size() - 1, CAPACITY - 1)
 		)
+		var essence: String = String(_visual_contents[layer_index])
+		var bubble_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
+		var glow_color := Color(bubble_color.r, bubble_color.g, bubble_color.b, bubble_alpha * 0.24)
+		var core_color: Color = bubble_color.lightened(0.56)
+		core_color.a = bubble_alpha * 0.34
+
+		# Soft coloured halo, translucent bubble body and a restrained glassy glint.
+		draw_circle(bubble_position, bubble_size * 2.5, glow_color)
+		draw_circle(bubble_position, bubble_size, core_color)
 		draw_arc(
-			bubble_position,
+			bubble_position + Vector2(-0.2, -0.2),
 			bubble_size,
 			deg_to_rad(205.0),
 			deg_to_rad(325.0),
 			10,
-			Color(1.0, 1.0, 1.0, bubble_alpha * 0.50),
+			Color(1.0, 1.0, 1.0, bubble_alpha * 0.62),
 			0.75,
 			true
 		)
+		draw_circle(
+			bubble_position + Vector2(-bubble_size * 0.30, -bubble_size * 0.34),
+			maxf(0.45, bubble_size * 0.20),
+			Color(1.0, 1.0, 1.0, bubble_alpha * 0.72)
+		)
 
+	# A few much smaller alchemical motes add life between the larger bubbles.
+	for mote_index in range(3):
+		var mote_phase: float = fposmod(
+			_wave_time * (0.055 + float(mote_index) * 0.012)
+			+ float(mote_index) * 0.317,
+			1.0
+		)
+		var mote_y: float = lerpf(bottom_y - 3.0, surface_y + 2.0, mote_phase)
+		var mote_ratio: float = clampf(
+			(mote_y - rect.position.y) / rect.size.y,
+			_window_top_ratio,
+			_window_bottom_ratio
+		)
+		var mote_bounds := _window_bounds_at(mote_ratio)
+		var mote_half_width: float = maxf(0.0, rect.size.x * (mote_bounds.y - mote_bounds.x) * 0.32)
+		if mote_half_width <= 2.0:
+			continue
+		var mote_x: float = rect.get_center().x + sin(_wave_time * 0.27 + float(mote_index) * 2.1) * mote_half_width
+		var mote_position := Vector2(mote_x, mote_y)
+		var mote_alpha: float = (0.035 + 0.025 * sin(_wave_time * 0.8 + float(mote_index))) * sin(PI * mote_phase)
+		var mote_layer: int = clampi(
+			int(floor((_window_bottom_ratio - mote_ratio) / maxf(0.0001, layer_height))),
+			0,
+			mini(_visual_contents.size() - 1, CAPACITY - 1)
+		)
+		var mote_essence: String = String(_visual_contents[mote_layer])
+		var mote_color: Color = _palette.get(mote_essence, Color(0.45, 0.78, 0.75, 1.0))
+		draw_circle(
+			mote_position,
+			2.2,
+			Color(mote_color.r, mote_color.g, mote_color.b, mote_alpha * 0.24)
+		)
+		draw_circle(
+			mote_position,
+			0.75,
+			Color(0.95, 1.0, 0.92, mote_alpha * 0.72)
+		)
 
 func _draw_glass_back(_rect: Rect2) -> void:
 	# The complete PNG is drawn once, above the live liquid.
