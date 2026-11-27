@@ -549,20 +549,12 @@ func _draw_liquid_band(
 
 	var wave_edge := PackedVector2Array()
 	if is_surface:
-		# Idle and pickup stay calm; active dragging gradually adds a little more
-		# movement. The pickup tilt itself is handled by the slosh response.
-		var wave_strength: float = 1.20
-		if _dragging:
-			if _drag_motion:
-				wave_strength = lerpf(
-					1.35,
-					1.75,
-					clampf((_surface_activity - 0.42) / 0.40, 0.0, 1.0)
-				)
-			else:
-				wave_strength = 1.30
-		elif _selected:
-			wave_strength = 1.30
+		# Blend from resting to held to moving entirely through smoothed activity.
+		# This avoids a visual step when pointer velocity crosses the drag threshold.
+		var pickup_blend: float = smoothstep(0.18, 0.42, _surface_activity)
+		var movement_blend: float = smoothstep(0.42, 0.82, _surface_activity)
+		var wave_strength: float = lerpf(1.20, 1.30, pickup_blend)
+		wave_strength = lerpf(wave_strength, 1.75, movement_blend)
 
 		for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
 			var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
