@@ -1,6 +1,7 @@
 extends "res://scripts/sorting_direction_prototype.gd"
 
 const AssetFantasyBottleScript = preload("res://scripts/asset_fantasy_alchemy_bottle.gd")
+const DEBUG_BARE_POUR_STREAM := true
 const TEST_VIAL_SOURCE_SIZE := Vector2(160.0, 365.0)
 
 
@@ -902,7 +903,7 @@ func _process(delta: float) -> void:
 
 		_drag_pointer_velocity = _drag_pointer_velocity.move_toward(Vector2.ZERO, delta * 210.0)
 
-	if _pour_stream_active:
+	if _pour_stream_active and not DEBUG_BARE_POUR_STREAM:
 		_update_stream()
 
 
@@ -1082,7 +1083,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	# Let the stream pass in front of the receiver's rear lip. Its separate
 	# foreground-lip child stays above the stream to preserve the near edge.
 	target.z_index = 7
-	target.call("set_front_mouth_lip_active", true)
+	target.call("set_front_mouth_lip_active", not DEBUG_BARE_POUR_STREAM)
 
 	source.call("set_drag_motion", false)
 	source.call("set_feedback", false, false, false)
@@ -1102,14 +1103,16 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_set_status("Pouring %s essence..." % essence.capitalize())
 
 	_pour_stream_active = true
-	_stream_glow.visible = true
+	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 1.0)
 	_stream_shape.visible = true
-	_stream_highlight.visible = true
-	_stream_glint.visible = true
-	_splash_ring.visible = true
-	for drop in _stream_drops:
-		drop.visible = true
 	_update_stream()
+	if not DEBUG_BARE_POUR_STREAM:
+		_stream_glow.visible = true
+		_stream_highlight.visible = true
+		_stream_glint.visible = true
+		_splash_ring.visible = true
+		for drop in _stream_drops:
+			drop.visible = true
 
 	var pour_tween := create_tween()
 	pour_tween.tween_method(Callable(self, "_set_pour_progress"), 0.0, 1.0, 0.95).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -1118,13 +1121,14 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	_pour_stream_active = false
 	target.call("set_front_mouth_lip_active", false)
 	target.z_index = target_original_z
-	_stream_glow.visible = false
 	_stream_shape.visible = false
-	_stream_highlight.visible = false
-	_stream_glint.visible = false
-	_splash_ring.visible = false
-	for drop in _stream_drops:
-		drop.visible = false
+	if not DEBUG_BARE_POUR_STREAM:
+		_stream_glow.visible = false
+		_stream_highlight.visible = false
+		_stream_glint.visible = false
+		_splash_ring.visible = false
+		for drop in _stream_drops:
+			drop.visible = false
 
 	var return_tween := create_tween().set_parallel(true)
 	return_tween.tween_property(source, "position", slot_positions[source_index], 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
@@ -1177,21 +1181,28 @@ func _set_pour_progress(progress: float) -> void:
 	var target_level: float = lerpf(_pour_target_start, _pour_target_start + float(_pour_amount), progress)
 	bottle_nodes[_pour_source].call("set_preview", _pour_source_preview, source_level)
 	bottle_nodes[_pour_target].call("set_preview", _pour_target_preview, target_level)
-	_update_stream()
+	if not DEBUG_BARE_POUR_STREAM:
+		_update_stream()
 
 
 func _build_stream_layers() -> void:
+	# Diagnostic mode deliberately creates only one rendering layer.
+	# The former glow, highlights, droplets and ripple are omitted completely.
+	_stream_shape = Polygon2D.new()
+	_stream_shape.name = "BarePourStream"
+	_stream_shape.color = Color.WHITE
+	_stream_shape.z_index = 9
+	_stream_shape.visible = false
+	add_child(_stream_shape)
+
+	if DEBUG_BARE_POUR_STREAM:
+		return
+
 	_stream_glow = Polygon2D.new()
 	_stream_glow.color = Color.WHITE
 	_stream_glow.z_index = 8
 	_stream_glow.visible = false
 	add_child(_stream_glow)
-
-	_stream_shape = Polygon2D.new()
-	_stream_shape.color = Color.WHITE
-	_stream_shape.z_index = 9
-	_stream_shape.visible = false
-	add_child(_stream_shape)
 
 	_stream_highlight = Line2D.new()
 	_stream_highlight.width = 1.2
@@ -1233,9 +1244,11 @@ func _build_stream_layers() -> void:
 	_splash_ring.visible = false
 	add_child(_splash_ring)
 
-
 func _update_stream() -> void:
 	if not _pour_stream_active or _pour_source < 0 or _pour_target < 0:
+		return
+	if DEBUG_BARE_POUR_STREAM:
+		_update_bare_stream()
 		return
 
 	var source: Control = bottle_nodes[_pour_source]
@@ -1259,8 +1272,6 @@ func _update_stream() -> void:
 	var left_edge := PackedVector2Array()
 	var right_edge := PackedVector2Array()
 
-	# Keep curve sampling consistent in screen space. A fixed 27 points left
-	# long falls visibly under-sampled, making the animated edge shimmer.
 	var estimated_curve_length: float = (
 		start.distance_to(control_one)
 		+ control_one.distance_to(control_two)
@@ -1275,9 +1286,7 @@ func _update_stream() -> void:
 		var normal := Vector2(-tangent.y, tangent.x)
 		centres.append(point)
 		var pulse_width: float = sin(PI * t)
-		# Keep the body contour deterministic; motion belongs to the travelling effects.
 		var irregularity: float = 0.94 + 0.06 * sin(t * 19.0)
-		# Roughly 25% fuller at the centre, while retaining narrow tapered ends.
 		var half_width: float = (0.85 + pulse_width * 3.0) * 1.28 * irregularity
 		left_edge.append(point + normal * half_width)
 		right_edge.append(point - normal * half_width)
@@ -1302,53 +1311,26 @@ func _update_stream() -> void:
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 0.94)
 	_stream_highlight.points = centres
 	_stream_highlight.default_color = Color(1.0, 1.0, 1.0, 0.25 + 0.12 * sin(PI * _pour_progress))
-	# The glint travels in one direction, then fades out before returning to
-	# the top. Its path is sampled continuously, so it neither snaps between
-	# centre vertices nor teleports visibly at the loop boundary.
-	# One highlight travels during the pour itself; using the looping
-	# droplet clock here caused two bright glint pulses in a single transfer.
 	var glint_progress: float = clampf(_pour_progress, 0.0, 1.0)
 	var glint_start: float = lerpf(0.08, 0.76, glint_progress)
 	var glint_end: float = minf(0.98, glint_start + 0.16)
 	var glint_points := PackedVector2Array()
 	const GLINT_SAMPLES := 9
 	for index in range(GLINT_SAMPLES):
-		var glint_t: float = lerpf(
-			glint_start,
-			glint_end,
-			float(index) / float(GLINT_SAMPLES - 1)
-		)
-		glint_points.append(
-			_get_stream_centre_point(start, control_one, control_two, finish, glint_t)
-		)
+		var glint_t: float = lerpf(glint_start, glint_end, float(index) / float(GLINT_SAMPLES - 1))
+		glint_points.append(_get_stream_centre_point(start, control_one, control_two, finish, glint_t))
 	_stream_glint.points = glint_points
-	var glint_alpha: float = 0.52 * sin(PI * glint_progress)
-	_stream_glint.default_color = Color(1.0, 1.0, 1.0, glint_alpha)
+	_stream_glint.default_color = Color(1.0, 1.0, 1.0, 0.52 * sin(PI * glint_progress))
 
 	for index in range(_stream_drops.size()):
-		# Each droplet makes one staggered trip down the stream per transfer.
-		# There is no wrapped travel phase, so none can jump back to the source
-		# and flash a second time during a single pour.
-		var travel: float = clampf(
-			_pour_progress * 1.5 - float(index) * 0.25,
-			0.0,
-			1.0
-		)
+		var travel: float = clampf(_pour_progress * 1.5 - float(index) * 0.25, 0.0, 1.0)
 		var drop_position: Vector2 = start.bezier_interpolate(control_one, control_two, finish, travel)
 		var drop: Polygon2D = _stream_drops[index]
 		drop.position = drop_position
 		drop.rotation = atan2(span.y, span.x) + PI * 0.5
-		drop.scale = Vector2(
-			0.75 + 0.25 * sin(PI * travel),
-			0.90 + 0.4 * sin(PI * travel)
-		)
-		# Keep the highlights softer; their opacity naturally starts and ends at zero.
-		var drop_alpha: float = 0.46 * sin(PI * travel)
-		drop.color = Color(1.0, 1.0, 1.0, drop_alpha)
+		drop.scale = Vector2(0.75 + 0.25 * sin(PI * travel), 0.90 + 0.4 * sin(PI * travel))
+		drop.color = Color(1.0, 1.0, 1.0, 0.46 * sin(PI * travel))
 
-	# Expand the ripple once during the transfer, then fade it away. This hides the reset cleanly.
-	# The impact ring swells once per transfer instead of pulsing with
-	# the faster loop used by the travelling droplets.
 	var ring_radius: float = 4.5 + 13.0 * _pour_progress
 	var ring_alpha: float = 0.16 * sin(PI * _pour_progress)
 	var ring_points := PackedVector2Array()
@@ -1358,6 +1340,43 @@ func _update_stream() -> void:
 	_splash_ring.points = ring_points
 	_splash_ring.default_color = Color(1.0, 1.0, 1.0, ring_alpha)
 
+
+func _update_bare_stream() -> void:
+	# Build one steady ribbon once, at the moment the pour starts. The endpoint
+	# is intentionally fixed for this diagnostic run: no moving surface target,
+	# animated vertex positions, opacity pulses, or secondary effects.
+	var source: Control = bottle_nodes[_pour_source]
+	var target: Control = bottle_nodes[_pour_target]
+	var start: Vector2 = source.call("get_mouth_position_in_parent", source.call("get_pose")) + Vector2(0.0, -4.0)
+	var finish: Vector2 = target.call("get_liquid_surface_position_in_parent")
+	var span: Vector2 = finish - start
+	if span.length() < 1.0:
+		return
+
+	var horizontal_bend: float = clampf(span.x * 0.18, -42.0, 42.0)
+	var vertical_fall: float = maxf(28.0, span.y * 0.36)
+	var control_one := start + Vector2(horizontal_bend, vertical_fall * 0.28)
+	var control_two := finish - Vector2(horizontal_bend, -vertical_fall * 0.28)
+
+	var left_edge := PackedVector2Array()
+	var right_edge := PackedVector2Array()
+	const POINT_COUNT := 48
+	for index in range(POINT_COUNT):
+		var t: float = float(index) / float(POINT_COUNT - 1)
+		var point: Vector2 = start.bezier_interpolate(control_one, control_two, finish, t)
+		var tangent: Vector2 = _get_stream_tangent(control_one, start, control_two, finish, t)
+		var normal := Vector2(-tangent.y, tangent.x)
+		var half_width: float = 1.8 + 1.2 * sin(PI * t)
+		left_edge.append(point + normal * half_width)
+		right_edge.append(point - normal * half_width)
+
+	var polygon := PackedVector2Array()
+	for point in left_edge:
+		polygon.append(point)
+	for index in range(right_edge.size() - 1, -1, -1):
+		polygon.append(right_edge[index])
+	_stream_shape.polygon = polygon
+	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 1.0)
 
 func _get_stream_centre_point(
 	start: Vector2,
