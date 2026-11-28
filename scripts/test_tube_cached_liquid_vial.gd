@@ -265,6 +265,13 @@ func _build_cached_profile_liquid_band(
 		polygon.append(Vector2(rect.get_center().x - half_width, y))
 		vertex_colours.append(liquid_color.darkened(lerpf(0.12, 0.23, t)))
 
+	# Match the working renderer: very thin bands fade at the geometry edge,
+	# so both cached body vertices and the surface plane receive the same fade.
+	for colour_index in range(vertex_colours.size()):
+		var vertex_colour: Color = vertex_colours[colour_index]
+		vertex_colour.a *= band_alpha
+		vertex_colours[colour_index] = vertex_colour
+
 	var fill_colour: Color = liquid_color.lerp(liquid_color.lightened(0.12), 0.10)
 	fill_colour.a *= band_alpha
 
@@ -283,6 +290,7 @@ func _build_cached_profile_liquid_band(
 				liquid_color.lightened(0.20),
 				front_weight
 			)
+			surface_colour.a *= band_alpha
 			surface_colours.append(surface_colour)
 
 	return {
