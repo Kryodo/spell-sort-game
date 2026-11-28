@@ -200,6 +200,22 @@
         fill="none" stroke="#c09a63" stroke-opacity="0.15" stroke-width="2"/>
   <path d="M360 861L370 875L360 889L350 875Z" fill="#c6a36a" fill-opacity="0.12"/>
 
+  <!-- A small woven work mat gives the candle a clear place on the tabletop. -->
+  <g id="candle-work-mat">
+    <path d="M512 802C531 793 603 793 624 802L619 837C594 845 540 845 516 837Z"
+          fill="#171c13" opacity="0.88"/>
+    <path d="M516 802C538 795 598 795 620 802L615 832C592 840 543 840 520 832Z"
+          fill="#4a4930" stroke="#9a8050" stroke-opacity="0.56" stroke-width="2"/>
+    <path d="M522 805C545 800 591 800 614 805L610 829C588 835 547 835 525 829Z"
+          fill="#343d29" stroke="#b19a65" stroke-opacity="0.38" stroke-width="1.2"/>
+    <path d="M526 808C549 804 586 804 610 808M524 826C548 831 588 831 612 826"
+          fill="none" stroke="#c1a875" stroke-opacity="0.19" stroke-width="1"/>
+    <g fill="none" stroke="#c0aa78" stroke-opacity="0.11" stroke-width="1">
+      <path d="M533 807L530 827M543 806L540 830M553 805L551 832M563 805L562 833M573 805L573 833M583 805L584 832M593 806L595 830M603 807L606 828"/>
+      <path d="M525 813C550 817 587 817 612 813M524 820C550 824 587 824 611 820"/>
+    </g>
+  </g>
+
   <!-- A grounded wax candle in a small aged-brass holder on the workbench -->
   <g id="workbench-candle">
     <ellipse cx="570" cy="808" rx="25" ry="5.5" fill="#030705" opacity="0.48"/>
