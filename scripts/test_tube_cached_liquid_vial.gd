@@ -1,7 +1,7 @@
 extends "res://scripts/test_tube_renderer_base_fantasy_bottle.gd"
 
-## One complete illustration per vial. The transparent inner chamber is analysed
-## once per texture; every essence layer then shares the resulting body profile.
+## One complete illustration per vial. A hand-authored inner chamber profile
+## drives the cached liquid body, curved interfaces and gravity response.
 
 const DEFAULT_VIAL_ART: Texture2D = preload("res://assets/environments/SpellSort_LabBottle_Glass.svg")
 const BASE_REFRACTION_ART: Texture2D = preload("res://assets/environments/SpellSort_LabBottle_BaseRefraction.svg")
@@ -33,6 +33,14 @@ const LIQUID_BOTTOM_BLEND_START := 0.68
 const LIQUID_APPEARANCE_FADE_LEVEL := 0.12
 const LIQUID_MIN_BAND_HEIGHT := 0.05
 const LIQUID_BAND_FADE_HEIGHT := 1.5
+const LIQUID_BOUNDARY_SAMPLES := 56
+const LIQUID_CHAMBER_SIDE_SAMPLES := 112
+const LIQUID_FLOOR_SAMPLES := 32
+const LIQUID_FLOOR_DEPTH_RATIO := 0.021
+const LIQUID_INTERFACE_CURVE_DEPTH := 1.8
+const LIQUID_GRAVITY_SOLVE_STEPS := 12
+const LIQUID_TILT_CACHE_EPSILON := 0.004
+const LIQUID_SURFACE_EXTENT_SAMPLES := 96
 
 # Preserve the generated vessel artwork exactly; reflections are added as a
 # separate liquid-aware Godot pass after the illustration and liquid.
@@ -158,6 +166,9 @@ var _pour_refraction_visible: bool = true
 var _cached_liquid_bands: Array[Dictionary] = []
 var _cached_liquid_rect := Rect2()
 var _liquid_geometry_dirty: bool = true
+var _cached_chamber_polygon := PackedVector2Array()
+var _cached_liquid_floor_depth: float = 0.0
+var _cached_liquid_tilt: float = 999.0
 
 
 func _ready() -> void:
@@ -280,6 +291,7 @@ func set_vial_art(texture: Texture2D) -> void:
 
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
+	_cached_chamber_polygon = PackedVector2Array()
 
 	# Use the new bottle's hand-authored silhouette instead of scanning the
 	# SVG pixels. The profile is mapped into the same normalized full-art
@@ -633,21 +645,28 @@ func get_mouth_hit_radius() -> Vector2:
 
 func get_liquid_surface_position_in_parent() -> Vector2:
 	var rect := _get_vessel_rect()
-	var layer_height: float = (_window_bottom_ratio - _window_top_ratio) / float(CAPACITY)
-	var surface_ratio: float = _window_bottom_ratio - layer_height * clampf(
-		_liquid_level,
-		0.0,
-		float(CAPACITY)
-	)
-	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
-	surface_y += _get_surface_wave_offset(0.0)
-	var local_surface := Vector2(rect.get_center().x, surface_y)
+	if (
+		_liquid_geometry_dirty
+		or rect != _cached_liquid_rect
+		or absf(_tilt - _cached_liquid_tilt) > LIQUID_TILT_CACHE_EPSILON
+	):
+		_rebuild_cached_liquid_geometry(rect)
+	if _cached_liquid_bands.is_empty():
+		return position + get_point_local_for_pose(
+			Vector2(rect.get_center().x, rect.position.y + rect.size.y * _window_bottom_ratio),
+			Vector2(_lift, _tilt),
+			_draw_scale
+		)
+
+	var top_band: Dictionary = _cached_liquid_bands.back()
+	var surface_center: Vector2 = top_band["surface_center"]
+	var surface_normal: Vector2 = top_band["surface_normal"]
+	surface_center += surface_normal * _get_liquid_surface_wave(0.0) * 0.16
 	return position + get_point_local_for_pose(
-		local_surface,
+		surface_center,
 		Vector2(_lift, _tilt),
 		_draw_scale
 	)
-
 
 
 func _draw_liquid(_rect: Rect2) -> void:
@@ -655,7 +674,11 @@ func _draw_liquid(_rect: Rect2) -> void:
 		return
 
 	var rect := _get_vessel_rect()
-	if _liquid_geometry_dirty or rect != _cached_liquid_rect:
+	if (
+		_liquid_geometry_dirty
+		or rect != _cached_liquid_rect
+		or absf(_tilt - _cached_liquid_tilt) > LIQUID_TILT_CACHE_EPSILON
+	):
 		_rebuild_cached_liquid_geometry(rect)
 	if _cached_liquid_bands.is_empty():
 		return
@@ -673,16 +696,20 @@ func _draw_liquid(_rect: Rect2) -> void:
 
 
 func _draw_surface_bubble_activity(rect: Rect2) -> void:
-	if _liquid_level <= 0.02 or _visual_contents.is_empty():
+	if _liquid_level <= 0.02 or _visual_contents.is_empty() or _cached_liquid_bands.is_empty():
 		return
 
 	const EVENT_PERIOD := 8.4
 	const EVENT_DURATION := 1.15
 	const EVENT_COUNT := 2
-	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
-	var surface_ratio: float = _window_bottom_ratio - (
-		chamber_span / float(CAPACITY) * clampf(_liquid_level, 0.0, float(CAPACITY))
-	)
+	var top_band: Dictionary = _cached_liquid_bands.back()
+	var surface_center: Vector2 = top_band["surface_center"]
+	var surface_tangent: Vector2 = top_band["surface_tangent"]
+	var surface_normal: Vector2 = top_band["surface_normal"]
+	var surface_half_width: float = float(top_band["surface_radius_x"])
+	if surface_half_width <= 4.0:
+		return
+
 	var top_index: int = clampi(
 		int(floor(_liquid_level - 0.0001)),
 		0,
@@ -701,13 +728,6 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 	var movement_blend: float = smoothstep(0.42, 0.82, _surface_activity)
 	var wave_strength: float = lerpf(1.20, 1.30, pickup_blend)
 	wave_strength = lerpf(wave_strength, 1.75, movement_blend)
-	var base_surface_y: float = rect.position.y + rect.size.y * surface_ratio
-	var surface_bounds: Vector2 = _window_bounds_at(surface_ratio)
-	var surface_half_width: float = (
-		rect.size.x * (surface_bounds.y - surface_bounds.x) * 0.5 - 3.0
-	)
-	if surface_half_width <= 4.0:
-		return
 
 	for event_index in range(EVENT_COUNT):
 		var event_phase: float = fposmod(
@@ -724,19 +744,18 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 		var side: float = -1.0 if event_index == 0 else 1.0
 		var x_norm: float = side * (0.27 + 0.035 * float(vial_index % 3))
 		x_norm += sin(_wave_time * 0.22 + float(vial_index)) * 0.025
-		var surface_wave: float = _get_surface_wave_offset(x_norm) * wave_strength
-		var surface_height: float = clampf(4.0 + surface_wave, 1.0, 8.0) * appearance_alpha
-		var surface_y: float = base_surface_y - surface_height
-		var surface_x: float = rect.get_center().x + x_norm * surface_half_width
-		var centre := Vector2(surface_x, surface_y)
+		var surface_wave: float = _get_liquid_surface_wave(x_norm) * wave_strength
+		var centre := (
+			surface_center
+			+ surface_tangent * (x_norm * surface_half_width)
+			+ surface_normal * surface_wave
+		)
 
 		if progress < 0.52:
-			# A small coloured bubble swells through the existing meniscus, then
-			# disappears as it breaks. Its centre is kept just above the surface.
 			var swell: float = smoothstep(0.0, 0.46, progress)
 			var bubble_radius: float = lerpf(0.95, 2.75, swell)
 			var bubble_fade: float = 1.0 - smoothstep(0.34, 0.52, progress)
-			var bubble_centre := centre + Vector2(0.0, -bubble_radius * 0.20)
+			var bubble_centre: Vector2 = centre - surface_normal * bubble_radius * 0.20
 			var bubble_tint: Color = liquid_color.lerp(
 				Color(0.92, 1.0, 0.97, 1.0),
 				0.46
@@ -752,7 +771,7 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 				Color(bubble_tint.r, bubble_tint.g, bubble_tint.b, 0.66 * bubble_fade)
 			)
 			draw_arc(
-				bubble_centre + Vector2(-0.25, -0.25),
+				bubble_centre - surface_normal * 0.25,
 				bubble_radius * 0.74,
 				PI * 1.12,
 				PI * 1.88,
@@ -762,7 +781,6 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 				true
 			)
 		else:
-			# The pop leaves one very shallow, quickly fading surface ripple.
 			var pop_progress: float = (progress - 0.52) / 0.48
 			var ripple_radius: float = lerpf(2.5, 8.5, pop_progress)
 			var ripple_alpha: float = 0.30 * (1.0 - smoothstep(0.25, 1.0, pop_progress))
@@ -771,10 +789,9 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 			for point_index in range(RIPPLE_SEGMENTS + 1):
 				var angle: float = TAU * float(point_index) / float(RIPPLE_SEGMENTS)
 				ripple_points.append(
-					centre + Vector2(
-						cos(angle) * ripple_radius,
-						sin(angle) * ripple_radius * 0.28
-					)
+					centre
+					+ surface_tangent * (cos(angle) * ripple_radius)
+					+ surface_normal * (sin(angle) * ripple_radius * 0.28)
 				)
 			draw_polyline(
 				ripple_points,
@@ -790,215 +807,599 @@ func _draw_surface_bubble_activity(rect: Rect2) -> void:
 
 
 func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
+	var rect_changed: bool = rect != _cached_liquid_rect
 	_cached_liquid_bands.clear()
-	_cached_liquid_rect = rect
+	_cached_liquid_tilt = _tilt
 	_liquid_geometry_dirty = false
 
 	if _window_profile.size() < 8 or _visual_contents.is_empty() or _liquid_level <= 0.001:
+		_cached_liquid_rect = rect
 		return
 
-	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
-	if chamber_span <= 0.01:
+	if rect_changed or _cached_chamber_polygon.is_empty():
+		_cached_chamber_polygon = _build_liquid_chamber_polygon(rect)
+	if _cached_chamber_polygon.size() < 8:
+		_cached_liquid_rect = rect
 		return
 
-	var layer_height: float = chamber_span / float(CAPACITY)
+	_cached_liquid_rect = rect
+	var gravity_frame: Dictionary = _get_liquid_gravity_frame(rect, _tilt)
+	var boundary_offsets: Dictionary = {}
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
-	for layer_index in range(visible_layers):
-		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
-		if amount <= 0.001:
-			continue
+	var layer_index: int = 0
 
-		var bottom_ratio: float = _window_bottom_ratio - float(layer_index) * layer_height
-		var top_ratio: float = bottom_ratio - layer_height * amount
-		var essence: String = String(_visual_contents[layer_index])
-		var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-		liquid_color.a *= smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, amount)
-
-		var band: Dictionary = _build_cached_liquid_band(
-			rect,
-			top_ratio,
-			bottom_ratio,
-			liquid_color,
-			layer_index == visible_layers - 1,
-			layer_index == 0
+	# Neighbouring equal essences are one continuous body, not two separately
+	# shaded polygons. This prevents a false seam through a single liquid.
+	while layer_index < visible_layers:
+		var group_start: int = layer_index
+		var essence: String = String(_visual_contents[group_start])
+		var liquid_color: Color = _palette.get(
+			essence,
+			Color(0.45, 0.78, 0.75, 1.0)
 		)
-		if not band.is_empty():
-			_cached_liquid_bands.append(band)
+		var group_end: int = group_start + 1
+		while group_end < visible_layers:
+			var next_essence: String = String(_visual_contents[group_end])
+			var next_color: Color = _palette.get(
+				next_essence,
+				Color(0.45, 0.78, 0.75, 1.0)
+			)
+			if not _same_liquid_colour(liquid_color, next_color):
+				break
+			group_end += 1
+
+		var bottom_units: float = float(group_start)
+		var top_units: float = minf(float(group_end), _liquid_level)
+		var visible_amount: float = top_units - bottom_units
+		if visible_amount > 0.001:
+			var appearance_color: Color = liquid_color
+			appearance_color.a *= smoothstep(
+				0.0,
+				LIQUID_APPEARANCE_FADE_LEVEL,
+				visible_amount
+			)
+			var band: Dictionary = _build_cached_liquid_band(
+				rect,
+				_cached_chamber_polygon,
+				gravity_frame,
+				boundary_offsets,
+				bottom_units,
+				top_units,
+				appearance_color,
+				top_units >= _liquid_level - 0.0001
+			)
+			if not band.is_empty():
+				_cached_liquid_bands.append(band)
+
+		layer_index = group_end
+
+
+func _same_liquid_colour(first: Color, second: Color) -> bool:
+	return (
+		absf(first.r - second.r) <= 0.002
+		and absf(first.g - second.g) <= 0.002
+		and absf(first.b - second.b) <= 0.002
+		and absf(first.a - second.a) <= 0.002
+	)
+
+
+func _build_liquid_chamber_polygon(rect: Rect2) -> PackedVector2Array:
+	var polygon := PackedVector2Array()
+	var left_wall := PackedVector2Array()
+	var right_wall := PackedVector2Array()
+	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
+	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
+	_cached_liquid_floor_depth = clampf(
+		rect.size.y * LIQUID_FLOOR_DEPTH_RATIO,
+		5.0,
+		9.5
+	)
+
+	for sample_index in range(LIQUID_CHAMBER_SIDE_SAMPLES + 1):
+		var t: float = float(sample_index) / float(LIQUID_CHAMBER_SIDE_SAMPLES)
+		var y: float = lerpf(top_y, bottom_y, t)
+		var y_ratio: float = clampf(
+			(y - rect.position.y) / rect.size.y,
+			_window_top_ratio,
+			_window_bottom_ratio
+		)
+		var bounds: Vector2 = _window_bounds_at(y_ratio)
+		var bottom_blend: float = smoothstep(0.70, 1.0, t)
+		var left_x: float = (
+			rect.position.x
+			+ rect.size.x * bounds.x
+			+ LIQUID_WALL_INSET
+			- LIQUID_BOTTOM_WALL_OVERDRAW * bottom_blend
+		)
+		var right_x: float = (
+			rect.position.x
+			+ rect.size.x * bounds.y
+			- LIQUID_WALL_INSET
+			+ LIQUID_BOTTOM_WALL_OVERDRAW * bottom_blend
+		)
+		left_wall.append(Vector2(left_x, y))
+		right_wall.append(Vector2(right_x, y))
+
+	for point in left_wall:
+		polygon.append(point)
+
+	var floor_left_x: float = left_wall.back().x
+	var floor_right_x: float = right_wall.back().x
+	for sample_index in range(1, LIQUID_FLOOR_SAMPLES + 1):
+		var t: float = float(sample_index) / float(LIQUID_FLOOR_SAMPLES)
+		var floor_y: float = bottom_y + sin(PI * t) * _cached_liquid_floor_depth
+		polygon.append(Vector2(
+			lerpf(floor_left_x, floor_right_x, t),
+			floor_y
+		))
+
+	for sample_index in range(LIQUID_CHAMBER_SIDE_SAMPLES - 1, -1, -1):
+		polygon.append(right_wall[sample_index])
+
+	return polygon
+
+
+func _get_liquid_gravity_frame(rect: Rect2, angle: float) -> Dictionary:
+	var tangent := Vector2(cos(angle), -sin(angle))
+	var normal := Vector2(sin(angle), cos(angle))
+	var tangent_span: float = (
+		absf(tangent.x) * rect.size.x * 0.5
+		+ absf(tangent.y) * rect.size.y * 0.5
+		+ 8.0
+	)
+	return {
+		"centre": rect.get_center(),
+		"tangent": tangent,
+		"normal": normal,
+		"tangent_span": tangent_span
+	}
+
+
+func _build_gravity_half_plane(
+	rect: Rect2,
+	frame: Dictionary,
+	offset: float,
+	keep_below: bool,
+	curve_depth: float
+) -> PackedVector2Array:
+	var centre: Vector2 = frame["centre"]
+	var tangent: Vector2 = frame["tangent"]
+	var normal: Vector2 = frame["normal"]
+	var tangent_span: float = float(frame["tangent_span"])
+	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
+	var extended_span: float = tangent_span + margin
+	var boundary := PackedVector2Array()
+
+	for sample_index in range(LIQUID_BOUNDARY_SAMPLES + 1):
+		var t: float = float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
+		var tangent_distance: float = lerpf(-extended_span, extended_span, t)
+		var u: float = tangent_distance / tangent_span
+		var curve: float = curve_depth * maxf(0.0, 1.0 - u * u)
+		boundary.append(
+			centre
+			+ tangent * tangent_distance
+			+ normal * (offset + curve)
+		)
+
+	var half_plane := PackedVector2Array()
+	if keep_below:
+		for point in boundary:
+			half_plane.append(point)
+		half_plane.append(boundary.back() + normal * margin * 2.0)
+		half_plane.append(boundary[0] + normal * margin * 2.0)
+	else:
+		for index in range(boundary.size() - 1, -1, -1):
+			half_plane.append(boundary[index])
+		half_plane.append(boundary[0] - normal * margin * 2.0)
+		half_plane.append(boundary.back() - normal * margin * 2.0)
+
+	return half_plane
+
+
+func _polygon_area(polygon: PackedVector2Array) -> float:
+	if polygon.size() < 3:
+		return 0.0
+	var twice_area: float = 0.0
+	for index in range(polygon.size()):
+		var first: Vector2 = polygon[index]
+		var second: Vector2 = polygon[(index + 1) % polygon.size()]
+		twice_area += first.x * second.y - second.x * first.y
+	return absf(twice_area) * 0.5
+
+
+func _polygons_area(polygons: Array) -> float:
+	var total_area: float = 0.0
+	for item in polygons:
+		var polygon: PackedVector2Array = item
+		total_area += _polygon_area(polygon)
+	return total_area
+
+
+func _largest_polygon(polygons: Array) -> PackedVector2Array:
+	var largest := PackedVector2Array()
+	var largest_area: float = 0.0
+	for item in polygons:
+		var polygon: PackedVector2Array = item
+		var area: float = _polygon_area(polygon)
+		if area > largest_area:
+			largest_area = area
+			largest = polygon
+	return largest
+
+
+func _get_reference_liquid_area(
+	rect: Rect2,
+	chamber_polygon: PackedVector2Array,
+	fill_units: float,
+	curve_depth: float
+) -> float:
+	if fill_units <= 0.0:
+		return 0.0
+	if fill_units >= float(CAPACITY):
+		return _polygon_area(chamber_polygon)
+
+	var frame: Dictionary = _get_liquid_gravity_frame(rect, 0.0)
+	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
+	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
+	var effective_bottom_y: float = bottom_y + _cached_liquid_floor_depth
+	var reference_y: float = effective_bottom_y - (
+		(effective_bottom_y - top_y) * fill_units / float(CAPACITY)
+	)
+	var offset: float = reference_y - rect.get_center().y - curve_depth
+	var half_plane := _build_gravity_half_plane(
+		rect,
+		frame,
+		offset,
+		true,
+		curve_depth
+	)
+	return _polygons_area(Geometry2D.intersect_polygons(chamber_polygon, half_plane))
+
+
+func _get_gravity_boundary_offset(
+	rect: Rect2,
+	chamber_polygon: PackedVector2Array,
+	frame: Dictionary,
+	fill_units: float,
+	curve_depth: float
+) -> float:
+	var centre: Vector2 = frame["centre"]
+	var normal: Vector2 = frame["normal"]
+	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
+
+	if fill_units <= 0.0:
+		var lowest_projection: float = -INF
+		for point in chamber_polygon:
+			lowest_projection = maxf(
+				lowest_projection,
+				(point - centre).dot(normal)
+			)
+		return lowest_projection + margin
+
+	if fill_units >= float(CAPACITY):
+		if absf(_tilt) < 0.0005:
+			var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
+			return top_y - centre.y - curve_depth
+		var highest_projection: float = INF
+		for point in chamber_polygon:
+			highest_projection = minf(
+				highest_projection,
+				(point - centre).dot(normal)
+			)
+		return highest_projection - curve_depth
+
+	var target_area: float = _get_reference_liquid_area(
+		rect,
+		chamber_polygon,
+		fill_units,
+		curve_depth
+	)
+
+	if absf(_tilt) < 0.0005:
+		var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
+		var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
+		var effective_bottom_y: float = bottom_y + _cached_liquid_floor_depth
+		var reference_y: float = effective_bottom_y - (
+			(effective_bottom_y - top_y) * fill_units / float(CAPACITY)
+		)
+		return reference_y - centre.y - curve_depth
+
+	var min_projection: float = INF
+	var max_projection: float = -INF
+	for point in chamber_polygon:
+		var projection: float = (point - centre).dot(normal)
+		min_projection = minf(min_projection, projection)
+		max_projection = maxf(max_projection, projection)
+
+	var low: float = min_projection - curve_depth - margin
+	var high: float = max_projection + margin
+	for _iteration in range(LIQUID_GRAVITY_SOLVE_STEPS):
+		var middle: float = (low + high) * 0.5
+		var half_plane := _build_gravity_half_plane(
+			rect,
+			frame,
+			middle,
+			true,
+			curve_depth
+		)
+		var area: float = _polygons_area(
+			Geometry2D.intersect_polygons(chamber_polygon, half_plane)
+		)
+		if area > target_area:
+			low = middle
+		else:
+			high = middle
+
+	return (low + high) * 0.5
+
+
+func _get_liquid_boundary_curve_depth(fill_units: float) -> float:
+	# A full upright vial reaches the chamber's actual top edge, where the
+	# projected meniscus should span the complete neck-to-shoulder opening.
+	if fill_units >= float(CAPACITY) - 0.0001:
+		return 0.0
+	return LIQUID_INTERFACE_CURVE_DEPTH
+
+
+func _get_cached_boundary_offset(
+	rect: Rect2,
+	chamber_polygon: PackedVector2Array,
+	frame: Dictionary,
+	fill_units: float,
+	curve_depth: float,
+	offset_cache: Dictionary
+) -> float:
+	var key: float = snappedf(fill_units, 0.0001)
+	if offset_cache.has(key):
+		return float(offset_cache[key])
+	var offset: float = _get_gravity_boundary_offset(
+		rect,
+		chamber_polygon,
+		frame,
+		fill_units,
+		curve_depth
+	)
+	offset_cache[key] = offset
+	return offset
 
 
 func _build_cached_liquid_band(
 	rect: Rect2,
-	top_ratio: float,
-	bottom_ratio: float,
+	chamber_polygon: PackedVector2Array,
+	frame: Dictionary,
+	offset_cache: Dictionary,
+	bottom_units: float,
+	top_units: float,
 	liquid_color: Color,
-	is_surface: bool,
-	is_bottom: bool
+	is_surface: bool
 ) -> Dictionary:
-	var bottom_y: float = rect.position.y + rect.size.y * bottom_ratio
-	if not is_bottom:
-		bottom_y += 0.8
-	var top_y: float = rect.position.y + rect.size.y * top_ratio
-	var band_height: float = bottom_y - top_y
-	if band_height <= LIQUID_MIN_BAND_HEIGHT:
+	var top_curve_depth: float = _get_liquid_boundary_curve_depth(top_units)
+	var top_offset: float = _get_cached_boundary_offset(
+		rect,
+		chamber_polygon,
+		frame,
+		top_units,
+		top_curve_depth,
+		offset_cache
+	)
+	var top_half_plane := _build_gravity_half_plane(
+		rect,
+		frame,
+		top_offset,
+		true,
+		top_curve_depth
+	)
+	var clipped_polygons: Array = Geometry2D.intersect_polygons(
+		chamber_polygon,
+		top_half_plane
+	)
+
+	if bottom_units > 0.0001 and not clipped_polygons.is_empty():
+		var bottom_curve_depth: float = _get_liquid_boundary_curve_depth(bottom_units)
+		var bottom_offset: float = _get_cached_boundary_offset(
+			rect,
+			chamber_polygon,
+			frame,
+			bottom_units,
+			bottom_curve_depth,
+			offset_cache
+		)
+		var bottom_half_plane := _build_gravity_half_plane(
+			rect,
+			frame,
+			bottom_offset,
+			false,
+			bottom_curve_depth
+		)
+		var band_polygons: Array = []
+		for current_polygon in clipped_polygons:
+			var lower_clipped: Array = Geometry2D.intersect_polygons(
+				current_polygon,
+				bottom_half_plane
+			)
+			for output_polygon in lower_clipped:
+				band_polygons.append(output_polygon)
+		clipped_polygons = band_polygons
+
+	var polygon: PackedVector2Array = _largest_polygon(clipped_polygons)
+	if polygon.size() < 3:
 		return {}
 
+	var band_amount: float = maxf(0.001, top_units - bottom_units)
 	var band_alpha: float = smoothstep(
 		LIQUID_MIN_BAND_HEIGHT,
 		LIQUID_BAND_FADE_HEIGHT,
-		band_height
+		band_amount * rect.size.y / float(CAPACITY)
 	)
-
-	# The top edge is horizontal, so resolve its chamber bounds once.
-	var body_ratio: float = clampf(
-		(top_y - rect.position.y) / rect.size.y,
-		_window_top_ratio,
-		_window_bottom_ratio
-	)
-	var body_bounds := _window_bounds_at(body_ratio)
-	var body_left_x: float = rect.position.x + rect.size.x * body_bounds.x + LIQUID_WALL_INSET
-	var body_right_x: float = rect.position.x + rect.size.x * body_bounds.y - LIQUID_WALL_INSET
-	var body_top_edge := PackedVector2Array()
-	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		body_top_edge.append(Vector2(lerpf(body_left_x, body_right_x, t), top_y))
-
-	if body_top_edge.size() < 2:
-		return {}
-
-	var polygon := body_top_edge.duplicate()
-	var right_top_y: float = body_top_edge[-1].y
-	var left_top_y: float = body_top_edge[0].y
-	var bottom_bounds := _window_bounds_at(bottom_ratio)
-	var bottom_left_x: float = (
-		rect.position.x
-		+ rect.size.x * bottom_bounds.x
-		+ LIQUID_WALL_INSET
-		- LIQUID_BOTTOM_WALL_OVERDRAW
-	)
-	var bottom_right_x: float = (
-		rect.position.x
-		+ rect.size.x * bottom_bounds.y
-		- LIQUID_WALL_INSET
-		+ LIQUID_BOTTOM_WALL_OVERDRAW
-	)
-
-	for side_index in range(1, LIQUID_SIDE_SAMPLES + 1):
-		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(right_top_y, bottom_y, t)
-		var lower_blend: float = smoothstep(LIQUID_BOTTOM_BLEND_START, 1.0, t)
-		var wall_inset: float = LIQUID_WALL_INSET - LIQUID_BOTTOM_WALL_OVERDRAW * lower_blend
-		var bounds := _window_bounds_at(clampf(
-			(y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		))
-		polygon.append(Vector2(
-			rect.position.x + rect.size.x * bounds.y - wall_inset,
-			y
-		))
-
-	polygon.append(Vector2(bottom_left_x, bottom_y))
-	for side_index in range(1, LIQUID_SIDE_SAMPLES):
-		var t: float = float(side_index) / float(LIQUID_SIDE_SAMPLES)
-		var y: float = lerpf(bottom_y, left_top_y, t)
-		var lower_blend: float = smoothstep(LIQUID_BOTTOM_BLEND_START, 1.0, 1.0 - t)
-		var wall_inset: float = LIQUID_WALL_INSET - LIQUID_BOTTOM_WALL_OVERDRAW * lower_blend
-		var bounds := _window_bounds_at(clampf(
-			(y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		))
-		polygon.append(Vector2(
-			rect.position.x + rect.size.x * bounds.x + wall_inset,
-			y
-		))
-
 	var fill_color: Color = liquid_color.lerp(liquid_color.lightened(0.12), 0.10)
 	fill_color.a *= band_alpha
 	var edge_color: Color = fill_color.darkened(0.10)
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
 
-	var vertex_colors := PackedColorArray()
-	for sample_index in range(LIQUID_SURFACE_SAMPLES + 1):
-		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-		var center_weight: float = pow(maxf(0.0, sin(PI * t)), 0.85) * 0.42
-		vertex_colors.append(edge_color.lerp(center_color, center_weight))
-	for _side_index in range(LIQUID_SIDE_SAMPLES):
-		vertex_colors.append(edge_color)
-	vertex_colors.append(bottom_color)
-	for _side_index in range(1, LIQUID_SIDE_SAMPLES):
-		vertex_colors.append(edge_color)
+	var min_y: float = INF
+	var max_y: float = -INF
+	for point in polygon:
+		min_y = minf(min_y, point.y)
+		max_y = maxf(max_y, point.y)
 
-	# Cache the colour field for a shallow elliptical free surface.
-	# Its geometry can then move every frame without rebuilding its palette.
-	var surface_colours := PackedColorArray()
-	if is_surface:
-		for sample_index in range(LIQUID_SURFACE_SAMPLES):
-			var angle: float = TAU * float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
-			var front_weight: float = 0.5 + 0.5 * sin(angle)
-			var surface_color: Color = edge_color.lerp(center_color, front_weight)
-			surface_colours.append(surface_color)
+	var vertex_colors := PackedColorArray()
+	for point in polygon:
+		var horizontal_distance: float = absf(point.x - rect.get_center().x)
+		var horizontal_weight: float = 1.0 - clampf(
+			horizontal_distance / maxf(1.0, rect.size.x * 0.5),
+			0.0,
+			1.0
+		)
+		var center_weight: float = pow(horizontal_weight, 0.85) * 0.42
+		var vertical_weight: float = clampf(
+			(point.y - min_y) / maxf(1.0, max_y - min_y),
+			0.0,
+			1.0
+		)
+		var shaded_color: Color = edge_color.lerp(center_color, center_weight)
+		shaded_color = shaded_color.lerp(bottom_color, vertical_weight * 0.08)
+		vertex_colors.append(shaded_color)
+
+	var centre: Vector2 = frame["centre"]
+	var normal: Vector2 = frame["normal"]
+	var tangent: Vector2 = frame["tangent"]
+	var tangent_range: Vector2 = _get_surface_tangent_range(
+		chamber_polygon,
+		frame,
+		top_offset,
+		top_curve_depth
+	)
+	var surface_radius_x: float = maxf(
+		0.0,
+		(tangent_range.y - tangent_range.x) * 0.5 - 1.5
+	)
+	var surface_center: Vector2 = (
+		centre
+		+ tangent * ((tangent_range.x + tangent_range.y) * 0.5)
+		+ normal * (top_offset + top_curve_depth)
+	)
 
 	return {
 		"polygon": polygon,
 		"vertex_colors": vertex_colors,
-		"body_top_edge": body_top_edge,
-		"surface_colours": surface_colours,
 		"fill_color": fill_color,
-		"liquid_alpha": liquid_color.a,
-		"surface_depth": clampf(rect.size.y * 0.026, 4.0, 8.0),
-		"is_surface": is_surface,
-		"top_y": top_y
+		"liquid_alpha": liquid_color.a * band_alpha,
+		"surface_center": surface_center,
+		"surface_tangent": tangent,
+		"surface_normal": normal,
+		"surface_radius_x": surface_radius_x,
+		"surface_depth": clampf(rect.size.y * 0.032, 5.0, 10.0),
+		"is_surface": is_surface
 	}
 
 
-func _draw_cached_liquid_surface(band: Dictionary) -> void:
-	var body_top_edge: PackedVector2Array = band["body_top_edge"]
-	if body_top_edge.size() < 2:
-		return
+func _get_surface_tangent_range(
+	chamber_polygon: PackedVector2Array,
+	frame: Dictionary,
+	boundary_offset: float,
+	curve_depth: float
+) -> Vector2:
+	var centre: Vector2 = frame["centre"]
+	var tangent: Vector2 = frame["tangent"]
+	var normal: Vector2 = frame["normal"]
+	var tangent_span: float = float(frame["tangent_span"])
+	var first_inside: float = INF
+	var last_inside: float = -INF
 
-	var left_x: float = body_top_edge[0].x
-	var right_x: float = body_top_edge[body_top_edge.size() - 1].x
-	var centre_x: float = (left_x + right_x) * 0.5
-	var radius_x: float = maxf(0.0, (right_x - left_x) * 0.5 - 1.5)
+	# The surface line can cross the vessel away from its centre when the
+	# bottle is heavily tilted. Sample both directions instead of guessing
+	# the opening width from a single horizontal profile row.
+	for sample_index in range(LIQUID_SURFACE_EXTENT_SAMPLES + 1):
+		var distance: float = lerpf(
+			-tangent_span,
+			tangent_span,
+			float(sample_index) / float(LIQUID_SURFACE_EXTENT_SAMPLES)
+		)
+		var normalized_distance: float = distance / tangent_span
+		var curve: float = curve_depth * maxf(
+			0.0,
+			1.0 - normalized_distance * normalized_distance
+		)
+		var candidate: Vector2 = (
+			centre
+			+ tangent * distance
+			+ normal * (boundary_offset + curve + 0.25)
+		)
+		if Geometry2D.is_point_in_polygon(candidate, chamber_polygon):
+			first_inside = minf(first_inside, distance)
+			last_inside = maxf(last_inside, distance)
+
+	if first_inside == INF or last_inside <= first_inside:
+		return Vector2.ZERO
+	return Vector2(first_inside, last_inside)
+
+
+func _get_liquid_surface_wave(normalized_x: float) -> float:
+	var maximum_wave: float = 0.35 + _surface_activity * 2.25 + absf(_slosh) * 1.35
+	var secondary_wave: float = 0.18 + _surface_activity * 0.48 + absf(_slosh) * 0.50
+	var edge_envelope: float = pow(
+		maxf(0.0, 1.0 - normalized_x * normalized_x),
+		0.55
+	)
+	var wave_one: float = sin(_surface_wave_phase + normalized_x * 3.1) * maximum_wave
+	var wave_two: float = sin(_surface_wave_phase * 1.37 - normalized_x * 6.3) * secondary_wave
+	return (wave_one + wave_two) * edge_envelope
+
+
+func _draw_cached_liquid_surface(band: Dictionary) -> void:
+	var centre: Vector2 = band["surface_center"]
+	var tangent: Vector2 = band["surface_tangent"]
+	var normal: Vector2 = band["surface_normal"]
+	var radius_x: float = float(band["surface_radius_x"])
 	var radius_y: float = float(band["surface_depth"])
-	var top_y: float = float(band["top_y"])
 	if radius_x <= 4.0:
 		return
 
-	# The cached working body remains profile-conforming. This independent
-	# surface pass adds the shallow oval plane, with only its wave points moving.
 	var surface_polygon := PackedVector2Array()
+	var liquid_color: Color = band["fill_color"]
+	var surface_colours := PackedColorArray()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES):
 		var angle: float = TAU * float(sample_index) / float(LIQUID_SURFACE_SAMPLES)
 		var normalized_x: float = cos(angle)
-		var wave: float = _get_surface_wave_offset(normalized_x) * 0.24
-		surface_polygon.append(Vector2(
-			centre_x + normalized_x * radius_x,
-			top_y + sin(angle) * radius_y + wave
-		))
-
-	var surface_colours: PackedColorArray = band["surface_colours"]
+		var wave: float = _get_liquid_surface_wave(normalized_x) * 0.20
+		surface_polygon.append(
+			centre
+			+ tangent * (normalized_x * radius_x)
+			+ normal * (sin(angle) * radius_y + wave)
+		)
+		var front_weight: float = 0.5 + 0.5 * sin(angle)
+		surface_colours.append(
+			liquid_color.darkened(0.07).lerp(
+				liquid_color.lightened(0.18),
+				front_weight
+			)
+		)
 	draw_polygon(surface_polygon, surface_colours)
 
-	# The rear meniscus is darker; the near edge catches a delicate highlight.
 	var rear_edge := PackedVector2Array()
 	var front_edge := PackedVector2Array()
 	for sample_index in range(LIQUID_SURFACE_SAMPLES / 2 + 1):
 		var t: float = float(sample_index) / float(LIQUID_SURFACE_SAMPLES / 2)
 		var rear_angle: float = PI + PI * t
 		var front_angle: float = PI * t
-		rear_edge.append(Vector2(
-			centre_x + cos(rear_angle) * radius_x,
-			top_y + sin(rear_angle) * radius_y
-		))
-		front_edge.append(Vector2(
-			centre_x + cos(front_angle) * radius_x,
-			top_y + sin(front_angle) * radius_y
-		))
+		rear_edge.append(
+			centre
+			+ tangent * (cos(rear_angle) * radius_x)
+			+ normal * (
+				sin(rear_angle) * radius_y
+				+ _get_liquid_surface_wave(cos(rear_angle)) * 0.20
+			)
+		)
+		front_edge.append(
+			centre
+			+ tangent * (cos(front_angle) * radius_x)
+			+ normal * (
+				sin(front_angle) * radius_y
+				+ _get_liquid_surface_wave(cos(front_angle)) * 0.20
+			)
+		)
 
-	var liquid_color: Color = band["fill_color"]
 	var liquid_alpha: float = float(band["liquid_alpha"])
 	var rear_color: Color = liquid_color.darkened(0.30)
 	rear_color.a = 0.42 * liquid_alpha
@@ -1009,6 +1410,9 @@ func _draw_cached_liquid_surface(band: Dictionary) -> void:
 		1.2,
 		true
 	)
+
+
+
 
 
 func _get_cached_bubble_sprite(
@@ -1087,20 +1491,29 @@ func _get_cached_bubble_sprite(
 
 
 func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
-	if visible_layers <= 0 or _window_profile.is_empty():
+	if visible_layers <= 0 or _window_profile.is_empty() or _cached_liquid_bands.is_empty():
 		return
 
 	var appearance_alpha: float = smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, _liquid_level)
-	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
-	var layer_height: float = chamber_span / float(CAPACITY)
-	var surface_ratio: float = _window_bottom_ratio - (
-		layer_height * clampf(_liquid_level, 0.0, float(CAPACITY))
-	)
-	var surface_y: float = rect.position.y + rect.size.y * surface_ratio
-	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
+	var top_band: Dictionary = _cached_liquid_bands.back()
+	var surface_center: Vector2 = top_band["surface_center"]
+	var tangent: Vector2 = top_band["surface_tangent"]
+	var normal: Vector2 = top_band["surface_normal"]
+	var surface_half_width: float = float(top_band["surface_radius_x"])
+	if surface_half_width <= 4.0:
+		return
 
-	# Four reusable sprites retain the layered bubble look without issuing
-	# three separately tessellated circles for every moving bubble.
+	var gravity_normal: Vector2 = top_band["surface_normal"]
+	var vessel_centre: Vector2 = rect.get_center()
+	var lowest_chamber_projection: float = -INF
+	for chamber_point in _cached_chamber_polygon:
+		lowest_chamber_projection = maxf(
+			lowest_chamber_projection,
+			(chamber_point - vessel_centre).dot(gravity_normal)
+		)
+	var surface_projection: float = (surface_center - vessel_centre).dot(gravity_normal)
+	var liquid_depth: float = maxf(0.0, lowest_chamber_projection - surface_projection)
+
 	const BUBBLE_SIZES := [1.65, 2.25, 1.85, 2.35]
 	for bubble_index in range(BUBBLE_SIZES.size()):
 		var speed: float = 0.082 + float(bubble_index % 3) * 0.021 + float(bubble_index / 3) * 0.008
@@ -1108,23 +1521,18 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			_wave_time * speed + float(bubble_index) * 0.163,
 			1.0
 		)
-		var bubble_y: float = lerpf(bottom_y - 5.0, surface_y + 3.0, phase)
-		var normalized_y: float = clampf(
-			(bubble_y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
+		var sway: float = sin(
+			_wave_time * (0.34 + float(bubble_index % 3) * 0.09)
+			+ float(bubble_index) * 1.71
 		)
-		var bounds := _window_bounds_at(normalized_y)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + 5.0
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - 5.0
-		if right_x - left_x <= 7.0:
+		var bubble_position: Vector2 = (
+			surface_center
+			+ normal * (liquid_depth * (1.0 - phase))
+			+ tangent * (sway * surface_half_width * 0.24)
+		)
+		if not Geometry2D.is_point_in_polygon(bubble_position, _cached_chamber_polygon):
 			continue
 
-		var sway: float = sin(_wave_time * (0.34 + float(bubble_index % 3) * 0.09) + float(bubble_index) * 1.71)
-		var bubble_position := Vector2(
-			lerpf(left_x, right_x, 0.5 + sway * 0.24),
-			bubble_y
-		)
 		var bubble_size: float = BUBBLE_SIZES[bubble_index]
 		var travel_fade: float = sin(PI * phase)
 		var pulse: float = 0.55 + 0.45 * sin(_wave_time * 1.15 + float(bubble_index) * 1.37)
@@ -1133,7 +1541,7 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			continue
 
 		var layer_index: int = clampi(
-			int(floor((_window_bottom_ratio - normalized_y) / maxf(0.0001, layer_height))),
+			int(floor(phase * maxf(1.0, _liquid_level))),
 			0,
 			mini(_visual_contents.size() - 1, CAPACITY - 1)
 		)
@@ -1156,28 +1564,27 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			Color(1.0, 1.0, 1.0, bubble_alpha)
 		)
 
-	# Tiny motes use the same one-draw approach, with a tighter bright centre.
 	for mote_index in range(2):
 		var mote_phase: float = fposmod(
 			_wave_time * (0.055 + float(mote_index) * 0.012)
 			+ float(mote_index) * 0.317,
 			1.0
 		)
-		var mote_y: float = lerpf(bottom_y - 3.0, surface_y + 2.0, mote_phase)
-		var mote_ratio: float = clampf(
-			(mote_y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
+		var mote_y: float = liquid_depth * (1.0 - mote_phase)
+		var mote_position: Vector2 = (
+			surface_center
+			+ normal * mote_y
+			+ tangent * sin(_wave_time * 0.27 + float(mote_index) * 2.1) * surface_half_width * 0.38
 		)
-		var mote_bounds := _window_bounds_at(mote_ratio)
-		var mote_half_width: float = maxf(0.0, rect.size.x * (mote_bounds.y - mote_bounds.x) * 0.32)
-		if mote_half_width <= 2.0:
+		var mote_alpha: float = (
+			(0.065 + 0.035 * sin(_wave_time * 0.8 + float(mote_index)))
+			* sin(PI * mote_phase)
+			* appearance_alpha
+		)
+		if not Geometry2D.is_point_in_polygon(mote_position, _cached_chamber_polygon):
 			continue
-		var mote_x: float = rect.get_center().x + sin(_wave_time * 0.27 + float(mote_index) * 2.1) * mote_half_width
-		var mote_position := Vector2(mote_x, mote_y)
-		var mote_alpha: float = (0.065 + 0.035 * sin(_wave_time * 0.8 + float(mote_index))) * sin(PI * mote_phase) * appearance_alpha
 		var mote_layer: int = clampi(
-			int(floor((_window_bottom_ratio - mote_ratio) / maxf(0.0001, layer_height))),
+			int(floor(mote_phase * maxf(1.0, _liquid_level))),
 			0,
 			mini(_visual_contents.size() - 1, CAPACITY - 1)
 		)
@@ -1198,6 +1605,9 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 			false,
 			Color(1.0, 1.0, 1.0, mote_alpha)
 		)
+
+
+
 
 
 func _draw_glass_back(_rect: Rect2) -> void:
