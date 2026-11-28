@@ -67,7 +67,10 @@ func transition_to(scene_path: String, duration: float = DEFAULT_DURATION) -> vo
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await close_tween.finished
 
-	# Both scenes meet at the same slight zoom, avoiding a visible jump at swap.
+	# Fully cover the one-frame gap while Godot removes the outgoing scene
+	# and installs the incoming one. Without this, the viewport clear color can
+	# show through the translucent veil as a brief white flash.
+	_set_veil_alpha(1.0)
 	var change_error: Error = get_tree().change_scene_to_file(scene_path)
 	if change_error != OK:
 		push_error(
@@ -119,7 +122,7 @@ func _prepare_scene_root(scene_root: Control) -> void:
 func _set_veil_alpha(alpha: float) -> void:
 	if not is_instance_valid(_overlay):
 		return
-	_overlay.color = Color(VEIL_COLOR.r, VEIL_COLOR.g, VEIL_COLOR.b, clampf(alpha, 0.0, VEIL_PEAK_ALPHA))
+	_overlay.color = Color(VEIL_COLOR.r, VEIL_COLOR.g, VEIL_COLOR.b, clampf(alpha, 0.0, 1.0))
 
 
 func _restore_outgoing_scene(scene_root: Control, duration: float) -> void:
@@ -127,7 +130,7 @@ func _restore_outgoing_scene(scene_root: Control, duration: float) -> void:
 	if is_instance_valid(scene_root):
 		recovery_tween.tween_property(scene_root, "scale", Vector2.ONE, duration)
 		recovery_tween.tween_property(scene_root, "modulate", Color.WHITE, duration)
-	recovery_tween.tween_method(_set_veil_alpha, VEIL_PEAK_ALPHA, 0.0, duration)
+	recovery_tween.tween_method(_set_veil_alpha, 1.0, 0.0, duration)
 	await recovery_tween.finished
 	_finish_transition()
 
