@@ -30,10 +30,11 @@ Open `scenes/test_tube_cached_liquid_sorting_board.tscn` and run the current sce
 
 ## Separation
 
-- `asset_fantasy_alchemy_bottle.gd` remains the working main-scene renderer and is not modified.
+- `asset_fantasy_alchemy_bottle.gd`, `fantasy_alchemy_bottle.gd` and `alchemy_bottle.gd` remain the working main-scene renderer hierarchy and are not modified.
+- `test_tube_renderer_base_alchemy_bottle.gd` and `test_tube_renderer_base_fantasy_bottle.gd` are private copies of the two lower-level base classes.
+- `test_tube_cached_liquid_vial.gd` is a private full copy of the working asset renderer, redirected to those private bases and adapted for the lab bottle.
 - `test_tube_vial.gd` and `test_tube_sorting_board.tscn` remain the original new-glass baseline.
 - `test_tube_liquid_vial.gd` and `test_tube_liquid_sorting_board.tscn` remain the first simple profile-liquid experiment.
-- `test_tube_cached_liquid_vial.gd` is an independent full copy of the working renderer adapted for the lab bottle.
 
 ## Validation
 

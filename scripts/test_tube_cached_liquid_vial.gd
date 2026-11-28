@@ -1,4 +1,4 @@
-extends "res://scripts/fantasy_alchemy_bottle.gd"
+extends "res://scripts/test_tube_renderer_base_fantasy_bottle.gd"
 
 ## One complete illustration per vial. The transparent inner chamber is analysed
 ## once per texture; every essence layer then shares the resulting body profile.
