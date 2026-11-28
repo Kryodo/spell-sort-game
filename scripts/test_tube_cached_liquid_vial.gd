@@ -738,7 +738,8 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 	):
 		return
 
-	var top_band: Dictionary = _cached_liquid_bands[_cached_liquid_bands.size() - 1]
+	var top_band_index: int = _cached_liquid_bands.size() - 1
+	var top_band: Dictionary = _cached_liquid_bands[top_band_index]
 	var centre: Vector2 = top_band["surface_center"]
 	var tangent: Vector2 = top_band["surface_tangent"]
 	var normal: Vector2 = top_band["surface_normal"]
@@ -801,13 +802,11 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 	for index in range(right_edge.size() - 1, -1, -1):
 		flow_polygon.append(right_edge[index])
 
-	# The connector belongs to the currently pouring essence only.
-	# Clip it to that top layer's actual volume, never to the whole chamber:
-	# lower colours remain visible and keep their own space beneath it.
-	var top_colour_polygon: PackedVector2Array = top_band["polygon"]
-	var clipped_flow: Array = Geometry2D.intersect_polygons(
+	# The connector can occupy the top essence and the empty neck above it,
+	# but it must never be painted across any lower essence layer.
+	var clipped_flow: Array = _clip_pour_shape_to_top_essence(
 		flow_polygon,
-		top_colour_polygon
+		top_band_index
 	)
 	var flow_color: Color = _pour_outflow_color.lerp(
 		_pour_outflow_color.lightened(0.15),
@@ -818,8 +817,7 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 		if piece.size() >= 3:
 			draw_colored_polygon(piece, flow_color)
 
-	# The internal glint uses the same top-layer mask so it cannot draw a
-	# misleading bright line across the lower essence layers either.
+	# Keep the internal glint inside the exact same unobstructed corridor.
 	var glint_left := PackedVector2Array()
 	var glint_right := PackedVector2Array()
 	for sample_index in range(3, FLOW_SAMPLES - 3):
@@ -831,15 +829,50 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 		glint_polygon.append(point)
 	for index in range(glint_right.size() - 1, -1, -1):
 		glint_polygon.append(glint_right[index])
-	var clipped_glint: Array = Geometry2D.intersect_polygons(
+	var clipped_glint: Array = _clip_pour_shape_to_top_essence(
 		glint_polygon,
-		top_colour_polygon
+		top_band_index
 	)
 	for glint_piece in clipped_glint:
 		var piece: PackedVector2Array = glint_piece
 		if piece.size() >= 3:
 			draw_colored_polygon(piece, Color(1.0, 1.0, 1.0, 0.13))
 
+
+func _clip_pour_shape_to_top_essence(
+	pour_polygon: PackedVector2Array,
+	top_band_index: int
+) -> Array:
+	# First keep the ribbon inside the bottle, including the narrow neck.
+	var remaining_pieces: Array = Geometry2D.intersect_polygons(
+		pour_polygon,
+		_cached_chamber_polygon
+	)
+	if remaining_pieces.is_empty():
+		return remaining_pieces
+
+	# Remove every band beneath the currently pouring essence. The source
+	# ribbon may continue through the open chamber above those bands, unlike
+	# clipping it to the top band's existing liquid-only polygon.
+	for lower_index in range(top_band_index):
+		var lower_band: Dictionary = _cached_liquid_bands[lower_index]
+		var lower_polygon: PackedVector2Array = lower_band["polygon"]
+		var unobstructed_pieces: Array = []
+		for current_piece_value in remaining_pieces:
+			var current_piece: PackedVector2Array = current_piece_value
+			var outside_lower_band: Array = Geometry2D.clip_polygons(
+				current_piece,
+				lower_polygon
+			)
+			for outside_piece_value in outside_lower_band:
+				var outside_piece: PackedVector2Array = outside_piece_value
+				if outside_piece.size() >= 3:
+					unobstructed_pieces.append(outside_piece)
+		remaining_pieces = unobstructed_pieces
+		if remaining_pieces.is_empty():
+			break
+
+	return remaining_pieces
 
 func _draw_surface_bubble_activity(rect: Rect2) -> void:
 	if _liquid_level <= 0.02 or _visual_contents.is_empty() or _cached_liquid_bands.is_empty():
