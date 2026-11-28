@@ -73,6 +73,17 @@
       <stop offset="0.72" stop-color="#030705" stop-opacity="0"/>
       <stop offset="1" stop-color="#030705" stop-opacity="0.72"/>
     </linearGradient>
+    <linearGradient id="candleWax" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#806d4d"/>
+      <stop offset="0.24" stop-color="#c5ae7a"/>
+      <stop offset="0.62" stop-color="#d7c391"/>
+      <stop offset="1" stop-color="#766345"/>
+    </linearGradient>
+    <linearGradient id="candleBrass" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#b99a61"/>
+      <stop offset="0.48" stop-color="#6f5837"/>
+      <stop offset="1" stop-color="#30291d"/>
+    </linearGradient>
   </defs>
 
   <!-- Deep olive-brown sanctuary with a restrained warm centre -->
@@ -154,12 +165,7 @@
   <path d="M58 728C86 690 95 655 89 625M662 728C634 690 625 655 631 625"
         fill="none" stroke="#64714a" stroke-opacity="0.13" stroke-width="3"/>
 
-  <!-- One small wall sconce: nested into the architecture, not placed as clutter -->
-  <ellipse cx="572" cy="704" rx="112" ry="124" fill="url(#sconceGlow)"/>
-  <path d="M548 735C560 723 583 723 596 735L604 749H540Z" fill="#251f16" stroke="#8c7048" stroke-opacity="0.44" stroke-width="2"/>
-  <path d="M555 736L559 684C561 677 583 677 585 685L590 737Z" fill="url(#carvedWood)" stroke="#a38a59" stroke-opacity="0.45" stroke-width="2"/>
-  <path d="M559 691C568 686 579 686 586 691" fill="none" stroke="#d1ad70" stroke-opacity="0.28" stroke-width="2"/>
-  <path d="M571 679V671" stroke="#2b2117" stroke-width="2"/>
+  <!-- Candlelight now belongs to the workbench, not an unsupported wall detail. -->
 
   <!-- Workbench legs and apron, kept mostly in shadow -->
   <path d="M75 946L645 946L622 1165L98 1165Z" fill="#090f0c" opacity="0.88"/>
@@ -193,6 +199,20 @@
   <path d="M360 851C398 850 424 861 439 881C415 897 391 902 360 899C329 902 305 897 281 881C296 861 322 850 360 851Z"
         fill="none" stroke="#c09a63" stroke-opacity="0.15" stroke-width="2"/>
   <path d="M360 861L370 875L360 889L350 875Z" fill="#c6a36a" fill-opacity="0.12"/>
+
+  <!-- A grounded wax candle in a small aged-brass holder on the workbench -->
+  <g id="workbench-candle">
+    <ellipse cx="570" cy="808" rx="25" ry="5.5" fill="#030705" opacity="0.48"/>
+    <path d="M551 795C556 801 584 801 589 795L585 804C578 810 562 810 555 804Z"
+          fill="url(#candleBrass)" stroke="#b99a61" stroke-opacity="0.48" stroke-width="1.5"/>
+    <ellipse cx="570" cy="797" rx="15.5" ry="4.3" fill="#443725" stroke="#a88a55" stroke-opacity="0.62" stroke-width="1.3"/>
+    <path d="M560 797C560 787 561 773 561 764C561 759 579 759 579 764C579 773 580 787 580 797C574 802 566 802 560 797Z"
+          fill="url(#candleWax)" stroke="#5b4b32" stroke-opacity="0.72" stroke-width="1.4"/>
+    <ellipse cx="570" cy="764" rx="9" ry="3.9" fill="#d4c08e" stroke="#88734d" stroke-opacity="0.72" stroke-width="1"/>
+    <path d="M563 774C563 781 562 789 563 794" fill="none" stroke="#efe0b3" stroke-opacity="0.22" stroke-width="1.5"/>
+    <path d="M570 761C568.5 758 570 755.5 571 753" fill="none" stroke="#302116" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M570 797C563 799 557 798 554 795" fill="none" stroke="#d6b678" stroke-opacity="0.34" stroke-width="1.2"/>
+  </g>
 
   <!-- Foreground botanical silhouette frames the room instead of decorating the table -->
   <g fill="url(#leaf)" stroke="#62704a" stroke-opacity="0.18" stroke-width="2">

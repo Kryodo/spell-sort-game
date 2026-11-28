@@ -128,7 +128,7 @@ func _build_atmosphere() -> void:
 	_candle_glow = TextureRect.new()
 	_candle_glow.name = "CandleGlow"
 	_candle_glow.texture = load(CANDLE_GLOW_PATH) as Texture2D
-	_candle_glow.position = Vector2(444.0, 565.0)
+	_candle_glow.position = Vector2(442.0, 626.0)
 	_candle_glow.size = Vector2(256.0, 256.0)
 	_candle_glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_candle_glow.stretch_mode = TextureRect.STRETCH_SCALE
@@ -140,7 +140,7 @@ func _build_atmosphere() -> void:
 	_candle_flame = TextureRect.new()
 	_candle_flame.name = "CandleFlame"
 	_candle_flame.texture = load(CANDLE_FLAME_PATH) as Texture2D
-	_candle_flame.position = Vector2(559.0, 641.0)
+	_candle_flame.position = Vector2(556.4, 717.0)
 	_candle_flame.size = Vector2(28.0, 44.0)
 	_candle_flame.pivot_offset = Vector2(14.0, 40.0)
 	_candle_flame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
