@@ -39,6 +39,8 @@ const LIQUID_FLOOR_SAMPLES := 32
 const LIQUID_FLOOR_DEPTH_RATIO := 0.021
 const LIQUID_INTERFACE_CURVE_DEPTH := 1.8
 const POUR_CHANNEL_SHOULDER_START := 0.56
+const POUR_WALL_CLEARANCE_BASE := 0.85
+const POUR_WALL_CLEARANCE_STEP := 0.75
 const LIQUID_GRAVITY_SOLVE_STEPS := 12
 const LIQUID_TILT_CACHE_EPSILON := 0.004
 const LIQUID_SURFACE_EXTENT_SAMPLES := 96
@@ -1164,33 +1166,11 @@ func _get_pour_boundary_sample_distance(
 	var tangent_span: float = float(frame["tangent_span"])
 	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
 	var extended_span: float = tangent_span + margin
-	var regular_distance: float = lerpf(
+	return lerpf(
 		-extended_span,
 		extended_span,
 		float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
 	)
-
-	# Reserve one actual polygon vertex for the mouth centre. This ensures the
-	# taper reaches the exact outlet cross-section, not merely a nearby sample.
-	var centre: Vector2 = frame["centre"]
-	var tangent: Vector2 = frame["tangent"]
-	var mouth_center := Vector2(
-		rect.get_center().x,
-		rect.position.y + rect.size.y * _mouth_y_ratio
-	)
-	var mouth_distance: float = (mouth_center - centre).dot(tangent)
-	var mouth_fraction: float = clampf(
-		(mouth_distance + extended_span) / (extended_span * 2.0),
-		0.0,
-		1.0
-	)
-	var mouth_sample_index: int = roundi(
-		mouth_fraction * float(LIQUID_BOUNDARY_SAMPLES)
-	)
-	if sample_index == mouth_sample_index:
-		return mouth_distance
-
-	return regular_distance
 
 
 func _build_pour_wall_profile(
@@ -1311,7 +1291,8 @@ func _build_gravity_half_plane(
 	offset: float,
 	keep_below: bool,
 	curve_depth: float,
-	pour_channel_weight: float = 0.0
+	pour_channel_weight: float = 0.0,
+	pour_wall_clearance: float = 0.0
 ) -> PackedVector2Array:
 	var centre: Vector2 = frame["centre"]
 	var tangent: Vector2 = frame["tangent"]
@@ -1332,6 +1313,7 @@ func _build_gravity_half_plane(
 
 		if (
 			pour_channel_weight > 0.001
+			and pour_wall_clearance > 0.0
 			and _cached_pour_wall_profile.size() == LIQUID_BOUNDARY_SAMPLES + 1
 		):
 			var wall_offset: float = _cached_pour_wall_profile[sample_index].y
@@ -1341,12 +1323,12 @@ func _build_gravity_half_plane(
 					frame,
 					tangent_distance
 				)
-				# Every internal interface lands on the actual lower inner wall
-				# at the precise mouth-centre sample. Their gaps therefore reach
-				# zero thickness at the outlet, leaving it exclusive to the top.
+				# Remain just inside the inner wall to avoid coincident polygon
+				# edges; lower colour opacity handles the final disappearance.
+				var target_wall_offset: float = wall_offset - pour_wall_clearance
 				normal_offset = lerpf(
 					normal_offset,
-					wall_offset,
+					target_wall_offset,
 					taper_progress * pour_channel_weight
 				)
 
@@ -1540,6 +1522,86 @@ func _get_pouring_boundary_weight(fill_units: float) -> float:
 	return angle_weight * _pour_visual_weight
 
 
+func _get_pouring_boundary_clearance(fill_units: float) -> float:
+	var boundary_index: int = roundi(fill_units)
+	if (
+		absf(fill_units - float(boundary_index)) > 0.001
+		or _get_pouring_boundary_weight(fill_units) <= 0.001
+	):
+		return 0.0
+	return (
+		POUR_WALL_CLEARANCE_BASE
+		+ float(boundary_index - 1) * POUR_WALL_CLEARANCE_STEP
+	)
+
+
+func _get_pouring_layer_fade_range(
+	rect: Rect2,
+	frame: Dictionary,
+	bottom_units: float,
+	is_surface: bool
+) -> Vector2:
+	if (
+		is_surface
+		or _pour_visual_weight <= 0.001
+		or absf(_tilt) < deg_to_rad(30.0)
+	):
+		return Vector2(INF, INF)
+
+	var layer_index: int = roundi(bottom_units)
+	if absf(bottom_units - float(layer_index)) > 0.001:
+		return Vector2(INF, INF)
+
+	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
+	var group_starts: Array[int] = []
+	var group_start: int = 0
+	while group_start < visible_layers:
+		group_starts.append(group_start)
+		var group_color: Color = _palette.get(
+			String(_visual_contents[group_start]),
+			Color(0.45, 0.78, 0.75, 1.0)
+		)
+		var group_end: int = group_start + 1
+		while group_end < visible_layers:
+			var next_color: Color = _palette.get(
+				String(_visual_contents[group_end]),
+				Color(0.45, 0.78, 0.75, 1.0)
+			)
+			if not _same_liquid_colour(group_color, next_color):
+				break
+			group_end += 1
+		group_start = group_end
+
+	var group_rank: int = group_starts.find(layer_index)
+	var lower_group_count: int = group_starts.size() - 1
+	if group_rank < 0 or group_rank >= lower_group_count or lower_group_count <= 0:
+		return Vector2(INF, INF)
+
+	var centre: Vector2 = frame["centre"]
+	var tangent: Vector2 = frame["tangent"]
+	var tangent_span: float = float(frame["tangent_span"])
+	var mouth_direction: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
+	var mouth_center := Vector2(
+		rect.get_center().x,
+		rect.position.y + rect.size.y * _mouth_y_ratio
+	)
+	var mouth_distance: float = (mouth_center - centre).dot(tangent) * mouth_direction
+	var shoulder_distance: float = tangent_span * POUR_CHANNEL_SHOULDER_START
+	var fade_end: float = maxf(shoulder_distance + 8.0, mouth_distance - 5.0)
+	var rank_weight: float = (
+		float(group_rank) / float(maxi(1, lower_group_count - 1))
+	)
+	# Bottommost layers begin fading first. The layer directly below the
+	# active essence remains visible furthest into the narrowing neck.
+	var fade_start: float = lerpf(
+		shoulder_distance + 3.0,
+		fade_end - 12.0,
+		rank_weight
+	)
+	fade_start = minf(fade_start, fade_end - 4.0)
+	return Vector2(fade_start, fade_end)
+
+
 func _get_reference_liquid_area(
 	rect: Rect2,
 	chamber_polygon: PackedVector2Array,
@@ -1572,7 +1634,8 @@ func _get_gravity_boundary_offset(
 	frame: Dictionary,
 	fill_units: float,
 	curve_depth: float,
-	pour_channel_weight: float = 0.0
+	pour_channel_weight: float = 0.0,
+	pour_wall_clearance: float = 0.0
 ) -> float:
 	var centre: Vector2 = frame["centre"]
 	var normal: Vector2 = frame["normal"]
@@ -1581,10 +1644,7 @@ func _get_gravity_boundary_offset(
 	if fill_units <= 0.0:
 		var lowest_projection: float = -INF
 		for point in chamber_polygon:
-			lowest_projection = maxf(
-				lowest_projection,
-				(point - centre).dot(normal)
-			)
+			lowest_projection = maxf(lowest_projection, (point - centre).dot(normal))
 		return lowest_projection + margin
 
 	var target_area: float = _get_reference_liquid_area(
@@ -1620,7 +1680,8 @@ func _get_gravity_boundary_offset(
 			middle,
 			true,
 			curve_depth,
-			pour_channel_weight
+			pour_channel_weight,
+			pour_wall_clearance
 		)
 		var area: float = _polygons_area(
 			Geometry2D.intersect_polygons(chamber_polygon, half_plane)
@@ -1650,7 +1711,12 @@ func _get_cached_boundary_offset(
 	offset_cache: Dictionary
 ) -> float:
 	var pour_channel_weight: float = _get_pouring_boundary_weight(fill_units)
-	var key: String = "%0.4f|%0.3f" % [fill_units, pour_channel_weight]
+	var pour_wall_clearance: float = _get_pouring_boundary_clearance(fill_units)
+	var key: String = "%0.4f|%0.3f|%0.3f" % [
+		fill_units,
+		pour_channel_weight,
+		pour_wall_clearance
+	]
 	if offset_cache.has(key):
 		return float(offset_cache[key])
 	var offset: float = _get_gravity_boundary_offset(
@@ -1659,7 +1725,8 @@ func _get_cached_boundary_offset(
 		frame,
 		fill_units,
 		curve_depth,
-		pour_channel_weight
+		pour_channel_weight,
+		pour_wall_clearance
 	)
 	offset_cache[key] = offset
 	return offset
@@ -1679,6 +1746,7 @@ func _build_cached_liquid_band(
 ) -> Array[Dictionary]:
 	var top_curve_depth: float = _get_liquid_boundary_curve_depth(top_units)
 	var top_channel_weight: float = _get_pouring_boundary_weight(top_units)
+	var top_wall_clearance: float = _get_pouring_boundary_clearance(top_units)
 	var top_offset: float = _get_cached_boundary_offset(
 		rect,
 		chamber_polygon,
@@ -1693,7 +1761,8 @@ func _build_cached_liquid_band(
 		top_offset,
 		true,
 		top_curve_depth,
-		top_channel_weight
+		top_channel_weight,
+		top_wall_clearance
 	)
 	var clipped_polygons: Array = Geometry2D.intersect_polygons(
 		chamber_polygon,
@@ -1703,6 +1772,7 @@ func _build_cached_liquid_band(
 	if bottom_units > 0.0001 and not clipped_polygons.is_empty():
 		var bottom_curve_depth: float = _get_liquid_boundary_curve_depth(bottom_units)
 		var bottom_channel_weight: float = _get_pouring_boundary_weight(bottom_units)
+		var bottom_wall_clearance: float = _get_pouring_boundary_clearance(bottom_units)
 		var bottom_offset: float = _get_cached_boundary_offset(
 			rect,
 			bottom_boundary_polygon,
@@ -1717,7 +1787,8 @@ func _build_cached_liquid_band(
 			bottom_offset,
 			false,
 			bottom_curve_depth,
-			bottom_channel_weight
+			bottom_channel_weight,
+			bottom_wall_clearance
 		)
 		var band_polygons: Array = []
 		for current_polygon in clipped_polygons:
@@ -1765,6 +1836,13 @@ func _build_cached_liquid_band(
 		+ tangent * ((tangent_range.x + tangent_range.y) * 0.5)
 		+ normal * (top_offset + top_curve_depth)
 	)
+	var fade_range: Vector2 = _get_pouring_layer_fade_range(
+		rect,
+		frame,
+		bottom_units,
+		is_surface
+	)
+	var mouth_direction: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
 
 	var output_bands: Array[Dictionary] = []
 	for piece_index in range(render_pieces.size()):
@@ -1791,6 +1869,14 @@ func _build_cached_liquid_band(
 			)
 			var shaded_color: Color = edge_color.lerp(center_color, center_weight)
 			shaded_color = shaded_color.lerp(bottom_color, vertical_weight * 0.08)
+			if fade_range.x < INF:
+				var along_pour: float = (point - centre).dot(tangent) * mouth_direction
+				var fade_progress: float = smoothstep(
+					fade_range.x,
+					fade_range.y,
+					along_pour
+				)
+				shaded_color.a *= 1.0 - fade_progress * _pour_visual_weight
 			vertex_colors.append(shaded_color)
 
 		output_bands.append({
