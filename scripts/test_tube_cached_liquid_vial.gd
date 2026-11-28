@@ -801,11 +801,13 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 	for index in range(right_edge.size() - 1, -1, -1):
 		flow_polygon.append(right_edge[index])
 
-	# Keep the connector inside the glass chamber and neck, allowing the SVG
-	# artwork to provide the front-glass occlusion above it.
+	# The connector belongs to the currently pouring essence only.
+	# Clip it to that top layer's actual volume, never to the whole chamber:
+	# lower colours remain visible and keep their own space beneath it.
+	var top_colour_polygon: PackedVector2Array = top_band["polygon"]
 	var clipped_flow: Array = Geometry2D.intersect_polygons(
 		flow_polygon,
-		_cached_chamber_polygon
+		top_colour_polygon
 	)
 	var flow_color: Color = _pour_outflow_color.lerp(
 		_pour_outflow_color.lightened(0.15),
@@ -816,15 +818,27 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 		if piece.size() >= 3:
 			draw_colored_polygon(piece, flow_color)
 
-	var internal_glint := PackedVector2Array()
+	# The internal glint uses the same top-layer mask so it cannot draw a
+	# misleading bright line across the lower essence layers either.
+	var glint_left := PackedVector2Array()
+	var glint_right := PackedVector2Array()
 	for sample_index in range(3, FLOW_SAMPLES - 3):
-		internal_glint.append(centreline[sample_index])
-	draw_polyline(
-		internal_glint,
-		Color(1.0, 1.0, 1.0, 0.13),
-		1.05,
-		true
+		var glint_point: Vector2 = centreline[sample_index] + normal * 0.85
+		glint_left.append(glint_point + flow_side * 0.48)
+		glint_right.append(glint_point - flow_side * 0.48)
+	var glint_polygon := PackedVector2Array()
+	for point in glint_left:
+		glint_polygon.append(point)
+	for index in range(glint_right.size() - 1, -1, -1):
+		glint_polygon.append(glint_right[index])
+	var clipped_glint: Array = Geometry2D.intersect_polygons(
+		glint_polygon,
+		top_colour_polygon
 	)
+	for glint_piece in clipped_glint:
+		var piece: PackedVector2Array = glint_piece
+		if piece.size() >= 3:
+			draw_colored_polygon(piece, Color(1.0, 1.0, 1.0, 0.13))
 
 
 func _draw_surface_bubble_activity(rect: Rect2) -> void:
