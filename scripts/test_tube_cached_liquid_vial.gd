@@ -860,10 +860,18 @@ func _clip_pour_shape_to_top_essence(
 	if remaining_pieces.is_empty():
 		return remaining_pieces
 
-	# Remove every band beneath the currently pouring essence. The source
-	# ribbon may continue through the open chamber above those bands, unlike
-	# clipping it to the top band's existing liquid-only polygon.
-	for lower_index in range(top_band_index):
+	# The top essence can now have multiple render pieces (body + neck).
+	# Exclude all pieces belonging to that same essence from the subtraction;
+	# only genuinely lower colours should interrupt the pouring ribbon.
+	var first_top_essence_piece: int = top_band_index
+	while first_top_essence_piece > 0:
+		var previous_band: Dictionary = _cached_liquid_bands[first_top_essence_piece - 1]
+		if bool(previous_band["is_top_essence"]):
+			first_top_essence_piece -= 1
+		else:
+			break
+
+	for lower_index in range(first_top_essence_piece):
 		var lower_band: Dictionary = _cached_liquid_bands[lower_index]
 		var lower_polygon: PackedVector2Array = lower_band["polygon"]
 		var unobstructed_pieces: Array = []
@@ -1675,6 +1683,7 @@ func _build_cached_liquid_band(
 			"surface_curve_depth": top_curve_depth,
 			"surface_depth": clampf(rect.size.y * 0.032, 5.0, 10.0),
 			"is_surface": is_surface and piece_index == 0,
+			"is_top_essence": is_surface,
 			"is_neck_extension": bool(render_piece["is_neck_extension"])
 		})
 
