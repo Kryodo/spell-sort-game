@@ -134,7 +134,7 @@ func _build_atmosphere() -> void:
 	_candle_glow.stretch_mode = TextureRect.STRETCH_SCALE
 	_candle_glow.modulate.a = 0.76
 	_candle_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_candle_glow.z_index = 2
+	_candle_glow.z_index = 0
 	add_child(_candle_glow)
 
 	_candle_flame = TextureRect.new()
@@ -146,7 +146,7 @@ func _build_atmosphere() -> void:
 	_candle_flame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_candle_flame.stretch_mode = TextureRect.STRETCH_SCALE
 	_candle_flame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_candle_flame.z_index = 3
+	_candle_flame.z_index = 0
 	add_child(_candle_flame)
 
 	var motes := AtelierMoteLayer.new()
