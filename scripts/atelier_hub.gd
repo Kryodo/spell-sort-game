@@ -151,7 +151,7 @@ func _build_atmosphere() -> void:
 
 	var motes := AtelierMoteLayer.new()
 	motes.name = "AmbientMotes"
-	motes.z_index = 4
+	motes.z_index = 0
 	add_child(motes)
 
 
