@@ -1136,8 +1136,8 @@ func _build_liquid_chamber_polygon(
 	var polygon := PackedVector2Array()
 	var left_wall := PackedVector2Array()
 	var right_wall := PackedVector2Array()
-	# The full chamber reaches the mouth; the strata chamber starts at the
-	# original shoulder-level fill line so lower essences cannot enter the neck.
+	# The full chamber starts at the mouth; the body mask can start at the
+	# neck root so lower essences retain the shoulder but stay out of the neck.
 	var top_y: float = rect.position.y + rect.size.y * top_ratio
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
 	_cached_liquid_floor_depth = clampf(
