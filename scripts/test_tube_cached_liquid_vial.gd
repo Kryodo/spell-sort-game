@@ -822,8 +822,8 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 		0.12
 	)
 	for flow_piece in clipped_flow:
-		var piece: PackedVector2Array = flow_piece
-		if piece.size() >= 3:
+		var piece: PackedVector2Array = _sanitize_liquid_polygon(flow_piece)
+		if piece.size() >= 3 and not Geometry2D.triangulate_polygon(piece).is_empty():
 			draw_colored_polygon(piece, flow_color)
 
 	# Keep the internal glint inside the exact same unobstructed corridor.
@@ -843,8 +843,8 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 		top_band_index
 	)
 	for glint_piece in clipped_glint:
-		var piece: PackedVector2Array = glint_piece
-		if piece.size() >= 3:
+		var piece: PackedVector2Array = _sanitize_liquid_polygon(glint_piece)
+		if piece.size() >= 3 and not Geometry2D.triangulate_polygon(piece).is_empty():
 			draw_colored_polygon(piece, Color(1.0, 1.0, 1.0, 0.13))
 
 
@@ -1062,6 +1062,7 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 			var band: Dictionary = _build_cached_liquid_band(
 				rect,
 				band_chamber,
+				_cached_strata_chamber_polygon,
 				gravity_frame,
 				top_offset_cache,
 				body_boundary_offsets,
@@ -1418,6 +1419,7 @@ func _get_cached_boundary_offset(
 func _build_cached_liquid_band(
 	rect: Rect2,
 	chamber_polygon: PackedVector2Array,
+	bottom_boundary_polygon: PackedVector2Array,
 	frame: Dictionary,
 	top_offset_cache: Dictionary,
 	bottom_offset_cache: Dictionary,
@@ -1451,7 +1453,7 @@ func _build_cached_liquid_band(
 		var bottom_curve_depth: float = _get_liquid_boundary_curve_depth(bottom_units)
 		var bottom_offset: float = _get_cached_boundary_offset(
 			rect,
-			chamber_polygon,
+			bottom_boundary_polygon,
 			frame,
 			bottom_units,
 			bottom_curve_depth,
