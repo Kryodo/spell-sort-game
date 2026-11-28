@@ -1,10 +1,8 @@
-# Spell Sort — Cached Profile Liquid Comparison
+# Spell Sort — Working Main Renderer Transfer
 
 ## Purpose
 
-This is a new, isolated transfer of the working liquid-rendering architecture from `scripts/asset_fantasy_alchemy_bottle.gd` into the custom laboratory bottle study.
-
-It does not replace the live Atelier/main-scene renderer, the original test-tube renderer, or the first profile-liquid experiment.
+This is an isolated full copy of the renderer used by the working Atelier/main-scene sorting experience, adapted to the custom laboratory bottle. The live source file `scripts/asset_fantasy_alchemy_bottle.gd` is not modified and the new file does not inherit from it, so later main-scene changes cannot silently change this comparison.
 
 ## Run
 
@@ -12,27 +10,31 @@ Open `scenes/test_tube_cached_liquid_sorting_board.tscn` and run the current sce
 
 ## What was transferred
 
-The new renderer ports the working pipeline's performance structure and adapts it to the hand-authored bottle profile:
+`scripts/test_tube_cached_liquid_vial.gd` began as a full copy of `scripts/asset_fantasy_alchemy_bottle.gd`. It retains the working renderer's:
 
-- A cached 160-sample internal profile, stored in a `PackedVector3Array`, provides fast left/right boundary lookups.
-- Liquid body polygons and vertex colours are cached per vial.
-- Geometry is invalidated by contents, fill previews, setup and resize changes, then rebuilt only when dirty.
-- The liquid body's sides and foot follow the custom laboratory bottle profile.
-- The dynamic elliptical top surface is a separate, lightweight draw pass. Its colour gradient is cached; only its wave-displaced points are recalculated.
-- Bubble sprites are generated once per appearance and reused from a static texture cache.
-- The working renderer's timed surface-bubble swell/pop/ripple events are retained and adapted to the custom bottle profile.
+- Cached liquid-band polygons and vertex colours, rebuilt only when contents, preview, profile or size changes.
+- 160-sample packed chamber profile and fast profile-bound lookup.
+- Separate dynamic meniscus reflection.
+- Cached bubble-sprite texture library.
+- Timed surface-bubble swell/pop/ripple activity.
+- Layered glass reflection geometry and the retained artwork transform used for bottle motion.
+- Working fill-level, slosh, selection, pour and interaction state through the existing base classes.
+
+## Adaptations for the new bottle
+
+- The copied renderer uses `SpellSort_LabBottle_Glass.svg` as its vessel artwork.
+- Texture-alpha chamber detection is replaced by the hand-authored lab-bottle profile, mapped into the copied renderer's original normalized image coordinates.
+- The liquid top is enhanced into a shallow elliptical surface with a darker rear meniscus and softer front highlight; its colour palette stays cached.
+- The far-base Fresnel is a separate overlay and is shown only when the bottle is empty and no pour is actively hiding it.
+- The mouth-lip crop is adjusted to the new bottle's compact rolled rim.
 
 ## Separation
 
-- `asset_fantasy_alchemy_bottle.gd` remains the working source renderer and is not modified.
-- `test_tube_vial.gd` and `test_tube_sorting_board.tscn` remain the first glass baseline and are not modified.
-- `test_tube_liquid_vial.gd` and `test_tube_liquid_sorting_board.tscn` remain the first uncached profile-liquid experiment and are not modified.
-- `test_tube_cached_liquid_vial.gd` and its board are entirely new.
-
-## Adaptation boundary
-
-The original asset renderer's image-based chamber detection and illustrated-vial artwork layers are not copied because this experiment uses the new SVG glass and a hand-authored profile. Its cache lifecycle, profile lookup strategy, cached band geometry, dynamic surface separation, bubble sprite cache and timed surface activity are transferred.
+- `asset_fantasy_alchemy_bottle.gd` remains the working main-scene renderer and is not modified.
+- `test_tube_vial.gd` and `test_tube_sorting_board.tscn` remain the original new-glass baseline.
+- `test_tube_liquid_vial.gd` and `test_tube_liquid_sorting_board.tscn` remain the first simple profile-liquid experiment.
+- `test_tube_cached_liquid_vial.gd` is an independent full copy of the working renderer adapted for the lab bottle.
 
 ## Validation
 
-Static source checks only. Godot 4.7 rendering, input, pours and performance profiling still require a local test.
+Static source and scene checks only. Godot 4.7 rendering, pouring, undo and performance profiling still require local testing.

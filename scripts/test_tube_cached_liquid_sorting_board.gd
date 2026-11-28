@@ -64,11 +64,11 @@ func _add_minimal_vial(
 func _refresh_hud() -> void:
 	super._refresh_hud()
 	if is_instance_valid(_chapter_label):
-		_chapter_label.text = "CACHED PROFILE LIQUID  ·  WORKING PIPELINE TRANSFER"
+		_chapter_label.text = "MAIN RENDERER COPY  ·  PROFILE LIQUID EXPERIMENT"
 	if is_instance_valid(_experiment_title):
-		_experiment_title.text = "CACHED CURVED LIQUID STUDY"
+		_experiment_title.text = "WORKING RENDERER  ·  NEW VIAL STUDY"
 	if is_instance_valid(level_label):
 		if round_complete:
-			level_label.text = "CACHED PROFILE LIQUID  ·  EXPERIMENT COMPLETE"
+			level_label.text = "MAIN RENDERER COPY  ·  EXPERIMENT COMPLETE"
 		else:
-			level_label.text = "CACHED PROFILE LIQUID  ·  LEVEL %02d / 10" % (current_level + 1)
+			level_label.text = "MAIN RENDERER COPY  ·  LEVEL %02d / 10" % (current_level + 1)
