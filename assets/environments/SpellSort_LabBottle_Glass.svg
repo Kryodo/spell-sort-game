@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="365" viewBox="0 0 160 365">
+  <defs>
+    <linearGradient id="bodyTint" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#164b7d" stop-opacity=".42"/>
+      <stop offset=".13" stop-color="#17365f" stop-opacity=".26"/>
+      <stop offset=".42" stop-color="#08172e" stop-opacity=".08"/>
+      <stop offset=".72" stop-color="#0a1d3d" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#1b4c7a" stop-opacity=".34"/>
+    </linearGradient>
+    <linearGradient id="leftEdge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#69cfff" stop-opacity=".92"/>
+      <stop offset=".22" stop-color="#4ca9f0" stop-opacity=".72"/>
+      <stop offset=".58" stop-color="#2868b5" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#17406f" stop-opacity=".06"/>
+    </linearGradient>
+    <linearGradient id="rightEdge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0d2b52" stop-opacity=".08"/>
+      <stop offset=".42" stop-color="#347fc0" stop-opacity=".38"/>
+      <stop offset=".82" stop-color="#65b7ed" stop-opacity=".74"/>
+      <stop offset="1" stop-color="#9be3ff" stop-opacity=".86"/>
+    </linearGradient>
+    <linearGradient id="leftReflection" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8de5ff" stop-opacity=".58"/>
+      <stop offset=".24" stop-color="#58b9f4" stop-opacity=".34"/>
+      <stop offset=".64" stop-color="#2b72bd" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#1c4c83" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rightReflection" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#183a66" stop-opacity="0"/>
+      <stop offset=".45" stop-color="#2d6eaa" stop-opacity=".10"/>
+      <stop offset=".82" stop-color="#67b9ed" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#a1e5ff" stop-opacity=".40"/>
+    </linearGradient>
+    <linearGradient id="shoulderReflection" x1="0" y1="0" x2="1" y2=".5">
+      <stop offset="0" stop-color="#a3eaff" stop-opacity=".68"/>
+      <stop offset=".45" stop-color="#4b9fe3" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#1d4b80" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="baseReflection" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b4778" stop-opacity="0"/>
+      <stop offset=".34" stop-color="#4288c1" stop-opacity=".16"/>
+      <stop offset=".72" stop-color="#8edfff" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#315f91" stop-opacity=".05"/>
+    </linearGradient>
+    <linearGradient id="rimGlass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#92e2ff" stop-opacity=".88"/>
+      <stop offset=".30" stop-color="#377cb6" stop-opacity=".72"/>
+      <stop offset=".62" stop-color="#0c2448" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#5caee3" stop-opacity=".78"/>
+    </linearGradient>
+    <linearGradient id="rimGlint" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#77d7ff" stop-opacity=".10"/>
+      <stop offset=".22" stop-color="#c1f3ff" stop-opacity=".94"/>
+      <stop offset=".66" stop-color="#76cfff" stop-opacity=".52"/>
+      <stop offset="1" stop-color="#3983c1" stop-opacity=".12"/>
+    </linearGradient>
+    <linearGradient id="edgeContour" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6acfff" stop-opacity=".95"/>
+      <stop offset=".18" stop-color="#478ed0" stop-opacity=".74"/>
+      <stop offset=".50" stop-color="#183d6b" stop-opacity=".26"/>
+      <stop offset=".82" stop-color="#4e9bd7" stop-opacity=".68"/>
+      <stop offset="1" stop-color="#a0e9ff" stop-opacity=".92"/>
+    </linearGradient>
+    <clipPath id="bottleClip">
+      <path d="M59 20
+        C59 32 58 47 58 56
+        C58 65 55 71 48 78
+        C37 87 27 97 27 113
+        C25 146 25 280 28 306
+        C30 327 40 339 56 344
+        C68 348 92 348 104 344
+        C120 339 130 327 132 306
+        C135 280 135 146 133 113
+        C133 97 123 87 112 78
+        C105 71 102 65 102 56
+        C102 47 101 32 101 20 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- The glass tint stays low in the centre so the liquid remains readable. -->
+  <path d="M59 20
+    C59 32 58 47 58 56
+    C58 65 55 71 48 78
+    C37 87 27 97 27 113
+    C25 146 25 280 28 306
+    C30 327 40 339 56 344
+    C68 348 92 348 104 344
+    C120 339 130 327 132 306
+    C135 280 135 146 133 113
+    C133 97 123 87 112 78
+    C105 71 102 65 102 56
+    C102 47 101 32 101 20 Z"
+    fill="url(#bodyTint)"/>
+
+  <g clip-path="url(#bottleClip)">
+    <!-- A broad asymmetrical wall reflection, rather than paired inner lines. -->
+    <path d="M27 111
+      C28 99 35 91 49 83
+      C43 95 39 107 38 122
+      C36 174 36 260 40 302
+      C41 317 47 331 58 341
+      C43 334 33 323 30 307
+      C26 278 25 148 27 111 Z"
+      fill="url(#leftReflection)"/>
+
+    <!-- A soft reflected plane fades into the clear centre of the bottle. -->
+    <path d="M34 128
+      C40 119 47 116 53 117
+      C48 144 47 185 48 233
+      C48 270 49 293 54 315
+      C45 307 40 294 39 276
+      C36 226 35 169 34 128 Z"
+      fill="url(#leftReflection)" opacity=".64"/>
+
+    <!-- A quieter return reflection on the right, broken into a few soft areas. -->
+    <path d="M132 118
+      C130 105 124 97 115 90
+      C123 101 124 115 125 137
+      C127 187 126 254 123 296
+      C122 312 117 326 108 337
+      C123 330 130 320 132 304
+      C136 273 135 150 132 118 Z"
+      fill="url(#rightReflection)"/>
+    <path d="M126 150 C129 180 129 209 128 239
+      C126 228 124 213 124 196 C124 177 124 162 126 150 Z"
+      fill="url(#rightReflection)" opacity=".8"/>
+
+    <!-- Curved shoulder catchlight gives the neck-to-body transition volume. -->
+    <path d="M30 114
+      C30 99 37 91 49 82
+      C54 78 58 73 60 67
+      C58 79 54 87 47 94
+      C39 101 35 108 34 122 Z"
+      fill="url(#shoulderReflection)"/>
+
+    <path d="M31 118 C31 152 30 190 31 231"
+      fill="none" stroke="#a3eaff" stroke-opacity=".22"
+      stroke-width="2.8" stroke-linecap="round"/>
+
+    <!-- A broad, curved base reflection follows the actual glass foot. -->
+    <path d="M31 303
+      C35 325 48 338 64 342
+      C74 345 86 345 96 342
+      C112 338 125 325 129 303
+      C126 326 115 341 99 347
+      C87 351 73 351 61 347
+      C45 341 34 326 31 303 Z"
+      fill="url(#baseReflection)"/>
+
+    <path d="M38 321
+      C48 334 62 339 80 340
+      C98 339 112 334 122 321
+      C114 337 100 344 80 345
+      C60 344 46 337 38 321 Z"
+      fill="url(#baseReflection)" opacity=".82"/>
+  </g>
+
+  <!-- Main contour: layered glow below a restrained crisp glass edge. -->
+  <path d="M59 20
+    C59 32 58 47 58 56
+    C58 65 55 71 48 78
+    C37 87 27 97 27 113
+    C25 146 25 280 28 306
+    C30 327 40 339 56 344
+    C68 348 92 348 104 344
+    C120 339 130 327 132 306
+    C135 280 135 146 133 113
+    C133 97 123 87 112 78
+    C105 71 102 65 102 56
+    C102 47 101 32 101 20 Z"
+    fill="none" stroke="url(#edgeContour)" stroke-width="3.3"
+    stroke-linejoin="round"/>
+
+  <path d="M29 116 C27 163 27 265 31 303
+    C33 321 42 334 56 340"
+    fill="none" stroke="#88dcff" stroke-opacity=".56"
+    stroke-width="1.15" stroke-linecap="round"/>
+  <path d="M131 116 C133 163 133 265 129 303
+    C127 321 118 334 104 340"
+    fill="none" stroke="#75c5f3" stroke-opacity=".40"
+    stroke-width="1.1" stroke-linecap="round"/>
+
+  <!-- Glass mouth, viewed slightly from above. -->
+  <path d="M52 23
+    C52 16 62 12 80 12
+    C98 12 108 16 108 23
+    C108 31 98 35 80 35
+    C62 35 52 31 52 23 Z"
+    fill="url(#rimGlass)" stroke="#82d8ff" stroke-opacity=".75" stroke-width="1.5"/>
+  <ellipse cx="80" cy="23" rx="21.4" ry="6.2"
+    fill="#061329" stroke="#6fc7f5" stroke-opacity=".72" stroke-width="1.15"/>
+  <ellipse cx="80" cy="22.5" rx="17.3" ry="3.7"
+    fill="#020817" stroke="#163b68" stroke-opacity=".85" stroke-width=".8"/>
+  <path d="M54 23 C55 17 64 14.5 80 14.5 C96 14.5 105 17 106 23"
+    fill="none" stroke="url(#rimGlint)" stroke-width="2.0" stroke-linecap="round"/>
+  <path d="M56 28 C65 34 95 34 104 28"
+    fill="none" stroke="#4d9dd7" stroke-opacity=".70" stroke-width="1.1" stroke-linecap="round"/>
+  <path d="M61 34 C61 45 60 54 60 62
+    C60 70 56 76 49 82"
+    fill="none" stroke="#9ce7ff" stroke-opacity=".40" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M99 34 C99 45 100 54 100 62
+    C100 70 104 76 111 82"
+    fill="none" stroke="#4e95cb" stroke-opacity=".48" stroke-width="1.25" stroke-linecap="round"/>
+
+  <!-- Small, broad glints in the shoulder and lower wall; avoid twin stripes. -->
+  <path d="M38 104 C44 94 52 88 61 82
+    C55 91 48 98 42 111 Z"
+    fill="#d2f6ff" opacity=".22"/>
+  <path d="M113 101 C121 107 124 115 125 127
+    C120 119 117 112 113 101 Z"
+    fill="#7fcfff" opacity=".16"/>
+  <path d="M40 316 C47 330 58 337 71 340"
+    fill="none" stroke="#a8eaff" stroke-opacity=".38"
+    stroke-width="1.6" stroke-linecap="round"/>
+</svg>
