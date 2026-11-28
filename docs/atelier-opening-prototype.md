@@ -37,3 +37,9 @@ The project files and scene references were checked statically. Godot 4.7 is not
 - `scripts/scene_transition.gd` is registered as the persistent `SceneTransition` autoload, so scene changes can share one consistent transition system.
 - The Atelier-to-board and board-to-Atelier transitions use a restrained 1.8% scale push-in, a very brief warm darkening at the scene swap, and a settle back to normal size. The complete handoff is about 0.42 seconds by default.
 - The transition blocks input while active and does not change puzzle state or lesson progression. Future room and HUD navigation can reuse the same manager; frequent low-significance HUD changes can still happen instantly.
+
+## Laboratory test-tube board study
+
+- Open `scenes/test_tube_sorting_board.tscn` and run it as the current scene to compare the laboratory test-tube study against the existing Qwen vessel board.
+- `scripts/test_tube_vial.gd` reuses the established liquid, slosh, selection and pour behaviour, but draws a slender cylindrical glass tube with a rounded base, thick rolled mouth and stepped dark metal holder entirely in Godot.
+- `scripts/test_tube_sorting_board.gd` swaps only the vial renderer and holder marker proportions. The puzzle rules, levels and board layout remain shared with the existing sorting board.
