@@ -103,7 +103,7 @@ func _draw_bottle_edges(rect: Rect2) -> void:
 
 func _draw_inner_bottom_back_highlight(rect: Rect2) -> void:
 	# A shallow arch just above the foot reads as the far inner wall of the
-	# glass. It is drawn under the liquid, so it remains subdued when filled.
+	# glass. Its low opacity lets it show through the liquid as a soft reflection.
 	var centre := Vector2(
 		rect.get_center().x,
 		rect.end.y - rect.size.y * 0.075
