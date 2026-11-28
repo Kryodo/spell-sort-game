@@ -1156,20 +1156,54 @@ func _build_liquid_chamber_polygon(
 	return polygon
 
 
+func _get_pour_boundary_sample_distance(
+	rect: Rect2,
+	frame: Dictionary,
+	sample_index: int
+) -> float:
+	var tangent_span: float = float(frame["tangent_span"])
+	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
+	var extended_span: float = tangent_span + margin
+	var regular_distance: float = lerpf(
+		-extended_span,
+		extended_span,
+		float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
+	)
+
+	# Reserve one actual polygon vertex for the mouth centre. This ensures the
+	# taper reaches the exact outlet cross-section, not merely a nearby sample.
+	var centre: Vector2 = frame["centre"]
+	var tangent: Vector2 = frame["tangent"]
+	var mouth_center := Vector2(
+		rect.get_center().x,
+		rect.position.y + rect.size.y * _mouth_y_ratio
+	)
+	var mouth_distance: float = (mouth_center - centre).dot(tangent)
+	var mouth_fraction: float = clampf(
+		(mouth_distance + extended_span) / (extended_span * 2.0),
+		0.0,
+		1.0
+	)
+	var mouth_sample_index: int = roundi(
+		mouth_fraction * float(LIQUID_BOUNDARY_SAMPLES)
+	)
+	if sample_index == mouth_sample_index:
+		return mouth_distance
+
+	return regular_distance
+
+
 func _build_pour_wall_profile(
 	rect: Rect2,
 	frame: Dictionary
 ) -> PackedVector2Array:
 	var profile := PackedVector2Array()
-	var centre: Vector2 = frame["centre"]
-	var tangent: Vector2 = frame["tangent"]
-	var tangent_span: float = float(frame["tangent_span"])
-	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
-	var extended_span: float = tangent_span + margin
-
 	for sample_index in range(LIQUID_BOUNDARY_SAMPLES + 1):
-		var t: float = float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
-		var tangent_distance: float = lerpf(-extended_span, extended_span, t)
+		var tangent_distance: float = _get_pour_boundary_sample_distance(
+			rect,
+			frame,
+			sample_index
+		)
 		var wall_offset: float = _get_lower_inner_wall_normal_offset(
 			frame,
 			tangent_distance
@@ -1284,12 +1318,14 @@ func _build_gravity_half_plane(
 	var normal: Vector2 = frame["normal"]
 	var tangent_span: float = float(frame["tangent_span"])
 	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
-	var extended_span: float = tangent_span + margin
 	var boundary := PackedVector2Array()
 
 	for sample_index in range(LIQUID_BOUNDARY_SAMPLES + 1):
-		var t: float = float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
-		var tangent_distance: float = lerpf(-extended_span, extended_span, t)
+		var tangent_distance: float = _get_pour_boundary_sample_distance(
+			rect,
+			frame,
+			sample_index
+		)
 		var u: float = tangent_distance / tangent_span
 		var curve: float = curve_depth * maxf(0.0, 1.0 - u * u)
 		var normal_offset: float = offset + curve
@@ -1305,9 +1341,9 @@ func _build_gravity_half_plane(
 					frame,
 					tangent_distance
 				)
-				# Every internal interface converges onto the same lower glass
-				# wall. Their spacing therefore falls smoothly to zero at the
-				# mouth, leaving the full outlet cross-section to the top essence.
+				# Every internal interface lands on the actual lower inner wall
+				# at the precise mouth-centre sample. Their gaps therefore reach
+				# zero thickness at the outlet, leaving it exclusive to the top.
 				normal_offset = lerpf(
 					normal_offset,
 					wall_offset,
