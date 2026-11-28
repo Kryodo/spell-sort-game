@@ -80,6 +80,9 @@ func transition_to(scene_path: String, duration: float = DEFAULT_DURATION) -> vo
 		return
 
 	await get_tree().process_frame
+	# The incoming scene is now installed; restore the subtle veil level before
+	# the visible settle animation continues.
+	_set_veil_alpha(VEIL_PEAK_ALPHA)
 	var incoming_scene := get_tree().current_scene as Control
 	if is_instance_valid(incoming_scene):
 		_prepare_scene_root(incoming_scene)
