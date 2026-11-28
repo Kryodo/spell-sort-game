@@ -1096,6 +1096,107 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 		layer_index = group_end
 
 
+func run_pour_angle_sweep_diagnostic(direction: float = 1.0) -> Array[Dictionary]:
+	# Rebuild the existing gravity solver at discrete poses without changing
+	# the live bottle pose, preview level, contents or cached render geometry.
+	var results: Array[Dictionary] = []
+	if _visual_contents.is_empty() or _liquid_level <= 0.001:
+		return results
+
+	var rect: Rect2 = _get_vessel_rect()
+	var saved_tilt: float = _tilt
+	var saved_bands: Array[Dictionary] = _cached_liquid_bands.duplicate(true)
+	var saved_rect: Rect2 = _cached_liquid_rect
+	var saved_dirty: bool = _liquid_geometry_dirty
+	var saved_cached_tilt: float = _cached_liquid_tilt
+	var saved_floor_depth: float = _cached_liquid_floor_depth
+	var saved_chamber: PackedVector2Array = _cached_chamber_polygon
+	var saved_body_chamber: PackedVector2Array = _cached_strata_chamber_polygon
+	var saved_neck_chamber: PackedVector2Array = _cached_neck_chamber_polygon
+	var pour_direction: float = -1.0 if direction < 0.0 else 1.0
+	var top_layer_index: int = clampi(
+		int(ceil(_liquid_level - 0.0001)) - 1,
+		0,
+		_visual_contents.size() - 1
+	)
+
+	for angle_degrees in range(85, 116, 2):
+		_tilt = deg_to_rad(float(angle_degrees)) * pour_direction
+		_rebuild_cached_liquid_geometry(rect)
+
+		var contacted_layers: Array[int] = []
+		var top_wall_coverage: float = 0.0
+		for band in _cached_liquid_bands:
+			var first_layer: int = int(band.get("essence_start", -1))
+			var last_layer: int = int(band.get("essence_end", -1))
+			if first_layer < 0 or last_layer < first_layer:
+				continue
+			if bool(band.get("mouth_contact", false)):
+				for layer_index in range(first_layer, last_layer + 1):
+					if not contacted_layers.has(layer_index):
+						contacted_layers.append(layer_index)
+			if top_layer_index >= first_layer and top_layer_index <= last_layer:
+				top_wall_coverage = maxf(
+					top_wall_coverage,
+					float(band.get("neck_wall_coverage", 0.0))
+				)
+
+		contacted_layers.sort()
+		results.append({
+			"angle_degrees": angle_degrees,
+			"direction": pour_direction,
+			"contacted_layers": contacted_layers,
+			"top_layer_index": top_layer_index,
+			"top_at_mouth": contacted_layers.has(top_layer_index),
+			"top_neck_wall_coverage": top_wall_coverage
+		})
+
+	_tilt = saved_tilt
+	_cached_liquid_bands = saved_bands
+	_cached_liquid_rect = saved_rect
+	_liquid_geometry_dirty = saved_dirty
+	_cached_liquid_tilt = saved_cached_tilt
+	_cached_liquid_floor_depth = saved_floor_depth
+	_cached_chamber_polygon = saved_chamber
+	_cached_strata_chamber_polygon = saved_body_chamber
+	_cached_neck_chamber_polygon = saved_neck_chamber
+	return results
+
+
+func _get_neck_wall_path_coverage(
+	polygon: PackedVector2Array,
+	rect: Rect2
+) -> float:
+	if polygon.size() < 3:
+		return 0.0
+
+	var lower_side: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
+	var path_start: float = _mouth_y_ratio + 0.006
+	var path_end: float = (
+		BOTTLE_BODY_TOP_RATIO
+		+ BOTTLE_BODY_HEIGHT_RATIO * BOTTLE_NECK_BASE_PROFILE_RATIO
+		- 0.006
+	)
+	if path_end <= path_start:
+		return 0.0
+
+	const PATH_SAMPLES := 14
+	var covered_samples: int = 0
+	for sample_index in range(PATH_SAMPLES):
+		var t: float = (float(sample_index) + 0.5) / float(PATH_SAMPLES)
+		var y_ratio: float = lerpf(path_start, path_end, t)
+		var bounds: Vector2 = _window_bounds_at(y_ratio)
+		var wall_ratio: float = bounds.y if lower_side > 0.0 else bounds.x
+		var point := Vector2(
+			rect.position.x + rect.size.x * wall_ratio - lower_side * 2.4,
+			rect.position.y + rect.size.y * y_ratio
+		)
+		if Geometry2D.is_point_in_polygon(point, polygon):
+			covered_samples += 1
+
+	return float(covered_samples) / float(PATH_SAMPLES)
+
+
 func _same_liquid_colour(first: Color, second: Color) -> bool:
 	return (
 		absf(first.r - second.r) <= 0.002
@@ -1582,7 +1683,21 @@ func _build_cached_liquid_band(
 	# keeps its full shoulder/body shape; the top essence also receives the
 	# matching neck fragment as a separate, connected render piece.
 	var render_pieces: Array[Dictionary] = []
+	var outlet_probe: Vector2 = _get_pour_outlet_local(rect)
+	var essence_start: int = int(floor(bottom_units + 0.0001))
+	var essence_end: int = maxi(essence_start, ceili(top_units - 0.0001) - 1)
 	for full_band_polygon in full_band_polygons:
+		# These measurements are taken before any rendering masks are applied.
+		# They describe which physical band reaches the actual lower inside lip
+		# and how much of the lower neck wall remains continuously wetted.
+		var mouth_contact: bool = Geometry2D.is_point_in_polygon(
+			outlet_probe,
+			full_band_polygon
+		)
+		var neck_wall_coverage: float = _get_neck_wall_path_coverage(
+			full_band_polygon,
+			rect
+		)
 		var body_pieces: Array[PackedVector2Array] = _valid_liquid_polygons(
 			Geometry2D.intersect_polygons(
 				full_band_polygon,
@@ -1592,7 +1707,11 @@ func _build_cached_liquid_band(
 		for body_piece in body_pieces:
 			render_pieces.append({
 				"polygon": body_piece,
-				"is_neck_extension": false
+				"is_neck_extension": false,
+				"mouth_contact": mouth_contact,
+				"neck_wall_coverage": neck_wall_coverage,
+				"essence_start": essence_start,
+				"essence_end": essence_end
 			})
 
 		if is_surface:
@@ -1605,7 +1724,11 @@ func _build_cached_liquid_band(
 			for neck_piece in neck_pieces:
 				render_pieces.append({
 					"polygon": neck_piece,
-					"is_neck_extension": true
+					"is_neck_extension": true,
+					"mouth_contact": mouth_contact,
+					"neck_wall_coverage": neck_wall_coverage,
+					"essence_start": essence_start,
+					"essence_end": essence_end
 				})
 
 	if render_pieces.is_empty():
@@ -1684,7 +1807,11 @@ func _build_cached_liquid_band(
 			"surface_depth": clampf(rect.size.y * 0.032, 5.0, 10.0),
 			"is_surface": is_surface and piece_index == 0,
 			"is_top_essence": is_surface,
-			"is_neck_extension": bool(render_piece["is_neck_extension"])
+			"is_neck_extension": bool(render_piece["is_neck_extension"]),
+			"mouth_contact": bool(render_piece["mouth_contact"]),
+			"neck_wall_coverage": float(render_piece["neck_wall_coverage"]),
+			"essence_start": int(render_piece["essence_start"]),
+			"essence_end": int(render_piece["essence_end"])
 		})
 
 	return output_bands
