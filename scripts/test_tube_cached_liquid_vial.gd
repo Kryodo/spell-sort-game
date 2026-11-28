@@ -42,9 +42,8 @@ const LIQUID_GRAVITY_SOLVE_STEPS := 12
 const LIQUID_TILT_CACHE_EPSILON := 0.004
 const LIQUID_SURFACE_EXTENT_SAMPLES := 96
 
-# Preserve the generated vessel artwork exactly; reflections are added as a
-# separate liquid-aware Godot pass after the illustration and liquid.
-const GLASS_MODULATE := Color.WHITE
+# The SVG is the sole source of glass highlights. This experiment draws no
+# inherited glass-reflection strokes over the new artwork.
 
 # Draw only the near/front arc of the mouth after the pour stream.
 # The rest of the illustration remains on the vial's normal draw layer.
@@ -417,7 +416,7 @@ func _find_centre_transparent_span(
 	x_max: int,
 	search_radius: int
 ) -> Vector2i:
-	# Short opaque interruptions are glass reflections, not chamber walls.
+	# Bridge only narrow opaque interruptions inside the source artwork.
 	# Bridge those gaps and stop only at the thicker continuous glass wall.
 	var seed_x: int = -1
 	var seed_radius: int = maxi(
