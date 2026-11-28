@@ -95,9 +95,8 @@ class FrontMouthLipOverlay extends Control:
 
 
 
-# This layer retains the artwork and static chamber reflections as one CanvasItem.
-# It is redrawn only when the vial's contents/artwork/size changes.
-class StaticVialArtworkLayer extends Control:
+# The new SVG owns the glass appearance; this layer draws that artwork only.
+class VialArtworkLayer extends Control:
 	var _bottle: Control
 
 	func configure(bottle: Control) -> void:
@@ -113,85 +112,6 @@ class StaticVialArtworkLayer extends Control:
 			return
 		var rect: Rect2 = _bottle.call("_get_vessel_rect")
 		draw_texture_rect(art, rect, false, Color.WHITE)
-
-		var reflections: Array = _bottle.get("_glass_layer_reflections")
-		if reflections.size() != 4:
-			return
-		var contents: Array = _bottle.get("_visual_contents")
-		var palette: Dictionary = _bottle.get("_palette")
-		var liquid_level: float = float(_bottle.get("_liquid_level"))
-
-		for layer_index in range(4):
-			var geometry: Dictionary = reflections[layer_index]
-			var amount: float = clampf(liquid_level - float(layer_index), 0.0, 1.0)
-			var reflection_color := Color(0.66, 0.82, 0.86, 1.0)
-			if layer_index < contents.size() and amount > 0.0:
-				var essence: String = String(contents[layer_index])
-				var liquid_color: Color = palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-				var tint_blend: float = smoothstep(0.0, 0.12, amount)
-				reflection_color = reflection_color.lerp(
-					_bottle.call("_glass_reflection_color", liquid_color),
-					tint_blend
-				)
-
-			var halo_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.25)
-			var main_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.62)
-			var right_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.34)
-			draw_polyline(geometry["halo"], halo_color, maxf(3.0, rect.size.x * 0.045), true)
-			draw_polyline(geometry["main"], main_color, maxf(1.8, rect.size.x * 0.018), true)
-			draw_polyline(geometry["core"], Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
-			draw_polyline(geometry["bounce"], right_color, maxf(1.4, rect.size.x * 0.014), true)
-			draw_polyline(geometry["glint"], Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
-
-
-# Only the moving meniscus reflection remains in the per-frame overlay.
-class DynamicSurfaceReflectionLayer extends Control:
-	var _bottle: Control
-
-	func configure(bottle: Control) -> void:
-		_bottle = bottle
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		z_index = 2
-		queue_redraw()
-
-	func _draw() -> void:
-		if not is_instance_valid(_bottle):
-			return
-		var liquid_level: float = float(_bottle.get("_liquid_level"))
-		var contents: Array = _bottle.get("_visual_contents")
-		if liquid_level <= 0.001 or contents.is_empty():
-			return
-
-		var rect: Rect2 = _bottle.call("_get_vessel_rect")
-		var top_ratio: float = float(_bottle.get("_window_top_ratio"))
-		var bottom_ratio: float = float(_bottle.get("_window_bottom_ratio"))
-		var chamber_span: float = bottom_ratio - top_ratio
-		var surface_ratio: float = bottom_ratio - chamber_span / 4.0 * clampf(liquid_level, 0.0, 4.0)
-		var points := PackedVector2Array()
-		const SAMPLE_COUNT := 32
-		for index in range(SAMPLE_COUNT + 1):
-			var t: float = float(index) / float(SAMPLE_COUNT)
-			var normalized_x: float = t * 2.0 - 1.0
-			var wave_y: float = rect.position.y + rect.size.y * surface_ratio + float(
-				_bottle.call("_get_surface_wave_offset", normalized_x)
-			) * 0.42
-			var y_ratio: float = clampf(
-				(wave_y - rect.position.y) / rect.size.y,
-				top_ratio,
-				bottom_ratio
-			)
-			var bounds: Vector2 = _bottle.call("_window_bounds_at", y_ratio)
-			var left_x: float = rect.position.x + rect.size.x * bounds.x + rect.size.x * 0.025
-			var right_x: float = rect.position.x + rect.size.x * bounds.y - rect.size.x * 0.025
-			points.append(Vector2(lerpf(left_x, right_x, t), wave_y))
-
-		var palette: Dictionary = _bottle.get("_palette")
-		var essence: String = String(contents[clampi(int(floor(liquid_level - 0.0001)), 0, contents.size() - 1)])
-		var liquid_color: Color = palette.get(essence, Color(0.45, 0.78, 0.75, 1.0)).lightened(0.16)
-		liquid_color.a = 0.22 * smoothstep(0.0, 0.12, liquid_level)
-		draw_polyline(points, liquid_color, maxf(1.0, rect.size.x * 0.012), true)
-
-
 
 
 # The custom bottle's far-base Fresnel is a separate, liquid-aware pass.
@@ -223,19 +143,13 @@ static var _bubble_sprite_cache: Dictionary = {}
 
 var vial_art: Texture2D = DEFAULT_VIAL_ART
 var _window_profile := PackedVector3Array()
-var _reflection_profile := PackedVector3Array()
 var _window_top_ratio: float = 0.28
 var _window_bottom_ratio: float = 0.76
-var _reflection_bottom_ratio: float = 0.76
 var _mouth_y_ratio: float = 0.065
 var _mouth_width_ratio: float = 0.15
-# Static chamber highlight paths are built once per vial instance, not every draw.
-var _glass_layer_reflections: Array[Dictionary] = []
-var _window_top_contour := PackedVector2Array()
 var _front_mouth_lip_overlay: FrontMouthLipOverlay
 var _artwork_transform: Control
-var _static_artwork_layer: StaticVialArtworkLayer
-var _surface_reflection_layer: DynamicSurfaceReflectionLayer
+var _artwork_layer: VialArtworkLayer
 var _base_refraction_layer: BaseRefractionLayer
 var _pour_refraction_visible: bool = true
 
@@ -261,17 +175,11 @@ func _ready() -> void:
 	_artwork_transform.size = size
 	add_child(_artwork_transform)
 
-	_static_artwork_layer = StaticVialArtworkLayer.new()
-	_static_artwork_layer.name = "StaticArtworkAndReflections"
-	_static_artwork_layer.size = size
-	_artwork_transform.add_child(_static_artwork_layer)
-	_static_artwork_layer.configure(self)
-
-	_surface_reflection_layer = DynamicSurfaceReflectionLayer.new()
-	_surface_reflection_layer.name = "DynamicSurfaceReflection"
-	_surface_reflection_layer.size = size
-	_artwork_transform.add_child(_surface_reflection_layer)
-	_surface_reflection_layer.configure(self)
+	_artwork_layer = VialArtworkLayer.new()
+	_artwork_layer.name = "VialArtwork"
+	_artwork_layer.size = size
+	_artwork_transform.add_child(_artwork_layer)
+	_artwork_layer.configure(self)
 
 	_base_refraction_layer = BaseRefractionLayer.new()
 	_base_refraction_layer.name = "EmptyBottleBaseRefraction"
@@ -296,20 +204,15 @@ func _update_artwork_transform() -> void:
 	_artwork_transform.rotation = _tilt
 	_artwork_transform.scale = Vector2(_draw_scale, _draw_scale)
 	_artwork_transform.size = size
-	if is_instance_valid(_static_artwork_layer):
-		_static_artwork_layer.size = size
-	if is_instance_valid(_surface_reflection_layer):
-		_surface_reflection_layer.size = size
+	if is_instance_valid(_artwork_layer):
+		_artwork_layer.size = size
 
 
 func _on_vial_resized() -> void:
-	_build_static_reflection_geometry()
 	_update_artwork_transform()
 	_invalidate_liquid_geometry()
-	if is_instance_valid(_static_artwork_layer):
-		_static_artwork_layer.queue_redraw()
-	if is_instance_valid(_surface_reflection_layer):
-		_surface_reflection_layer.queue_redraw()
+	if is_instance_valid(_artwork_layer):
+		_artwork_layer.queue_redraw()
 	if is_instance_valid(_base_refraction_layer):
 		_base_refraction_layer.queue_redraw()
 
@@ -327,10 +230,6 @@ func setup(index: int, label: String, variant: int, palette: Dictionary, content
 func set_contents(contents: Array) -> void:
 	super.set_contents(contents)
 	_invalidate_liquid_geometry()
-	if is_instance_valid(_static_artwork_layer):
-		_static_artwork_layer.queue_redraw()
-	if is_instance_valid(_surface_reflection_layer):
-		_surface_reflection_layer.queue_redraw()
 	if is_instance_valid(_base_refraction_layer):
 		_base_refraction_layer.queue_redraw()
 
@@ -338,10 +237,6 @@ func set_contents(contents: Array) -> void:
 func set_preview(contents: Array, level: float) -> void:
 	super.set_preview(contents, level)
 	_invalidate_liquid_geometry()
-	if is_instance_valid(_static_artwork_layer):
-		_static_artwork_layer.queue_redraw()
-	if is_instance_valid(_surface_reflection_layer):
-		_surface_reflection_layer.queue_redraw()
 	if is_instance_valid(_base_refraction_layer):
 		_base_refraction_layer.queue_redraw()
 
@@ -351,8 +246,6 @@ func _process(delta: float) -> void:
 	_update_artwork_transform()
 	if is_instance_valid(_front_mouth_lip_overlay) and _front_mouth_lip_overlay.visible:
 		_front_mouth_lip_overlay.queue_redraw()
-	if is_instance_valid(_surface_reflection_layer) and _liquid_level > 0.001:
-		_surface_reflection_layer.queue_redraw()
 
 
 func set_front_mouth_lip_active(active: bool) -> void:
@@ -380,15 +273,13 @@ func set_vial_art(texture: Texture2D) -> void:
 	if is_node_ready():
 		_build_inner_window_profile()
 		_liquid_geometry_dirty = true
-		if is_instance_valid(_static_artwork_layer):
-			_static_artwork_layer.queue_redraw()
+		if is_instance_valid(_artwork_layer):
+			_artwork_layer.queue_redraw()
 	queue_redraw()
 
 
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
-	_reflection_profile.clear()
-	_window_top_contour.clear()
 
 	# Use the new bottle's hand-authored silhouette instead of scanning the
 	# SVG pixels. The profile is mapped into the same normalized full-art
@@ -402,7 +293,6 @@ func _build_inner_window_profile() -> void:
 		var right_ratio: float = 0.5 + half_width_ratio
 		var sample := Vector3(y_ratio, left_ratio, right_ratio)
 		_window_profile.append(sample)
-		_reflection_profile.append(sample)
 
 	_window_top_ratio = (
 		BOTTLE_BODY_TOP_RATIO + BOTTLE_BODY_HEIGHT_RATIO * LIQUID_TOP_RATIO
@@ -410,13 +300,11 @@ func _build_inner_window_profile() -> void:
 	_window_bottom_ratio = (
 		BOTTLE_BODY_TOP_RATIO + BOTTLE_BODY_HEIGHT_RATIO * LIQUID_BOTTOM_RATIO
 	)
-	_reflection_bottom_ratio = _window_bottom_ratio
 	_mouth_y_ratio = 23.0 / 365.0
 	_mouth_width_ratio = 56.0 / 160.0
 
-	_build_static_reflection_geometry()
-	if is_instance_valid(_static_artwork_layer):
-		_static_artwork_layer.queue_redraw()
+	if is_instance_valid(_artwork_layer):
+		_artwork_layer.queue_redraw()
 
 
 func _profile_points() -> Array[Vector2]:
@@ -462,11 +350,8 @@ func _get_profile_at(y_norm: float) -> Vector2:
 
 func _apply_cached_analysis(analysis: Dictionary) -> void:
 	_window_profile = analysis["profile"]
-	_reflection_profile = analysis.get("reflection_profile", _window_profile).duplicate()
-	_window_top_contour = analysis.get("top_contour", PackedVector2Array())
 	_window_top_ratio = float(analysis["top"])
 	_window_bottom_ratio = float(analysis["bottom"])
-	_reflection_bottom_ratio = float(analysis.get("reflection_bottom", analysis["bottom"]))
 	_mouth_y_ratio = float(analysis["mouth_y"])
 	_mouth_width_ratio = float(analysis["mouth_width"])
 
@@ -1316,277 +1201,11 @@ func _draw_window_bubbles(rect: Rect2, visible_layers: int) -> void:
 
 
 func _draw_glass_back(_rect: Rect2) -> void:
-	# The complete PNG is drawn once, above the live liquid.
+	# The complete SVG illustration is drawn once, above the live liquid.
 	pass
 
 
 func _draw_glass_overlay() -> void:
-	# Artwork and static glass reflections live on a retained child CanvasItem.
+	# The complete new-vial artwork is drawn by its retained child CanvasItem.
 	# This parent redraw now contains only liquid and interaction effects.
 	pass
-
-
-func _build_static_reflection_geometry() -> void:
-	_glass_layer_reflections.clear()
-	if _window_profile.size() < 8 or vial_art == null:
-		return
-
-	var rect := _get_vessel_rect()
-	# Recreate the earlier layered reflection style for every fixed capacity
-	# section. The original paths were tied to the changing liquid bands; these
-	# copies use the same shapes and insets but are anchored to the vessel.
-	for layer_index in range(CAPACITY):
-		var section_top: float = 1.0 - float(layer_index + 1) / float(CAPACITY)
-		var section_bottom: float = 1.0 - float(layer_index) / float(CAPACITY)
-		var halo_inset: float = rect.size.x * 0.030
-		var main_inset: float = rect.size.x * 0.016
-		var core_inset: float = rect.size.x * 0.006
-		var is_top_section: bool = layer_index == CAPACITY - 1
-
-		var left_halo := _chamber_edge_points(rect, true, section_top, section_bottom, halo_inset)
-		var left_main := _chamber_edge_points(rect, true, section_top, section_bottom, main_inset)
-		var core_start: float = section_top if is_top_section else lerpf(section_top, section_bottom, 0.14)
-		var left_core := _chamber_edge_points(rect, true, core_start, section_bottom, core_inset)
-		var bounce_start: float = section_top if is_top_section else section_top + 0.10 / float(CAPACITY)
-		var right_bounce := _chamber_edge_points(
-			rect,
-			false,
-			bounce_start,
-			section_bottom,
-			rect.size.x * 0.020
-		)
-		var glint_start: float = section_top if is_top_section else lerpf(section_top, section_bottom, 0.18)
-		var glint_end: float = lerpf(section_top, section_bottom, 0.48)
-		var glint := _chamber_edge_points(rect, true, glint_start, glint_end, core_inset + 1.5)
-
-		_glass_layer_reflections.append({
-			"halo": left_halo,
-			"main": left_main,
-			"core": left_core,
-			"bounce": right_bounce,
-			"glint": glint
-		})
-
-	# Extend the existing side reflections up the actual inner arch. Keep the
-	# two strokes separate: no line is drawn across or over the top of the vial.
-	if _window_top_contour.size() >= 8 and not _glass_layer_reflections.is_empty():
-		var top_geometry: Dictionary = _glass_layer_reflections[CAPACITY - 1]
-		top_geometry["main"] = _extend_side_reflection_to_arch(
-			top_geometry["main"],
-			rect,
-			true,
-			rect.size.x * 0.016
-		)
-		top_geometry["bounce"] = _extend_side_reflection_to_arch(
-			top_geometry["bounce"],
-			rect,
-			false,
-			rect.size.x * 0.020
-		)
-		_glass_layer_reflections[CAPACITY - 1] = top_geometry
-
-
-func _extend_side_reflection_to_arch(
-	side_path: PackedVector2Array,
-	rect: Rect2,
-	left_side: bool,
-	inset: float
-) -> PackedVector2Array:
-	if side_path.size() < 2 or _window_top_contour.size() < 8:
-		return side_path
-
-	# Locate the existing stroke endpoint on the measured arch contour.
-	var anchor: Vector2 = side_path[0]
-	var anchor_index: int = 0
-	var nearest_distance: float = 1.0e20
-	var apex_index: int = 0
-	var highest_y: float = 1.0
-	for index in range(_window_top_contour.size()):
-		var contour_point: Vector2 = _window_top_contour[index]
-		var screen_point := Vector2(
-			rect.position.x + rect.size.x * contour_point.x,
-			rect.position.y + rect.size.y * contour_point.y
-		)
-		var distance: float = screen_point.distance_squared_to(anchor)
-		if distance < nearest_distance:
-			nearest_distance = distance
-			anchor_index = index
-		if contour_point.y < highest_y:
-			highest_y = contour_point.y
-			apex_index = index
-
-	# Leave a small gap at the crown so the left and right reflections never
-	# become a new top-cap line.
-	var crown_gap: int = maxi(2, roundi(float(_window_top_contour.size()) * 0.08))
-	var stop_index: int = (
-		maxi(anchor_index + 1, apex_index - crown_gap)
-		if left_side
-		else mini(anchor_index - 1, apex_index + crown_gap)
-	)
-	if left_side and stop_index <= anchor_index:
-		return side_path
-	if not left_side and stop_index >= anchor_index:
-		return side_path
-
-	var extended := PackedVector2Array()
-	var contour_step: int = -1 if left_side else 1
-	var contour_index: int = stop_index
-	while (contour_index >= anchor_index if left_side else contour_index <= anchor_index):
-		var current_point: Vector2 = _window_top_contour[contour_index]
-		var previous_point: Vector2 = _window_top_contour[maxi(0, contour_index - 1)]
-		var next_point: Vector2 = _window_top_contour[mini(
-			_window_top_contour.size() - 1,
-			contour_index + 1
-		)]
-		var tangent := Vector2(
-			(next_point.x - previous_point.x) * rect.size.x,
-			(next_point.y - previous_point.y) * rect.size.y
-		)
-		# The inward normal points down into the chamber on both sides.
-		var inward_normal := Vector2(-tangent.y, tangent.x).normalized()
-		var point := Vector2(
-			rect.position.x + rect.size.x * current_point.x,
-			rect.position.y + rect.size.y * current_point.y
-		)
-		extended.append(point + inward_normal * inset)
-		contour_index += contour_step
-
-	if extended.size() < 2:
-		return side_path
-	extended[extended.size() - 1] = anchor
-	for index in range(1, side_path.size()):
-		extended.append(side_path[index])
-	return extended
-
-
-func _draw_chamber_reflections(rect: Rect2) -> void:
-	if _glass_layer_reflections.size() != CAPACITY:
-		return
-
-	# Geometry is constant. Each fixed chamber section takes the tint of its
-	# own essence when occupied, and neutral glass when empty.
-	for layer_index in range(CAPACITY):
-		var geometry: Dictionary = _glass_layer_reflections[layer_index]
-		var amount: float = clampf(_liquid_level - float(layer_index), 0.0, 1.0)
-		var reflection_color := Color(0.66, 0.82, 0.86, 1.0)
-		if layer_index < _visual_contents.size() and amount > 0.0:
-			var essence: String = String(_visual_contents[layer_index])
-			var liquid_color: Color = _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
-			var tint_blend: float = smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, amount)
-			reflection_color = reflection_color.lerp(
-				_glass_reflection_color(liquid_color),
-				tint_blend
-			)
-
-		var halo_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.25)
-		var main_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.62)
-		var right_color := Color(reflection_color.r, reflection_color.g, reflection_color.b, 0.34)
-		draw_polyline(geometry["halo"], halo_color, maxf(3.0, rect.size.x * 0.045), true)
-		draw_polyline(geometry["main"], main_color, maxf(1.8, rect.size.x * 0.018), true)
-		draw_polyline(geometry["core"], Color(0.94, 0.98, 0.97, 0.78), maxf(1.0, rect.size.x * 0.010), true)
-		draw_polyline(geometry["bounce"], right_color, maxf(1.4, rect.size.x * 0.014), true)
-		draw_polyline(geometry["glint"], Color(0.98, 1.0, 0.96, 0.92), maxf(1.0, rect.size.x * 0.012), true)
-
-	# Only the meniscus follows the fill level; the glass strokes above never move.
-	_draw_liquid_surface_reflection(rect)
-
-
-
-func _glass_reflection_color(liquid_color: Color) -> Color:
-	# Lift the essence colour toward cool glass light while preserving enough
-	# hue to remain visibly related to the liquid beneath it.
-	return liquid_color.lightened(0.30).lerp(Color(0.82, 0.94, 0.94, 1.0), 0.28)
-
-
-func _draw_liquid_surface_reflection(rect: Rect2) -> void:
-	if _liquid_level <= 0.001 or _visual_contents.is_empty():
-		return
-
-	var chamber_span: float = _window_bottom_ratio - _window_top_ratio
-	var surface_ratio: float = _window_bottom_ratio - chamber_span / float(CAPACITY) * clampf(
-		_liquid_level,
-		0.0,
-		float(CAPACITY)
-	)
-	var surface_points := PackedVector2Array()
-	const SURFACE_REFLECTION_SAMPLES := 32
-	for index in range(SURFACE_REFLECTION_SAMPLES + 1):
-		var t: float = float(index) / float(SURFACE_REFLECTION_SAMPLES)
-		var normalized_x: float = t * 2.0 - 1.0
-		var wave_y: float = rect.position.y + rect.size.y * surface_ratio + _get_surface_wave_offset(normalized_x) * 0.42
-		var y_ratio: float = clampf(
-			(wave_y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
-			_window_bottom_ratio
-		)
-		var bounds: Vector2 = _window_bounds_at(y_ratio)
-		var left_x: float = rect.position.x + rect.size.x * bounds.x + rect.size.x * 0.025
-		var right_x: float = rect.position.x + rect.size.x * bounds.y - rect.size.x * 0.025
-		surface_points.append(Vector2(lerpf(left_x, right_x, t), wave_y))
-
-	# One restrained reflection that borrows the active top essence hue.
-	# Avoid the separate white glow stroke, which reads like a hard divider.
-	var surface_color: Color = _get_top_liquid_color().lightened(0.16)
-	var appearance_alpha: float = smoothstep(0.0, LIQUID_APPEARANCE_FADE_LEVEL, _liquid_level)
-	surface_color.a = 0.22 * appearance_alpha
-	draw_polyline(surface_points, surface_color, maxf(1.0, rect.size.x * 0.012), true)
-
-
-func _reflection_bounds_at(y_ratio: float) -> Vector2:
-	if _reflection_profile.is_empty():
-		return _window_bounds_at(y_ratio)
-	var profile_count: int = _reflection_profile.size()
-	var first: Vector3 = _reflection_profile[0]
-	if y_ratio <= first.x:
-		return Vector2(first.y, first.z)
-	var last: Vector3 = _reflection_profile[profile_count - 1]
-	if y_ratio >= last.x:
-		return Vector2(last.y, last.z)
-
-	var low_index: int = 0
-	var high_index: int = profile_count - 1
-	while high_index - low_index > 1:
-		var middle_index: int = (low_index + high_index) >> 1
-		if _reflection_profile[middle_index].x <= y_ratio:
-			low_index = middle_index
-		else:
-			high_index = middle_index
-
-	first = _reflection_profile[low_index]
-	last = _reflection_profile[high_index]
-	var span: float = maxf(0.000001, last.x - first.x)
-	var weight: float = clampf((y_ratio - first.x) / span, 0.0, 1.0)
-	return Vector2(
-		lerpf(first.y, last.y, weight),
-		lerpf(first.z, last.z, weight)
-	)
-
-
-func _chamber_edge_points(
-	rect: Rect2,
-	left_side: bool,
-	start_ratio: float,
-	end_ratio: float,
-	inset: float
-) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	const SAMPLE_COUNT := 36
-	for index in range(SAMPLE_COUNT):
-		var amount: float = float(index) / float(SAMPLE_COUNT - 1)
-		var profile_ratio: float = lerpf(start_ratio, end_ratio, amount)
-		var y_ratio: float = lerpf(_window_top_ratio, _reflection_bottom_ratio, profile_ratio)
-		var bounds: Vector2 = _reflection_bounds_at(y_ratio)
-		var edge_ratio: float = bounds.x if left_side else bounds.y
-		var x: float = rect.position.x + rect.size.x * edge_ratio
-		x += inset if left_side else -inset
-		var y: float = rect.position.y + rect.size.y * y_ratio
-		points.append(Vector2(x, y))
-	return points
-
-
-func _get_top_liquid_color() -> Color:
-	if _visual_contents.is_empty():
-		return Color(0.45, 0.78, 0.75, 1.0)
-	var top_index: int = clampi(int(floor(_liquid_level - 0.0001)), 0, _visual_contents.size() - 1)
-	var essence: String = String(_visual_contents[top_index])
-	return _palette.get(essence, Color(0.45, 0.78, 0.75, 1.0))
