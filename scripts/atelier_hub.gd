@@ -1,6 +1,6 @@
 extends Control
 
-const ROOM_TEXTURE_PATH := "res://assets/environments/SpellSort_Atelier_Room.svg"
+const ROOM_TEXTURE_PATH := "res://assets/environments/SpellSort_Atelier_Minimal.svg"
 const FIRST_LESSONS_SCENE := "res://scenes/atelier_first_lessons.tscn"
 const PROGRESS_PATH := "user://spell_sort_progress.cfg"
 
@@ -42,7 +42,7 @@ func _build_room() -> void:
 	var veil := ColorRect.new()
 	veil.name = "RoomVeil"
 	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	veil.color = Color(0.012, 0.020, 0.017, 0.12)
+	veil.color = Color(0.012, 0.020, 0.017, 0.035)
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(veil)
 
@@ -73,8 +73,8 @@ func _build_header() -> void:
 func _build_atlas_hotspot() -> void:
 	_atlas_button = Button.new()
 	_atlas_button.name = "AtlasHotspot"
-	_atlas_button.position = Vector2(48.0, 344.0)
-	_atlas_button.size = Vector2(220.0, 322.0)
+	_atlas_button.position = Vector2(190.0, 292.0)
+	_atlas_button.size = Vector2(340.0, 360.0)
 	_atlas_button.focus_mode = Control.FOCUS_NONE
 	_atlas_button.tooltip_text = "The Atlas is dormant. Complete your first lessons."
 	_atlas_button.disabled = not _first_lessons_complete
@@ -97,7 +97,7 @@ func _build_atlas_hotspot() -> void:
 
 	var atlas_title := _make_label(
 		"THE ATLAS",
-		Rect2(78.0, 603.0, 170.0, 25.0),
+		Rect2(230.0, 655.0, 260.0, 24.0),
 		13,
 		Color("#d4c29a") if _first_lessons_complete else Color("#817f6d")
 	)
@@ -106,7 +106,7 @@ func _build_atlas_hotspot() -> void:
 
 	_atlas_status = _make_label(
 		"",
-		Rect2(78.0, 628.0, 170.0, 20.0),
+		Rect2(230.0, 680.0, 260.0, 18.0),
 		9,
 		Color("#c0a36d") if _first_lessons_complete else Color("#777b6d")
 	)
