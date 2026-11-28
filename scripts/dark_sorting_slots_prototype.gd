@@ -1331,7 +1331,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	if is_zero_approx(direction):
 		direction = 1.0
 
-	var pour_pose := Vector2(24.0, deg_to_rad(103.0) * direction)
+	var pour_pose := Vector2(24.0, deg_to_rad(95.0) * direction)
 	const POUR_DRAW_SCALE := 0.82
 	var target_mouth: Vector2 = target.call("get_mouth_position_in_parent")
 	# Keep the two rims visibly separated: the source mouth sits slightly
