@@ -30,6 +30,7 @@ var _selected: bool = false
 var _targeted: bool = false
 var _dragging: bool = false
 var _drag_motion: bool = false
+var _drag_motion_release_timer: float = 0.0
 var _surface_activity: float = 0.0
 var _lift: float = 0.0
 var _tilt: float = 0.0
@@ -38,6 +39,7 @@ var _draw_scale: float = 1.0
 var _slosh: float = 0.0
 var _slosh_velocity: float = 0.0
 var _wave_time: float = 0.0
+var _surface_wave_phase: float = 0.0
 var _max_half_width: float = 0.44
 
 
@@ -75,6 +77,11 @@ func set_preview(contents: Array, level: float) -> void:
 	_liquid_level = clampf(level, 0.0, float(CAPACITY))
 	queue_redraw()
 
+func set_pour_refraction_visible(_visible: bool) -> void:
+	# Optional vessel-specific optical detail; standard vessels have none.
+	pass
+
+
 
 
 func set_feedback(selected: bool, targeted: bool, dragging: bool) -> void:
@@ -83,11 +90,18 @@ func set_feedback(selected: bool, targeted: bool, dragging: bool) -> void:
 	_dragging = dragging
 	if not dragging:
 		_drag_motion = false
+		_drag_motion_release_timer = 0.0
 	queue_redraw()
 
 
 func set_drag_motion(active: bool) -> void:
-	_drag_motion = active and _dragging
+	if not _dragging:
+		_drag_motion = false
+		_drag_motion_release_timer = 0.0
+		return
+	if active:
+		_drag_motion = true
+		_drag_motion_release_timer = 0.14
 
 func set_pose(pose: Vector2) -> void:
 	var tilt_change: float = pose.y - _tilt
@@ -115,6 +129,7 @@ func reset_motion() -> void:
 	_lift = 0.0
 	_tilt = 0.0
 	_draw_scale = 1.0
+	_drag_motion_release_timer = 0.0
 	_slosh = 0.0
 	_slosh_velocity = 0.0
 	_drag_motion = false
@@ -178,14 +193,24 @@ func is_pointer_over_mouth(pointer_local: Vector2) -> bool:
 
 
 func _process(delta: float) -> void:
+	if _drag_motion:
+		_drag_motion_release_timer = maxf(0.0, _drag_motion_release_timer - delta)
+		if _drag_motion_release_timer <= 0.0:
+			_drag_motion = false
+
 	var target_activity: float = 0.18
 	if _dragging:
 		target_activity = 0.82 if _drag_motion else 0.42
 	elif _selected:
 		target_activity = 0.28
 
-	_surface_activity = move_toward(_surface_activity, target_activity, delta * 4.8)
+	# Ease state changes over a longer interval so crossing the pointer-speed
+	# threshold does not cause a visible jump in the liquid animation.
+	_surface_activity = move_toward(_surface_activity, target_activity, delta * 2.8)
 	_wave_time += delta * lerpf(1.25, 2.65, _surface_activity)
+	# Integrate wave frequency into its own phase; never multiply a changing
+	# frequency by total elapsed time, which creates a phase spike on activity changes.
+	_surface_wave_phase += delta * lerpf(1.8, 3.2, _surface_activity)
 
 	_slosh_velocity += (-_slosh * 15.0 - _slosh_velocity * 5.2) * delta
 	_slosh += _slosh_velocity * delta
@@ -245,7 +270,10 @@ func _get_vessel_rect() -> Rect2:
 func _draw() -> void:
 	var center_x: float = size.x * 0.5
 	var pivot := Vector2(center_x, size.y * 0.86)
-	draw_circle(Vector2(center_x, size.y * 0.87), size.x * 0.34, Color(0.012, 0.022, 0.027, 0.30))
+	# Keep the vessel shadow flat and oval, matching the perspective of its slot.
+	var shadow_center := Vector2(center_x, size.y * 0.953)
+	var shadow_shape := _ellipse_points(shadow_center, size.x * 0.47, size.x * 0.125, 48)
+	draw_colored_polygon(shadow_shape, Color(0.012, 0.022, 0.027, 0.30))
 
 	var draw_origin := pivot + Vector2(0.0, -_lift) - pivot.rotated(_tilt) * _draw_scale
 	draw_set_transform(draw_origin, _tilt, Vector2(_draw_scale, _draw_scale))
@@ -268,7 +296,7 @@ func _draw() -> void:
 		display_name,
 		HORIZONTAL_ALIGNMENT_CENTER,
 		size.x,
-		12,
+		15,
 		Color(0.96, 0.88, 0.70, 0.96)
 	)
 
@@ -508,12 +536,13 @@ func _draw_liquid_band(
 func _get_surface_wave_offset(normalized_x: float) -> float:
 	var maximum_wave: float = 0.90 + _surface_activity * 1.75 + absf(_slosh) * 1.20
 	var secondary_wave: float = 0.18 + _surface_activity * 0.48 + absf(_slosh) * 0.50
-	var wave_frequency: float = lerpf(1.8, 3.2, _surface_activity)
 	var edge_envelope: float = sin((normalized_x + 1.0) * PI * 0.5)
 	edge_envelope = pow(maxf(0.0, edge_envelope), 0.55)
 
-	var wave_one: float = sin(_wave_time * wave_frequency + normalized_x * 3.1) * maximum_wave
-	var wave_two: float = sin(_wave_time * (wave_frequency * 1.37) - normalized_x * 6.3) * secondary_wave
+	# Frequency changes are accumulated into _surface_wave_phase in _process.
+	# This keeps the wave continuous when activity rises or falls.
+	var wave_one: float = sin(_surface_wave_phase + normalized_x * 3.1) * maximum_wave
+	var wave_two: float = sin(_surface_wave_phase * 1.37 - normalized_x * 6.3) * secondary_wave
 	var tilt_offset: float = clampf(-tan(_tilt) * normalized_x * 10.0 * 0.035, -3.0, 3.0)
 	return (wave_one + wave_two) * edge_envelope + tilt_offset
 

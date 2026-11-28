@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="Spell Sort"
-run/main_scene="res://scenes/alchemy_interaction_test.tscn"
+run/main_scene="res://scenes/atelier_hub.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
+run/max_fps=60
 config/icon="res://icon.svg"
+
+[autoload]
+SceneTransition="*res://scripts/scene_transition.gd"
 
 [display]
 

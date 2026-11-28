@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280" viewBox="0 0 720 1280">
+  <defs>
+    <linearGradient id="void" x1="0" y1="0" x2="0.15" y2="1">
+      <stop offset="0" stop-color="#080f0e"/>
+      <stop offset="0.55" stop-color="#0b1411"/>
+      <stop offset="1" stop-color="#070d0c"/>
+    </linearGradient>
+    <radialGradient id="sanctuaryGlow" cx="50%" cy="39%" r="54%">
+      <stop offset="0" stop-color="#405b43" stop-opacity="0.19"/>
+      <stop offset="0.55" stop-color="#273b30" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#0b1411" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="atlasGlass" cx="46%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#1b2b23"/>
+      <stop offset="0.58" stop-color="#0c1713"/>
+      <stop offset="1" stop-color="#070e0c"/>
+    </radialGradient>
+    <linearGradient id="atlasRim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a88b58" stop-opacity="0.64"/>
+      <stop offset="0.42" stop-color="#5a4a31" stop-opacity="0.52"/>
+      <stop offset="1" stop-color="#b39a69" stop-opacity="0.26"/>
+    </linearGradient>
+    <linearGradient id="benchTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#28281f"/>
+      <stop offset="0.42" stop-color="#191d17"/>
+      <stop offset="1" stop-color="#101612"/>
+    </linearGradient>
+    <linearGradient id="benchEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#685239" stop-opacity="0.68"/>
+      <stop offset="0.3" stop-color="#3b3023" stop-opacity="0.86"/>
+      <stop offset="1" stop-color="#131a15"/>
+    </linearGradient>
+    <radialGradient id="warmPool">
+      <stop offset="0" stop-color="#c39451" stop-opacity="0.11"/>
+      <stop offset="0.6" stop-color="#997347" stop-opacity="0.045"/>
+      <stop offset="1" stop-color="#997347" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edgeShadow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#020605" stop-opacity="0.95"/>
+      <stop offset="0.5" stop-color="#0b1411" stop-opacity="0"/>
+      <stop offset="1" stop-color="#020605" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Near-black sanctuary: the room is suggested, not fully illustrated -->
+  <rect width="720" height="1280" fill="url(#void)"/>
+  <rect width="720" height="1280" fill="url(#sanctuaryGlow)"/>
+
+  <!-- Architectural depth: broad shadow masses and one recessed arch -->
+  <path d="M0 0H720V1040L648 1000V380C648 180 560 82 360 82C160 82 72 180 72 380V1000L0 1040Z"
+        fill="#0b1310" opacity="0.72"/>
+  <path d="M92 824V385C92 207 174 119 360 119C546 119 628 207 628 385V824"
+        fill="none" stroke="#1b2921" stroke-opacity="0.42" stroke-width="24"/>
+  <path d="M112 812V390C112 229 187 147 360 147C533 147 608 229 608 390V812"
+        fill="none" stroke="#060c0a" stroke-opacity="0.82" stroke-width="13"/>
+  <path d="M360 154V742" stroke="#53624a" stroke-opacity="0.055" stroke-width="3"/>
+  <path d="M122 792H598" stroke="#526148" stroke-opacity="0.07" stroke-width="2"/>
+
+  <!-- A few large environmental silhouettes, deliberately lost in shadow -->
+  <path d="M-34 640C30 563 43 447 18 347C80 414 92 532 52 646Z" fill="#080f0c"/>
+  <path d="M-16 757C39 678 85 643 137 637C105 700 48 747 -16 757Z" fill="#0a120e"/>
+  <path d="M754 633C690 556 677 444 702 346C640 414 628 530 668 642Z" fill="#070e0c"/>
+  <path d="M736 759C681 681 635 645 583 639C615 704 672 750 736 759Z" fill="#09110e"/>
+  <path d="M26 632C51 565 53 478 27 393M693 630C669 565 667 477 693 393"
+        fill="none" stroke="#314332" stroke-opacity="0.16" stroke-width="4"/>
+
+  <!-- The Atlas: one deliberate focal object, recessed into the arch -->
+  <ellipse cx="360" cy="480" rx="194" ry="206" fill="#000000" opacity="0.48"/>
+  <ellipse cx="360" cy="472" rx="170" ry="180" fill="#080f0d" stroke="#29362a" stroke-opacity="0.44" stroke-width="12"/>
+  <ellipse cx="360" cy="472" rx="151" ry="160" fill="url(#atlasGlass)" stroke="url(#atlasRim)" stroke-width="4"/>
+  <ellipse cx="360" cy="472" rx="136" ry="145" fill="none" stroke="#9b8559" stroke-opacity="0.21" stroke-width="1.5"/>
+  <ellipse cx="360" cy="472" rx="120" ry="129" fill="none" stroke="#69795c" stroke-opacity="0.16" stroke-width="1"/>
+  <path d="M360 317C337 373 337 428 360 472C383 516 383 573 360 627"
+        fill="none" stroke="#b09a68" stroke-opacity="0.23" stroke-width="2"/>
+  <path d="M231 472C285 448 325 449 360 472C395 495 435 496 489 472"
+        fill="none" stroke="#a18b60" stroke-opacity="0.18" stroke-width="2"/>
+  <path d="M275 378C302 397 325 418 360 472C395 526 419 547 445 566"
+        fill="none" stroke="#9cad7b" stroke-opacity="0.16" stroke-width="2"/>
+  <path d="M445 378C418 397 395 418 360 472C325 526 301 547 275 566"
+        fill="none" stroke="#9cad7b" stroke-opacity="0.12" stroke-width="2"/>
+  <circle cx="360" cy="472" r="13" fill="#a48c5c" fill-opacity="0.24"/>
+  <circle cx="360" cy="472" r="4" fill="#d0b47b" fill-opacity="0.40"/>
+  <circle cx="275" cy="378" r="3" fill="#c0a574" fill-opacity="0.36"/>
+  <circle cx="445" cy="566" r="3" fill="#c0a574" fill-opacity="0.28"/>
+  <circle cx="445" cy="378" r="2.5" fill="#b5a16e" fill-opacity="0.24"/>
+  <circle cx="275" cy="566" r="2.5" fill="#b5a16e" fill-opacity="0.24"/>
+  <path d="M360 293V313M360 631V651M185 472H205M515 472H535"
+        stroke="#a48a59" stroke-opacity="0.32" stroke-width="3"/>
+  <path d="M360 292L353 304H367Z M360 652L353 640H367Z"
+        fill="#a48a59" fill-opacity="0.26"/>
+
+  <!-- Soft reflected light below the Atlas, fading before the work surface -->
+  <ellipse cx="360" cy="704" rx="240" ry="170" fill="url(#sanctuaryGlow)"/>
+
+  <!-- Workbench: a simple dark plane, not a fully painted furniture object -->
+  <ellipse cx="360" cy="884" rx="354" ry="136" fill="#000000" opacity="0.42"/>
+  <path d="M18 801L702 801L720 955L0 955Z" fill="#080f0d" opacity="0.95"/>
+  <path d="M28 813L692 813L707 936L13 936Z" fill="url(#benchTop)" stroke="#51432e" stroke-opacity="0.38" stroke-width="3"/>
+  <path d="M36 821L684 821L696 927L24 927Z" fill="none" stroke="#aa8b57" stroke-opacity="0.10" stroke-width="1.5"/>
+  <path d="M14 937L706 937L716 965L4 965Z" fill="url(#benchEdge)"/>
+  <path d="M12 941L708 941" stroke="#b39461" stroke-opacity="0.29" stroke-width="2"/>
+  <path d="M30 967H690" stroke="#020605" stroke-opacity="0.85" stroke-width="8"/>
+  <path d="M92 978L104 1154M628 978L616 1154" stroke="#080f0c" stroke-opacity="0.72" stroke-width="34"/>
+  <path d="M112 1000L608 1000" stroke="#594631" stroke-opacity="0.12" stroke-width="2"/>
+  <ellipse cx="360" cy="872" rx="125" ry="37" fill="none" stroke="#b79a65" stroke-opacity="0.12" stroke-width="2"/>
+  <ellipse cx="360" cy="872" rx="102" ry="26" fill="none" stroke="#b79a65" stroke-opacity="0.075" stroke-width="1"/>
+
+  <!-- A single warm pool gives the workbench a point of invitation -->
+  <ellipse cx="360" cy="860" rx="260" ry="140" fill="url(#warmPool)"/>
+
+  <!-- Foreground floor dissolves back into darkness -->
+  <path d="M0 1002H720V1280H0Z" fill="#070d0b"/>
+  <path d="M0 1018H720" stroke="#667054" stroke-opacity="0.055" stroke-width="2"/>
+  <path d="M88 1070L632 1070M145 1144L575 1144"
+        stroke="#637053" stroke-opacity="0.035" stroke-width="2"/>
+  <rect width="720" height="1280" fill="url(#edgeShadow)"/>
+  <rect width="720" height="1280" fill="#020605" opacity="0.16"/>
+</svg>

@@ -1,0 +1,235 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280" viewBox="0 0 720 1280">
+  <defs>
+    <linearGradient id="sanctuary" x1="0" y1="0" x2="0.08" y2="1">
+      <stop offset="0" stop-color="#1b1b13"/>
+      <stop offset="0.38" stop-color="#171a13"/>
+      <stop offset="0.72" stop-color="#101711"/>
+      <stop offset="1" stop-color="#090f0c"/>
+    </linearGradient>
+    <radialGradient id="warmAtmosphere" cx="50%" cy="39%" r="57%">
+      <stop offset="0" stop-color="#85704b" stop-opacity="0.16"/>
+      <stop offset="0.48" stop-color="#5a6540" stop-opacity="0.075"/>
+      <stop offset="1" stop-color="#0b120d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="archRecess" cx="48%" cy="36%" r="66%">
+      <stop offset="0" stop-color="#25281b"/>
+      <stop offset="0.54" stop-color="#141b13"/>
+      <stop offset="1" stop-color="#090f0c"/>
+    </radialGradient>
+    <linearGradient id="archStone" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#37392a"/>
+      <stop offset="0.28" stop-color="#57513a"/>
+      <stop offset="0.52" stop-color="#494b32"/>
+      <stop offset="0.78" stop-color="#514b35"/>
+      <stop offset="1" stop-color="#282d21"/>
+    </linearGradient>
+    <linearGradient id="carvedWood" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#856441"/>
+      <stop offset="0.28" stop-color="#58452f"/>
+      <stop offset="0.68" stop-color="#3b3022"/>
+      <stop offset="1" stop-color="#211e16"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#c1a06a"/>
+      <stop offset="0.34" stop-color="#91744a"/>
+      <stop offset="0.7" stop-color="#5b4b32"/>
+      <stop offset="1" stop-color="#ad8c58"/>
+    </linearGradient>
+    <radialGradient id="atlasInterior" cx="42%" cy="30%" r="74%">
+      <stop offset="0" stop-color="#35402d"/>
+      <stop offset="0.45" stop-color="#1d291e"/>
+      <stop offset="1" stop-color="#0c1511"/>
+    </radialGradient>
+    <linearGradient id="tabletop" x1="0" y1="0" x2="0.15" y2="1">
+      <stop offset="0" stop-color="#655039"/>
+      <stop offset="0.22" stop-color="#493925"/>
+      <stop offset="0.72" stop-color="#30291d"/>
+      <stop offset="1" stop-color="#211e17"/>
+    </linearGradient>
+    <linearGradient id="tableFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b5134"/>
+      <stop offset="0.18" stop-color="#463523"/>
+      <stop offset="0.65" stop-color="#2a241b"/>
+      <stop offset="1" stop-color="#121813"/>
+    </linearGradient>
+    <radialGradient id="tableWarmth" cx="50%" cy="26%" r="72%">
+      <stop offset="0" stop-color="#c18d4d" stop-opacity="0.12"/>
+      <stop offset="0.58" stop-color="#9c7041" stop-opacity="0.045"/>
+      <stop offset="1" stop-color="#9c7041" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#273627"/>
+      <stop offset="0.55" stop-color="#17251a"/>
+      <stop offset="1" stop-color="#0b140e"/>
+    </linearGradient>
+    <radialGradient id="sconceGlow">
+      <stop offset="0" stop-color="#e2ad63" stop-opacity="0.28"/>
+      <stop offset="0.38" stop-color="#c48b4e" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#bd8146" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="vignette" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#030705" stop-opacity="0.72"/>
+      <stop offset="0.28" stop-color="#030705" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#030705" stop-opacity="0"/>
+      <stop offset="1" stop-color="#030705" stop-opacity="0.72"/>
+    </linearGradient>
+    <linearGradient id="candleWax" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#806d4d"/>
+      <stop offset="0.24" stop-color="#c5ae7a"/>
+      <stop offset="0.62" stop-color="#d7c391"/>
+      <stop offset="1" stop-color="#766345"/>
+    </linearGradient>
+    <linearGradient id="candleBrass" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#b99a61"/>
+      <stop offset="0.48" stop-color="#6f5837"/>
+      <stop offset="1" stop-color="#30291d"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Deep olive-brown sanctuary with a restrained warm centre -->
+  <rect width="720" height="1280" fill="url(#sanctuary)"/>
+  <rect width="720" height="1280" fill="url(#warmAtmosphere)"/>
+  <path d="M0 0H720V1020L664 986V376C664 181 552 88 360 88C168 88 56 181 56 376V986L0 1020Z"
+        fill="#0c130e" opacity="0.73"/>
+
+  <!-- Recessed organic arch: intentionally imperfect, broad and quiet -->
+  <path d="M48 786V416C48 211 157 105 359 105C557 105 672 214 672 416V786"
+        fill="none" stroke="#0a100c" stroke-width="92" stroke-linecap="round"/>
+  <path d="M48 786V416C48 211 157 105 359 105C557 105 672 214 672 416V786"
+        fill="none" stroke="url(#archStone)" stroke-opacity="0.64" stroke-width="67" stroke-linecap="round"/>
+  <path d="M78 786V418C78 236 173 137 359 137C543 137 642 237 642 418V786"
+        fill="none" stroke="#171e14" stroke-opacity="0.84" stroke-width="18" stroke-linecap="round"/>
+  <path d="M96 782V420C96 252 185 157 359 157C531 157 624 253 624 420V782"
+        fill="url(#archRecess)"/>
+  <path d="M118 780V421C118 271 198 180 359 180C521 180 602 271 602 421V780"
+        fill="none" stroke="#89734d" stroke-opacity="0.19" stroke-width="3"/>
+  <path d="M132 780V423C132 286 208 194 359 194C511 194 588 286 588 423V780"
+        fill="none" stroke="#98a06d" stroke-opacity="0.075" stroke-width="2"/>
+
+  <!-- A few carved botanical traces in the arch, not decorative clutter -->
+  <g fill="none" stroke="#a18b5d" stroke-opacity="0.14" stroke-width="2">
+    <path d="M84 574C105 554 110 526 101 501C124 515 132 543 118 564"/>
+    <path d="M636 575C615 555 610 527 619 502C596 516 588 544 602 565"/>
+    <path d="M91 609C106 591 125 582 142 584"/>
+    <path d="M629 610C614 592 595 583 578 585"/>
+  </g>
+  <g fill="#69784e" fill-opacity="0.13">
+    <path d="M99 526C84 505 86 484 104 470C119 493 117 511 99 526Z"/>
+    <path d="M621 527C636 506 634 485 616 471C601 494 603 512 621 527Z"/>
+  </g>
+
+  <!-- Atlas shadow and carved walnut surround -->
+  <ellipse cx="360" cy="471" rx="190" ry="202" fill="#030705" opacity="0.55"/>
+  <path d="M360 276C466 276 540 359 540 472C540 583 462 667 360 667C258 667 180 583 180 472C180 359 254 276 360 276Z"
+        fill="#0a100c" stroke="#302a1c" stroke-width="15"/>
+  <path d="M360 287C460 287 528 365 528 472C528 575 456 654 360 654C264 654 192 575 192 472C192 365 260 287 360 287Z"
+        fill="url(#carvedWood)" stroke="#97764c" stroke-opacity="0.54" stroke-width="5"/>
+  <path d="M360 304C449 304 511 374 511 472C511 569 446 636 360 636C274 636 209 569 209 472C209 374 271 304 360 304Z"
+        fill="#24271b" stroke="url(#brass)" stroke-width="4"/>
+  <path d="M360 316C442 316 498 381 498 472C498 560 439 623 360 623C281 623 222 560 222 472C222 381 278 316 360 316Z"
+        fill="url(#atlasInterior)"/>
+  <path d="M360 327C433 327 486 388 486 472C486 552 432 610 360 610C288 610 234 552 234 472C234 388 287 327 360 327Z"
+        fill="none" stroke="#cfb17a" stroke-opacity="0.32" stroke-width="2"/>
+  <path d="M360 342C423 342 471 395 471 472C471 545 420 595 360 595C300 595 249 545 249 472C249 395 297 342 360 342Z"
+        fill="none" stroke="#a0a879" stroke-opacity="0.16" stroke-width="1.5"/>
+
+  <!-- Quiet atlas cartography: organic land shapes and contour lines -->
+  <path d="M276 408C294 382 321 382 339 396C350 407 365 403 375 389C393 373 416 380 431 400C445 418 437 439 419 451C404 462 401 478 413 493C426 510 413 532 395 536C378 540 365 528 350 537C332 549 311 537 306 519C302 505 286 501 275 489C259 473 262 446 277 433Z"
+        fill="#74815a" fill-opacity="0.20" stroke="#b09b69" stroke-opacity="0.22" stroke-width="2"/>
+  <path d="M299 430C318 417 338 420 350 435C364 450 381 450 396 438C411 427 424 438 423 451M291 477C311 462 330 467 339 482C348 498 367 500 382 485C395 472 411 475 422 488"
+        fill="none" stroke="#c1aa77" stroke-opacity="0.19" stroke-width="1.8"/>
+  <path d="M360 350C349 382 350 410 360 441C370 472 372 510 359 592"
+        fill="none" stroke="#c5a873" stroke-opacity="0.19" stroke-width="1.7"/>
+  <path d="M266 472C301 455 331 455 360 472C389 489 419 489 454 472"
+        fill="none" stroke="#c5a873" stroke-opacity="0.16" stroke-width="1.5"/>
+  <path d="M299 375C315 390 337 405 360 472C383 539 406 554 421 570"
+        fill="none" stroke="#7f9a69" stroke-opacity="0.13" stroke-width="2"/>
+  <path d="M421 375C405 390 383 405 360 472C337 539 314 554 299 570"
+        fill="none" stroke="#7f9a69" stroke-opacity="0.13" stroke-width="2"/>
+
+  <!-- Four small brass anchor points make the Atlas feel like an instrument -->
+  <g fill="url(#brass)" stroke="#d3ba83" stroke-opacity="0.36" stroke-width="1">
+    <circle cx="360" cy="304" r="5"/>
+    <circle cx="528" cy="472" r="5"/>
+    <circle cx="360" cy="654" r="5"/>
+    <circle cx="192" cy="472" r="5"/>
+  </g>
+  <g fill="#d2bd8c" fill-opacity="0.28">
+    <circle cx="360" cy="472" r="8"/>
+    <circle cx="360" cy="472" r="3" fill="#e1c58a" fill-opacity="0.48"/>
+  </g>
+
+  <!-- A pair of organic, inset side forms creates depth without filling the arch -->
+  <path d="M44 748C93 706 106 657 95 608C143 646 157 711 129 762Z" fill="#0a120d" opacity="0.85"/>
+  <path d="M676 748C627 706 614 657 625 608C577 646 563 711 591 762Z" fill="#090f0c" opacity="0.86"/>
+  <path d="M58 728C86 690 95 655 89 625M662 728C634 690 625 655 631 625"
+        fill="none" stroke="#64714a" stroke-opacity="0.13" stroke-width="3"/>
+
+  <!-- Candlelight now belongs to the workbench, not an unsupported wall detail. -->
+
+  <!-- Workbench legs and apron, kept mostly in shadow -->
+  <path d="M75 946L645 946L622 1165L98 1165Z" fill="#090f0c" opacity="0.88"/>
+  <path d="M108 955L157 955L147 1167L112 1167Z" fill="#171c14"/>
+  <path d="M563 955L612 955L608 1167L573 1167Z" fill="#131a13"/>
+  <path d="M94 949C204 971 512 971 626 949L614 1092C501 1111 219 1111 106 1092Z"
+        fill="url(#tableFront)" stroke="#886b43" stroke-opacity="0.26" stroke-width="3"/>
+  <path d="M111 978C220 994 500 994 609 978" fill="none" stroke="#b18c59" stroke-opacity="0.22" stroke-width="3"/>
+  <path d="M121 1051C240 1064 480 1064 599 1051" fill="none" stroke="#130f0a" stroke-opacity="0.56" stroke-width="4"/>
+  <path d="M138 1080C257 1090 463 1090 582 1080" fill="none" stroke="#a17b4b" stroke-opacity="0.11" stroke-width="2"/>
+
+  <!-- Broad, softly curved walnut work surface -->
+  <ellipse cx="360" cy="882" rx="360" ry="135" fill="#020605" opacity="0.48"/>
+  <path d="M24 808C130 772 584 772 696 808C711 845 714 909 704 944C579 976 142 976 16 944C7 907 11 844 24 808Z"
+        fill="#0b100d" stroke="#8c6b43" stroke-opacity="0.44" stroke-width="5"/>
+  <path d="M31 813C143 785 577 785 689 813C699 850 701 906 693 934C572 961 149 961 27 934C19 905 20 851 31 813Z"
+        fill="url(#tabletop)"/>
+  <path d="M48 823C163 802 559 802 672 823C679 850 681 900 675 922C558 944 164 944 44 922C37 896 39 851 48 823Z"
+        fill="url(#tableWarmth)"/>
+  <path d="M42 825C174 803 548 803 677 825" fill="none" stroke="#d2aa70" stroke-opacity="0.27" stroke-width="3"/>
+  <path d="M28 936C163 962 559 962 694 936" fill="none" stroke="#c49b62" stroke-opacity="0.30" stroke-width="4"/>
+  <path d="M29 947C166 974 553 974 691 947" fill="none" stroke="#120f0a" stroke-opacity="0.82" stroke-width="8"/>
+
+  <!-- Restrained wood grain, following the table's curvature -->
+  <g fill="none" stroke="#d0a16a" stroke-opacity="0.075" stroke-width="2">
+    <path d="M105 850C214 832 303 834 356 840"/>
+    <path d="M386 839C482 834 568 839 632 852"/>
+    <path d="M92 894C198 884 269 887 323 894"/>
+    <path d="M396 899C496 887 564 892 640 903"/>
+  </g>
+  <path d="M360 851C398 850 424 861 439 881C415 897 391 902 360 899C329 902 305 897 281 881C296 861 322 850 360 851Z"
+        fill="none" stroke="#c09a63" stroke-opacity="0.15" stroke-width="2"/>
+  <path d="M360 861L370 875L360 889L350 875Z" fill="#c6a36a" fill-opacity="0.12"/>
+
+  <!-- A grounded wax candle in a small aged-brass holder on the workbench -->
+  <g id="workbench-candle" transform="translate(-54 -28)">
+    <path d="M551 795C556 801 584 801 589 795L585 804C578 810 562 810 555 804Z"
+          fill="url(#candleBrass)" stroke="#b99a61" stroke-opacity="0.48" stroke-width="1.5"/>
+    <ellipse cx="570" cy="797" rx="15.5" ry="4.3" fill="#443725" stroke="#a88a55" stroke-opacity="0.62" stroke-width="1.3"/>
+    <path d="M560 797C560 787 561 773 561 764C561 759 579 759 579 764C579 773 580 787 580 797C574 802 566 802 560 797Z"
+          fill="url(#candleWax)" stroke="#5b4b32" stroke-opacity="0.72" stroke-width="1.4"/>
+    <ellipse cx="570" cy="764" rx="9" ry="3.9" fill="#d4c08e" stroke="#88734d" stroke-opacity="0.72" stroke-width="1"/>
+    <path d="M563 774C563 781 562 789 563 794" fill="none" stroke="#efe0b3" stroke-opacity="0.22" stroke-width="1.5"/>
+    <path d="M570 761C568.5 758 570 755.5 571 753" fill="none" stroke="#302116" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M570 797C563 799 557 798 554 795" fill="none" stroke="#d6b678" stroke-opacity="0.34" stroke-width="1.2"/>
+  </g>
+
+  <!-- Foreground botanical silhouette frames the room instead of decorating the table -->
+  <g fill="url(#leaf)" stroke="#62704a" stroke-opacity="0.18" stroke-width="2">
+    <path d="M-26 1073C20 1002 40 920 24 837C82 907 87 1006 43 1081Z"/>
+    <path d="M-12 1050C33 985 76 959 119 955C94 1017 49 1047 -12 1050Z"/>
+    <path d="M-10 1140C33 1086 78 1063 125 1060C94 1119 45 1142 -10 1140Z"/>
+    <path d="M746 1070C700 1001 680 919 696 837C638 907 633 1006 677 1078Z"/>
+    <path d="M732 1050C687 985 644 959 601 955C626 1017 671 1047 732 1050Z"/>
+    <path d="M730 1140C687 1086 642 1063 595 1060C626 1119 675 1142 730 1140Z"/>
+  </g>
+  <g fill="none" stroke="#899366" stroke-opacity="0.12" stroke-width="3">
+    <path d="M10 1154C49 1060 53 958 24 837"/>
+    <path d="M710 1154C671 1060 667 958 696 837"/>
+  </g>
+
+  <!-- Warm foreground falloff -->
+  <path d="M0 1128C150 1095 570 1095 720 1128V1280H0Z" fill="#080e0b" opacity="0.82"/>
+  <path d="M0 1151C178 1128 542 1128 720 1151" fill="none" stroke="#766343" stroke-opacity="0.08" stroke-width="3"/>
+  <rect width="720" height="1280" fill="url(#vignette)"/>
+  <rect width="720" height="1280" fill="#030705" opacity="0.12"/>
+</svg>
