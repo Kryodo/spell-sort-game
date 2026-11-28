@@ -64,13 +64,7 @@ func _continue_from_completion() -> void:
 func _return_to_world() -> void:
 	if is_animating:
 		return
-	# Reverse the focal handoff: the board closes, then the Atelier returns
-	# around the workbench area.
-	SceneTransition.transition_to(
-		ATELIER_SCENE,
-		Vector2(0.50, 0.52),
-		Vector2(0.50, 0.70)
-	)
+	SceneTransition.transition_to(ATELIER_SCENE)
 
 
 func _save_progress_flag(flag_name: String) -> void:

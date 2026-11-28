@@ -34,6 +34,6 @@ The project files and scene references were checked statically. Godot 4.7 is not
 
 ## Scene transitions
 
-- `scripts/scene_transition.gd` is registered as the persistent `SceneTransition` autoload. It covers the outgoing scene with a warm, etched radial aperture, swaps scenes only while fully covered, then opens around the destination focus.
-- The Atelier-to-board transition closes around the workbench and reveals the sorting board around its play area. Returning from the board reverses those focus points. The manager is designed to be reused by future environment and HUD navigation instead of adding individual fades to each scene.
-- The effect uses a short close/reveal animation and blocks input while the handoff is in progress. It does not change puzzle state or lesson progression.
+- `scripts/scene_transition.gd` is registered as the persistent `SceneTransition` autoload, so scene changes can share one consistent transition system.
+- The Atelier-to-board and board-to-Atelier transitions use a restrained 1.8% scale push-in, a very brief warm darkening at the scene swap, and a settle back to normal size. The complete handoff is about 0.42 seconds by default.
+- The transition blocks input while active and does not change puzzle state or lesson progression. Future room and HUD navigation can reuse the same manager; frequent low-significance HUD changes can still happen instantly.
