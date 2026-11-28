@@ -33,14 +33,12 @@ const LIQUID_BOTTOM_BLEND_START := 0.68
 const LIQUID_APPEARANCE_FADE_LEVEL := 0.12
 const LIQUID_MIN_BAND_HEIGHT := 0.05
 const LIQUID_BAND_FADE_HEIGHT := 1.5
-const LIQUID_BOUNDARY_SAMPLES := 56
+const LIQUID_BOUNDARY_SAMPLES := 96
 const LIQUID_CHAMBER_SIDE_SAMPLES := 112
 const LIQUID_FLOOR_SAMPLES := 32
 const LIQUID_FLOOR_DEPTH_RATIO := 0.021
 const LIQUID_INTERFACE_CURVE_DEPTH := 1.8
-const POUR_CHANNEL_MAX_SHIFT_RATIO := 0.17
-const POUR_CHANNEL_SHOULDER_START := 0.40
-const POUR_CHANNEL_MOUTH_FULL := 0.84
+const POUR_CHANNEL_SHOULDER_START := 0.56
 const LIQUID_GRAVITY_SOLVE_STEPS := 12
 const LIQUID_TILT_CACHE_EPSILON := 0.004
 const LIQUID_SURFACE_EXTENT_SAMPLES := 96
@@ -169,6 +167,7 @@ var _cached_liquid_bands: Array[Dictionary] = []
 var _cached_liquid_rect := Rect2()
 var _liquid_geometry_dirty: bool = true
 var _cached_chamber_polygon := PackedVector2Array()
+var _cached_pour_wall_profile := PackedVector2Array()
 var _cached_liquid_floor_depth: float = 0.0
 var _cached_liquid_tilt: float = 999.0
 var _pour_outflow_active: bool = false
@@ -309,6 +308,7 @@ func set_vial_art(texture: Texture2D) -> void:
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
 	_cached_chamber_polygon = PackedVector2Array()
+	_cached_pour_wall_profile = PackedVector2Array()
 
 	# Use the new bottle's hand-authored silhouette instead of scanning the
 	# SVG pixels. The profile is mapped into the same normalized full-art
@@ -1030,6 +1030,9 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 
 	_cached_liquid_rect = rect
 	var gravity_frame: Dictionary = _get_liquid_gravity_frame(rect, _tilt)
+	_cached_pour_wall_profile.clear()
+	if _pour_visual_weight > 0.001 and absf(_tilt) >= deg_to_rad(30.0):
+		_cached_pour_wall_profile = _build_pour_wall_profile(rect, gravity_frame)
 	var boundary_offsets: Dictionary = {}
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
 	var layer_index: int = 0
@@ -1153,6 +1156,105 @@ func _build_liquid_chamber_polygon(
 	return polygon
 
 
+func _build_pour_wall_profile(
+	rect: Rect2,
+	frame: Dictionary
+) -> PackedVector2Array:
+	var profile := PackedVector2Array()
+	var centre: Vector2 = frame["centre"]
+	var tangent: Vector2 = frame["tangent"]
+	var tangent_span: float = float(frame["tangent_span"])
+	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
+	var extended_span: float = tangent_span + margin
+
+	for sample_index in range(LIQUID_BOUNDARY_SAMPLES + 1):
+		var t: float = float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
+		var tangent_distance: float = lerpf(-extended_span, extended_span, t)
+		var wall_offset: float = _get_lower_inner_wall_normal_offset(
+			frame,
+			tangent_distance
+		)
+		profile.append(Vector2(tangent_distance, wall_offset))
+
+	return profile
+
+
+func _get_lower_inner_wall_normal_offset(
+	frame: Dictionary,
+	tangent_distance: float
+) -> float:
+	var centre: Vector2 = frame["centre"]
+	var tangent: Vector2 = frame["tangent"]
+	var normal: Vector2 = frame["normal"]
+	var greatest_normal_offset: float = -1.0e20
+
+	for edge_index in range(_cached_chamber_polygon.size()):
+		var first: Vector2 = _cached_chamber_polygon[edge_index]
+		var second: Vector2 = _cached_chamber_polygon[
+			(edge_index + 1) % _cached_chamber_polygon.size()
+		]
+		var first_tangent: float = (first - centre).dot(tangent)
+		var second_tangent: float = (second - centre).dot(tangent)
+		var first_normal: float = (first - centre).dot(normal)
+		var second_normal: float = (second - centre).dot(normal)
+
+		var tangent_delta: float = second_tangent - first_tangent
+		if absf(tangent_delta) <= 0.0001:
+			if absf(tangent_distance - first_tangent) <= 0.75:
+				greatest_normal_offset = maxf(
+					greatest_normal_offset,
+					maxf(first_normal, second_normal)
+				)
+			continue
+
+		var edge_min: float = minf(first_tangent, second_tangent)
+		var edge_max: float = maxf(first_tangent, second_tangent)
+		if tangent_distance < edge_min - 0.001 or tangent_distance > edge_max + 0.001:
+			continue
+
+		var edge_weight: float = clampf(
+			(tangent_distance - first_tangent) / tangent_delta,
+			0.0,
+			1.0
+		)
+		var wall_point: Vector2 = first.lerp(second, edge_weight)
+		greatest_normal_offset = maxf(
+			greatest_normal_offset,
+			(wall_point - centre).dot(normal)
+		)
+
+	return greatest_normal_offset
+
+
+func _get_pouring_taper_progress(
+	rect: Rect2,
+	frame: Dictionary,
+	tangent_distance: float
+) -> float:
+	var mouth_direction: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
+	var centre: Vector2 = frame["centre"]
+	var tangent: Vector2 = frame["tangent"]
+	var tangent_span: float = float(frame["tangent_span"])
+	var mouth_center := Vector2(
+		rect.get_center().x,
+		rect.position.y + rect.size.y * _mouth_y_ratio
+	)
+	var mouth_distance: float = (
+		(mouth_center - centre).dot(tangent) * mouth_direction
+	)
+	var shoulder_distance: float = tangent_span * POUR_CHANNEL_SHOULDER_START
+	var mouth_end_distance: float = maxf(
+		shoulder_distance + 8.0,
+		mouth_distance
+	)
+	var current_distance: float = tangent_distance * mouth_direction
+	return smoothstep(
+		shoulder_distance,
+		mouth_end_distance,
+		current_distance
+	)
+
+
 func _get_liquid_gravity_frame(rect: Rect2, angle: float) -> Dictionary:
 	var tangent := Vector2(cos(angle), -sin(angle))
 	var normal := Vector2(sin(angle), cos(angle))
@@ -1175,7 +1277,7 @@ func _build_gravity_half_plane(
 	offset: float,
 	keep_below: bool,
 	curve_depth: float,
-	pour_channel_shift: float = 0.0
+	pour_channel_weight: float = 0.0
 ) -> PackedVector2Array:
 	var centre: Vector2 = frame["centre"]
 	var tangent: Vector2 = frame["tangent"]
@@ -1184,23 +1286,38 @@ func _build_gravity_half_plane(
 	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
 	var extended_span: float = tangent_span + margin
 	var boundary := PackedVector2Array()
-	var mouth_direction: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
 
 	for sample_index in range(LIQUID_BOUNDARY_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
 		var tangent_distance: float = lerpf(-extended_span, extended_span, t)
 		var u: float = tangent_distance / tangent_span
 		var curve: float = curve_depth * maxf(0.0, 1.0 - u * u)
-		var mouth_progress: float = smoothstep(
-			POUR_CHANNEL_SHOULDER_START,
-			POUR_CHANNEL_MOUTH_FULL,
-			tangent_distance * mouth_direction / tangent_span
-		)
-		var local_channel_shift: float = pour_channel_shift * mouth_progress
+		var normal_offset: float = offset + curve
+
+		if (
+			pour_channel_weight > 0.001
+			and _cached_pour_wall_profile.size() == LIQUID_BOUNDARY_SAMPLES + 1
+		):
+			var wall_offset: float = _cached_pour_wall_profile[sample_index].y
+			if wall_offset > -1.0e19:
+				var taper_progress: float = _get_pouring_taper_progress(
+					rect,
+					frame,
+					tangent_distance
+				)
+				# Every internal interface converges onto the same lower glass
+				# wall. Their spacing therefore falls smoothly to zero at the
+				# mouth, leaving the full outlet cross-section to the top essence.
+				normal_offset = lerpf(
+					normal_offset,
+					wall_offset,
+					taper_progress * pour_channel_weight
+				)
+
 		boundary.append(
 			centre
 			+ tangent * tangent_distance
-			+ normal * (offset + curve + local_channel_shift)
+			+ normal * normal_offset
 		)
 
 	var half_plane := PackedVector2Array()
@@ -1354,7 +1471,7 @@ func _valid_liquid_polygons(polygons: Array) -> Array[PackedVector2Array]:
 	return valid_polygons
 
 
-func _get_pouring_boundary_shift(rect: Rect2, fill_units: float) -> float:
+func _get_pouring_boundary_weight(fill_units: float) -> float:
 	if _pour_visual_weight <= 0.001 or absf(_tilt) < deg_to_rad(30.0):
 		return 0.0
 
@@ -1363,50 +1480,28 @@ func _get_pouring_boundary_shift(rect: Rect2, fill_units: float) -> float:
 		return 0.0
 
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
-	if visible_layers < 2:
+	if boundary_index <= 0 or boundary_index >= visible_layers:
 		return 0.0
 
-	# Work from distinct adjacent colour groups, so merged matching essences
-	# still give the active top colour the strongest outlet priority.
-	var group_starts: Array[int] = []
-	var group_start: int = 0
-	while group_start < visible_layers:
-		group_starts.append(group_start)
-		var group_color: Color = _palette.get(
-			String(_visual_contents[group_start]),
-			Color(0.45, 0.78, 0.75, 1.0)
-		)
-		var group_end: int = group_start + 1
-		while group_end < visible_layers:
-			var next_color: Color = _palette.get(
-				String(_visual_contents[group_end]),
-				Color(0.45, 0.78, 0.75, 1.0)
-			)
-			if not _same_liquid_colour(group_color, next_color):
-				break
-			group_end += 1
-		group_start = group_end
-
-	if group_starts.size() < 2:
+	# Only actual boundaries between differently coloured groups converge.
+	# Matching neighbouring essences have already been merged into one band.
+	var lower_color: Color = _palette.get(
+		String(_visual_contents[boundary_index - 1]),
+		Color(0.45, 0.78, 0.75, 1.0)
+	)
+	var upper_color: Color = _palette.get(
+		String(_visual_contents[boundary_index]),
+		Color(0.45, 0.78, 0.75, 1.0)
+	)
+	if _same_liquid_colour(lower_color, upper_color):
 		return 0.0
 
-	var boundary_rank: int = group_starts.find(boundary_index)
-	if boundary_rank <= 0:
-		return 0.0
-
-	var rank: float = float(boundary_rank) / float(group_starts.size() - 1)
 	var angle_weight: float = smoothstep(
 		deg_to_rad(30.0),
 		deg_to_rad(78.0),
 		absf(_tilt)
 	)
-	return (
-		rect.size.x
-		* POUR_CHANNEL_MAX_SHIFT_RATIO
-		* pow(rank, 1.25)
-		* angle_weight
-		* _pour_visual_weight
-	)
+	return angle_weight * _pour_visual_weight
 
 
 func _get_reference_liquid_area(
@@ -1441,7 +1536,7 @@ func _get_gravity_boundary_offset(
 	frame: Dictionary,
 	fill_units: float,
 	curve_depth: float,
-	pour_channel_shift: float = 0.0
+	pour_channel_weight: float = 0.0
 ) -> float:
 	var centre: Vector2 = frame["centre"]
 	var normal: Vector2 = frame["normal"]
@@ -1489,7 +1584,7 @@ func _get_gravity_boundary_offset(
 			middle,
 			true,
 			curve_depth,
-			pour_channel_shift
+			pour_channel_weight
 		)
 		var area: float = _polygons_area(
 			Geometry2D.intersect_polygons(chamber_polygon, half_plane)
@@ -1518,8 +1613,8 @@ func _get_cached_boundary_offset(
 	curve_depth: float,
 	offset_cache: Dictionary
 ) -> float:
-	var pour_channel_shift: float = _get_pouring_boundary_shift(rect, fill_units)
-	var key: String = "%0.4f|%0.3f" % [fill_units, pour_channel_shift]
+	var pour_channel_weight: float = _get_pouring_boundary_weight(fill_units)
+	var key: String = "%0.4f|%0.3f" % [fill_units, pour_channel_weight]
 	if offset_cache.has(key):
 		return float(offset_cache[key])
 	var offset: float = _get_gravity_boundary_offset(
@@ -1528,7 +1623,7 @@ func _get_cached_boundary_offset(
 		frame,
 		fill_units,
 		curve_depth,
-		pour_channel_shift
+		pour_channel_weight
 	)
 	offset_cache[key] = offset
 	return offset
@@ -1547,7 +1642,7 @@ func _build_cached_liquid_band(
 	is_surface: bool
 ) -> Array[Dictionary]:
 	var top_curve_depth: float = _get_liquid_boundary_curve_depth(top_units)
-	var top_channel_shift: float = _get_pouring_boundary_shift(rect, top_units)
+	var top_channel_weight: float = _get_pouring_boundary_weight(top_units)
 	var top_offset: float = _get_cached_boundary_offset(
 		rect,
 		chamber_polygon,
@@ -1562,7 +1657,7 @@ func _build_cached_liquid_band(
 		top_offset,
 		true,
 		top_curve_depth,
-		top_channel_shift
+		top_channel_weight
 	)
 	var clipped_polygons: Array = Geometry2D.intersect_polygons(
 		chamber_polygon,
@@ -1571,7 +1666,7 @@ func _build_cached_liquid_band(
 
 	if bottom_units > 0.0001 and not clipped_polygons.is_empty():
 		var bottom_curve_depth: float = _get_liquid_boundary_curve_depth(bottom_units)
-		var bottom_channel_shift: float = _get_pouring_boundary_shift(rect, bottom_units)
+		var bottom_channel_weight: float = _get_pouring_boundary_weight(bottom_units)
 		var bottom_offset: float = _get_cached_boundary_offset(
 			rect,
 			bottom_boundary_polygon,
@@ -1586,7 +1681,7 @@ func _build_cached_liquid_band(
 			bottom_offset,
 			false,
 			bottom_curve_depth,
-			bottom_channel_shift
+			bottom_channel_weight
 		)
 		var band_polygons: Array = []
 		for current_polygon in clipped_polygons:
