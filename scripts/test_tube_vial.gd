@@ -66,7 +66,7 @@ func _draw_glass_overlay() -> void:
 	# The main vector overlay supplies the bottle contour, wall reflections,
 	# shoulder light, rounded base and rolled mouth.
 	draw_texture_rect(GLASS_ART, Rect2(Vector2.ZERO, size), false, Color.WHITE)
-	# The far-base refraction is a separate pass so it can disappear while
-	# incoming liquid is moving through the receiver.
-	if _pour_refraction_visible:
+	# The far-base Fresnel is visible only through empty glass. Any liquid
+	# in the vessel obscures this optical detail, even after the pour has ended.
+	if _pour_refraction_visible and _liquid_level <= 0.001:
 		draw_texture_rect(BASE_REFRACTION_ART, Rect2(Vector2.ZERO, size), false, Color.WHITE)

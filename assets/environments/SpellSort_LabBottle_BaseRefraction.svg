@@ -20,23 +20,26 @@
     </linearGradient>
   </defs>
 
-  <!-- Stronger left-side caustic, fading away before the middle. -->
-  <path d="M36 327
-    C43 315 54 307 69 305
-    C64 311 57 318 51 326
-    C46 329 40 329 36 327 Z"
+  <!-- A broad, shallow left caustic follows the width of the rounded foot. -->
+  <path d="M28 326
+    C37 318 51 314 66 315
+    C76 316 84 319 90 323
+    C81 321 73 320 64 320
+    C50 320 38 325 31 331
+    C29 330 28 328 28 326 Z"
     fill="url(#leftCrescent)" opacity=".72"/>
-  <path d="M42 323
-    C49 314 58 309 67 307
-    C61 312 55 318 50 324 Z"
+  <path d="M34 325
+    C45 319 57 317 69 318
+    C58 318 46 322 36 328 Z"
     fill="url(#leftEdgeGlint)" opacity=".32"/>
 
-  <!-- A deliberate dark gap through the centre keeps it from reading as a line. -->
+  <!-- A small dark break keeps the reflection from becoming a continuous base line. -->
 
-  <!-- Much fainter reflected touch on the right. -->
-  <path d="M94 305
-    C108 307 119 315 124 327
-    C120 329 114 329 109 326
-    C104 318 99 311 94 305 Z"
+  <!-- The right-side return is wider and flatter, but remains much fainter. -->
+  <path d="M96 323
+    C105 318 116 317 124 322
+    C129 325 131 328 132 330
+    C127 331 122 329 117 326
+    C110 323 103 322 96 323 Z"
     fill="url(#rightCrescent)" opacity=".58"/>
 </svg>
