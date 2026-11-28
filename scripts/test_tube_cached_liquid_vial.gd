@@ -11,7 +11,7 @@ const BASE_REFRACTION_ART: Texture2D = preload("res://assets/environments/SpellS
 const BOTTLE_BODY_WIDTH_RATIO := 0.70
 const BOTTLE_BODY_TOP_RATIO := 0.055
 const BOTTLE_BODY_HEIGHT_RATIO := 0.89
-const BOTTLE_NECK_BASE_PROFILE_RATIO := 0.19
+const BOTTLE_NECK_BASE_PROFILE_RATIO := 0.11
 
 # Keep the animated meniscus separate from the static shaded liquid body.
 const SURFACE_CAP_DEPTH := 22.0
@@ -168,6 +168,7 @@ var _cached_liquid_rect := Rect2()
 var _liquid_geometry_dirty: bool = true
 var _cached_chamber_polygon := PackedVector2Array()
 var _cached_strata_chamber_polygon := PackedVector2Array()
+var _cached_neck_chamber_polygon := PackedVector2Array()
 var _cached_liquid_floor_depth: float = 0.0
 var _cached_liquid_tilt: float = 999.0
 var _pour_outflow_active: bool = false
@@ -296,6 +297,7 @@ func _build_inner_window_profile() -> void:
 	_window_profile.clear()
 	_cached_chamber_polygon = PackedVector2Array()
 	_cached_strata_chamber_polygon = PackedVector2Array()
+	_cached_neck_chamber_polygon = PackedVector2Array()
 
 	# Use the new bottle's hand-authored silhouette instead of scanning the
 	# SVG pixels. The profile is mapped into the same normalized full-art
@@ -720,14 +722,18 @@ func _draw_liquid(_rect: Rect2) -> void:
 		return
 
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
+	var surface_band: Dictionary = {}
 	for band in _cached_liquid_bands:
 		var polygon: PackedVector2Array = band["polygon"]
 		var vertex_colors: PackedColorArray = band["vertex_colors"]
-		# Draw the cached triangulation as individual primitives. This avoids
-		# asking CanvasItem to re-triangulate a clipped concave contour.
+		# Draw every valid fragment. The top colour is stored as a body piece
+		# and a separate neck extension, meeting at the shared neck-root seam.
 		_draw_triangulated_liquid_polygon(polygon, vertex_colors)
 		if bool(band["is_surface"]):
-			_draw_cached_liquid_surface(band)
+			surface_band = band
+
+	if not surface_band.is_empty():
+		_draw_cached_liquid_surface(surface_band)
 
 	_draw_pour_outflow(rect)
 	_draw_window_bubbles(rect, visible_layers)
@@ -1000,8 +1006,9 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 
 	if rect_changed or _cached_chamber_polygon.is_empty():
 		_cached_chamber_polygon = _build_liquid_chamber_polygon(rect)
-		# Lower essences are confined to the original body fill volume.
-		# Only the top essence gets the additional neck volume used by the pour.
+		# The body mask ends at the actual neck root, not halfway down the
+		# shoulder. The separate neck polygon lets the top essence continue
+		# from the shoulder into the opening without shortening the body layers.
 		var neck_base_ratio: float = (
 			BOTTLE_BODY_TOP_RATIO
 			+ BOTTLE_BODY_HEIGHT_RATIO * BOTTLE_NECK_BASE_PROFILE_RATIO
@@ -1010,7 +1017,15 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 			rect,
 			neck_base_ratio
 		)
-	if _cached_chamber_polygon.size() < 8 or _cached_strata_chamber_polygon.size() < 8:
+		_cached_neck_chamber_polygon = _build_liquid_neck_polygon(
+			rect,
+			neck_base_ratio
+		)
+	if (
+		_cached_chamber_polygon.size() < 8
+		or _cached_strata_chamber_polygon.size() < 8
+		or _cached_neck_chamber_polygon.size() < 8
+	):
 		_cached_liquid_rect = rect
 		return
 
@@ -1051,13 +1066,14 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 				visible_amount
 			)
 			var is_top_group: bool = group_end >= visible_layers
-			# Every colour keeps its complete body layer up to the neck root.
-			# The top essence enters the neck only through the separate,
-			# narrow outflow ribbon drawn during pouring.
-			var band: Dictionary = _build_cached_liquid_band(
+			# Solve every colour against the same full chamber so the stacked
+			# layers retain their original volumes and gravity alignment.
+			# The renderer then splits the top essence into body + neck pieces,
+			# while lower essences are clipped only from the straight neck.
+			var bands: Array[Dictionary] = _build_cached_liquid_band(
 				rect,
-				_cached_strata_chamber_polygon,
-				_cached_strata_chamber_polygon,
+				_cached_chamber_polygon,
+				_cached_chamber_polygon,
 				gravity_frame,
 				body_boundary_offsets,
 				body_boundary_offsets,
@@ -1066,8 +1082,8 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 				appearance_color,
 				is_top_group
 			)
-			if not band.is_empty():
-				_cached_liquid_bands.append(band)
+			if not bands.is_empty():
+				_cached_liquid_bands.append_array(bands)
 
 		layer_index = group_end
 
@@ -1079,6 +1095,38 @@ func _same_liquid_colour(first: Color, second: Color) -> bool:
 		and absf(first.b - second.b) <= 0.002
 		and absf(first.a - second.a) <= 0.002
 	)
+
+
+func _build_liquid_neck_polygon(
+	rect: Rect2,
+	neck_base_ratio: float
+) -> PackedVector2Array:
+	# A dedicated upper-neck region shares its bottom edge with the body mask.
+	# Its sides follow the measured inner glass profile all the way to the mouth.
+	var left_wall := PackedVector2Array()
+	var right_wall := PackedVector2Array()
+	const NECK_PROFILE_SAMPLES := 36
+	var top_ratio: float = BOTTLE_BODY_TOP_RATIO
+	for sample_index in range(NECK_PROFILE_SAMPLES + 1):
+		var t: float = float(sample_index) / float(NECK_PROFILE_SAMPLES)
+		var y_ratio: float = lerpf(top_ratio, neck_base_ratio, t)
+		var bounds: Vector2 = _window_bounds_at(y_ratio)
+		var y: float = rect.position.y + rect.size.y * y_ratio
+		left_wall.append(Vector2(
+			rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET,
+			y
+		))
+		right_wall.append(Vector2(
+			rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET,
+			y
+		))
+
+	var polygon := PackedVector2Array()
+	for point in left_wall:
+		polygon.append(point)
+	for index in range(right_wall.size() - 1, -1, -1):
+		polygon.append(right_wall[index])
+	return _sanitize_liquid_polygon(polygon)
 
 
 func _build_liquid_chamber_polygon(
@@ -1320,23 +1368,19 @@ func _draw_triangulated_solid_liquid_polygon(
 	_draw_triangulated_liquid_polygon(polygon, vertex_colors)
 
 
-func _largest_polygon(polygons: Array) -> PackedVector2Array:
-	var largest := PackedVector2Array()
-	var largest_area: float = 0.0
-	for item in polygons:
-		var source_polygon: PackedVector2Array = item
-		var polygon: PackedVector2Array = _sanitize_liquid_polygon(source_polygon)
+func _valid_liquid_polygons(polygons: Array) -> Array[PackedVector2Array]:
+	# Keep every valid fragment returned by Geometry2D. Selecting only the
+	# largest one can silently discard shoulder/body sections after clipping.
+	var valid_polygons: Array[PackedVector2Array] = []
+	for polygon_value in polygons:
+		var polygon: PackedVector2Array = _sanitize_liquid_polygon(polygon_value)
 		if polygon.size() < 3:
 			continue
-		# Ear clipping is the same operation the canvas renderer needs. Reject
-		# malformed intersection contours before they reach draw_polygon().
-		if Geometry2D.triangulate_polygon(polygon).is_empty():
+		var triangle_indices: PackedInt32Array = Geometry2D.triangulate_polygon(polygon)
+		if triangle_indices.is_empty() or triangle_indices.size() % 3 != 0:
 			continue
-		var area: float = _polygon_area(polygon)
-		if area > largest_area:
-			largest_area = area
-			largest = polygon
-	return largest
+		valid_polygons.append(polygon)
+	return valid_polygons
 
 
 func _get_reference_liquid_area(
@@ -1471,7 +1515,7 @@ func _build_cached_liquid_band(
 	top_units: float,
 	liquid_color: Color,
 	is_surface: bool
-) -> Dictionary:
+) -> Array[Dictionary]:
 	var top_curve_depth: float = _get_liquid_boundary_curve_depth(top_units)
 	var top_offset: float = _get_cached_boundary_offset(
 		rect,
@@ -1520,9 +1564,44 @@ func _build_cached_liquid_band(
 				band_polygons.append(output_polygon)
 		clipped_polygons = band_polygons
 
-	var polygon: PackedVector2Array = _largest_polygon(clipped_polygons)
-	if polygon.size() < 3:
-		return {}
+	var full_band_polygons: Array[PackedVector2Array] = _valid_liquid_polygons(
+		clipped_polygons
+	)
+	if full_band_polygons.is_empty():
+		return []
+
+	# Split the actual band only at the neck-root seam. Every lower essence
+	# keeps its full shoulder/body shape; the top essence also receives the
+	# matching neck fragment as a separate, connected render piece.
+	var render_pieces: Array[Dictionary] = []
+	for full_band_polygon in full_band_polygons:
+		var body_pieces: Array[PackedVector2Array] = _valid_liquid_polygons(
+			Geometry2D.intersect_polygons(
+				full_band_polygon,
+				_cached_strata_chamber_polygon
+			)
+		)
+		for body_piece in body_pieces:
+			render_pieces.append({
+				"polygon": body_piece,
+				"is_neck_extension": false
+			})
+
+		if is_surface:
+			var neck_pieces: Array[PackedVector2Array] = _valid_liquid_polygons(
+				Geometry2D.intersect_polygons(
+					full_band_polygon,
+					_cached_neck_chamber_polygon
+				)
+			)
+			for neck_piece in neck_pieces:
+				render_pieces.append({
+					"polygon": neck_piece,
+					"is_neck_extension": true
+				})
+
+	if render_pieces.is_empty():
+		return []
 
 	var band_amount: float = maxf(0.001, top_units - bottom_units)
 	var band_alpha: float = smoothstep(
@@ -1535,30 +1614,6 @@ func _build_cached_liquid_band(
 	var edge_color: Color = fill_color.darkened(0.10)
 	var bottom_color: Color = fill_color.darkened(0.045)
 	var center_color: Color = fill_color.lightened(0.18)
-
-	var min_y: float = INF
-	var max_y: float = -INF
-	for point in polygon:
-		min_y = minf(min_y, point.y)
-		max_y = maxf(max_y, point.y)
-
-	var vertex_colors := PackedColorArray()
-	for point in polygon:
-		var horizontal_distance: float = absf(point.x - rect.get_center().x)
-		var horizontal_weight: float = 1.0 - clampf(
-			horizontal_distance / maxf(1.0, rect.size.x * 0.5),
-			0.0,
-			1.0
-		)
-		var center_weight: float = pow(horizontal_weight, 0.85) * 0.42
-		var vertical_weight: float = clampf(
-			(point.y - min_y) / maxf(1.0, max_y - min_y),
-			0.0,
-			1.0
-		)
-		var shaded_color: Color = edge_color.lerp(center_color, center_weight)
-		shaded_color = shaded_color.lerp(bottom_color, vertical_weight * 0.08)
-		vertex_colors.append(shaded_color)
 
 	var centre: Vector2 = frame["centre"]
 	var normal: Vector2 = frame["normal"]
@@ -1579,20 +1634,51 @@ func _build_cached_liquid_band(
 		+ normal * (top_offset + top_curve_depth)
 	)
 
-	return {
-		"polygon": polygon,
-		"vertex_colors": vertex_colors,
-		"fill_color": fill_color,
-		"liquid_alpha": liquid_color.a * band_alpha,
-		"surface_center": surface_center,
-		"surface_tangent": tangent,
-		"surface_normal": normal,
-		"surface_radius_x": surface_radius_x,
-		"surface_boundary_offset": top_offset,
-		"surface_curve_depth": top_curve_depth,
-		"surface_depth": clampf(rect.size.y * 0.032, 5.0, 10.0),
-		"is_surface": is_surface
-	}
+	var output_bands: Array[Dictionary] = []
+	for piece_index in range(render_pieces.size()):
+		var render_piece: Dictionary = render_pieces[piece_index]
+		var polygon: PackedVector2Array = render_piece["polygon"]
+		var min_y: float = INF
+		var max_y: float = -INF
+		for point in polygon:
+			min_y = minf(min_y, point.y)
+			max_y = maxf(max_y, point.y)
+
+		var vertex_colors := PackedColorArray()
+		for point in polygon:
+			var horizontal_distance: float = absf(point.x - rect.get_center().x)
+			var horizontal_weight: float = 1.0 - clampf(
+				horizontal_distance / maxf(1.0, rect.size.x * 0.5),
+				0.0,
+				1.0
+			)
+			var center_weight: float = pow(horizontal_weight, 0.85) * 0.42
+			var vertical_weight: float = clampf(
+				(point.y - min_y) / maxf(1.0, max_y - min_y),
+				0.0,
+				1.0
+			)
+			var shaded_color: Color = edge_color.lerp(center_color, center_weight)
+			shaded_color = shaded_color.lerp(bottom_color, vertical_weight * 0.08)
+			vertex_colors.append(shaded_color)
+
+		output_bands.append({
+			"polygon": polygon,
+			"vertex_colors": vertex_colors,
+			"fill_color": fill_color,
+			"liquid_alpha": liquid_color.a * band_alpha,
+			"surface_center": surface_center,
+			"surface_tangent": tangent,
+			"surface_normal": normal,
+			"surface_radius_x": surface_radius_x,
+			"surface_boundary_offset": top_offset,
+			"surface_curve_depth": top_curve_depth,
+			"surface_depth": clampf(rect.size.y * 0.032, 5.0, 10.0),
+			"is_surface": is_surface and piece_index == 0,
+			"is_neck_extension": bool(render_piece["is_neck_extension"])
+		})
+
+	return output_bands
 
 
 func _get_surface_tangent_range(
