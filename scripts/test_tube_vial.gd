@@ -4,30 +4,30 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 # pour behaviour remain shared with the existing vessel system; only the glass
 # silhouette and its reflections are authored here.
 
-const BOTTLE_BODY_WIDTH_RATIO := 0.55
-const BOTTLE_BODY_TOP_RATIO := 0.085
-const BOTTLE_BODY_HEIGHT_RATIO := 0.855
+const BOTTLE_BODY_WIDTH_RATIO := 0.66
+const BOTTLE_BODY_TOP_RATIO := 0.055
+const BOTTLE_BODY_HEIGHT_RATIO := 0.89
 
 
 func _profile_points() -> Array[Vector2]:
-	# A softly curved neck opens into a broad cylindrical body. The lower
-	# shoulders roll inward to a gently flattened, rounded glass foot.
+	# The reference bottle has a compact neck, a soft shoulder and a broad,
+	# mostly straight-sided body. Its corners stay rounded rather than bulbous.
 	return [
-		Vector2(0.000, 0.290),
-		Vector2(0.025, 0.310),
-		Vector2(0.065, 0.310),
-		Vector2(0.115, 0.305),
-		Vector2(0.165, 0.325),
-		Vector2(0.220, 0.375),
-		Vector2(0.285, 0.430),
-		Vector2(0.350, 0.450),
-		Vector2(0.700, 0.450),
-		Vector2(0.790, 0.445),
-		Vector2(0.865, 0.415),
-		Vector2(0.915, 0.365),
-		Vector2(0.955, 0.295),
-		Vector2(0.982, 0.225),
-		Vector2(1.000, 0.190)
+		Vector2(0.000, 0.255),
+		Vector2(0.035, 0.255),
+		Vector2(0.075, 0.258),
+		Vector2(0.120, 0.275),
+		Vector2(0.170, 0.335),
+		Vector2(0.220, 0.405),
+		Vector2(0.275, 0.455),
+		Vector2(0.325, 0.470),
+		Vector2(0.745, 0.470),
+		Vector2(0.825, 0.462),
+		Vector2(0.890, 0.430),
+		Vector2(0.935, 0.370),
+		Vector2(0.970, 0.285),
+		Vector2(0.990, 0.215),
+		Vector2(1.000, 0.175)
 	]
 
 
@@ -108,8 +108,8 @@ func _draw_inner_bottom_back_highlight(rect: Rect2) -> void:
 		rect.get_center().x,
 		rect.end.y - rect.size.y * 0.075
 	)
-	var radius_x := rect.size.x * 0.235
-	var radius_y := size.x * 0.040
+	var radius_x := rect.size.x * 0.205
+	var radius_y := size.x * 0.034
 	var back_arc := _ellipse_arc(
 		centre,
 		radius_x,
@@ -123,8 +123,8 @@ func _draw_inner_bottom_back_highlight(rect: Rect2) -> void:
 
 func _draw_rounded_glass_base(rect: Rect2) -> void:
 	var bottom_centre := Vector2(rect.get_center().x, rect.end.y - 1.0)
-	var bottom_radius_x := rect.size.x * 0.19
-	var bottom_radius_y := size.x * 0.021
+	var bottom_radius_x := rect.size.x * 0.225
+	var bottom_radius_y := size.x * 0.019
 	var base_glass := _ellipse_points(bottom_centre, bottom_radius_x, bottom_radius_y, 36)
 	draw_colored_polygon(base_glass, Color(0.65, 0.82, 0.87, 0.17))
 	draw_polyline(
@@ -158,9 +158,9 @@ func _draw_rounded_glass_base(rect: Rect2) -> void:
 
 func _draw_flared_rolled_rim(rect: Rect2) -> void:
 	var centre := Vector2(rect.get_center().x, rect.position.y + size.x * 0.006)
-	var outer_radius_x := rect.size.x * 0.365
-	var outer_radius_y := size.x * 0.048
-	var inner_radius_x := outer_radius_x * 0.755
+	var outer_radius_x := rect.size.x * 0.285
+	var outer_radius_y := size.x * 0.043
+	var inner_radius_x := outer_radius_x * 0.77
 	var inner_radius_y := outer_radius_y * 0.56
 
 	# The flared roll is broad enough to catch light, but stays clearly smaller

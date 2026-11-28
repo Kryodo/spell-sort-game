@@ -62,12 +62,12 @@ func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2,
 func _refresh_hud() -> void:
 	super._refresh_hud()
 	if is_instance_valid(_chapter_label):
-		_chapter_label.text = "LABORATORY VESSELS  ·  GLASS SHAPE STUDY"
+		_chapter_label.text = "BOTTLE DESIGN  ·  GLASS SHAPE STUDY"
 	if is_instance_valid(level_label):
 		if round_complete:
-			level_label.text = "VESSEL STUDY  ·  EXPERIMENT COMPLETE"
+			level_label.text = "BOTTLE STUDY  ·  EXPERIMENT COMPLETE"
 		else:
-			level_label.text = "VESSEL STUDY  ·  LEVEL %02d / 10" % (current_level + 1)
+			level_label.text = "BOTTLE STUDY  ·  LEVEL %02d / 10" % (current_level + 1)
 
 
 func _return_to_world() -> void:
