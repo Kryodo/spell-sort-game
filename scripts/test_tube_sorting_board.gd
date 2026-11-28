@@ -12,7 +12,7 @@ func _ready() -> void:
 
 func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2, markers: Array) -> void:
 	var vial: Control = TestTubeVialScript.new()
-	vial.name = "TestTubeVial%02d" % (index + 1)
+	vial.name = "LaboratoryBottleVial%02d" % (index + 1)
 	vial.position = position_value
 	vial.size = size_value
 	vial.z_index = 2
@@ -39,7 +39,7 @@ func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2,
 		slot_glow_color = PALETTE.get(String(vial_contents.back()), slot_glow_color)
 	markers.append({
 		"centre": foot,
-		"radius": Vector2(size_value.x * 0.33, size_value.x * 0.085),
+		"radius": Vector2(size_value.x * 0.27, size_value.x * 0.075),
 		"scale": size_value.x / TEST_VIAL_SOURCE_SIZE.x,
 		"has_contents": not vial_contents.is_empty(),
 		"glow_color": slot_glow_color
@@ -62,12 +62,12 @@ func _add_minimal_vial(index: int, position_value: Vector2, size_value: Vector2,
 func _refresh_hud() -> void:
 	super._refresh_hud()
 	if is_instance_valid(_chapter_label):
-		_chapter_label.text = "LABORATORY GLASS  ·  TEST-TUBE STUDY"
+		_chapter_label.text = "LABORATORY VESSELS  ·  GLASS SHAPE STUDY"
 	if is_instance_valid(level_label):
 		if round_complete:
-			level_label.text = "TEST-TUBE STUDY  ·  EXPERIMENT COMPLETE"
+			level_label.text = "VESSEL STUDY  ·  EXPERIMENT COMPLETE"
 		else:
-			level_label.text = "TEST-TUBE STUDY  ·  LEVEL %02d / 10" % (current_level + 1)
+			level_label.text = "VESSEL STUDY  ·  LEVEL %02d / 10" % (current_level + 1)
 
 
 func _return_to_world() -> void:
