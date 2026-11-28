@@ -47,14 +47,15 @@ func set_front_mouth_lip_active(_active: bool) -> void:
 
 
 func _draw_glass_back(rect: Rect2) -> void:
-	# Keep the existing soft translucent body shading and place the inner
-	# bottom reflection behind the liquid, so the liquid inherits the glass depth.
+	# Keep the existing soft translucent body shading behind the liquid.
 	super._draw_glass_back(rect)
-	_draw_inner_bottom_back_highlight(rect)
 
 
 func _draw_glass_overlay() -> void:
 	var rect := _get_vessel_rect()
+	# This faint inner reflection sits over the liquid, like light catching the
+	# far inner wall of the rounded glass base.
+	_draw_inner_bottom_back_highlight(rect)
 	_draw_bottle_edges(rect)
 	_draw_rounded_glass_base(rect)
 	_draw_flared_rolled_rim(rect)
@@ -117,7 +118,7 @@ func _draw_inner_bottom_back_highlight(rect: Rect2) -> void:
 		TAU - 0.16,
 		28
 	)
-	draw_polyline(back_arc, Color(0.91, 0.98, 0.99, 0.22), 1.35, true)
+	draw_polyline(back_arc, Color(0.91, 0.98, 0.99, 0.17), 1.25, true)
 
 
 func _draw_rounded_glass_base(rect: Rect2) -> void:
