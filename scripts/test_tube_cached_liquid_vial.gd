@@ -870,9 +870,8 @@ func _clip_pour_shape_to_top_essence(
 	if remaining_pieces.is_empty():
 		return remaining_pieces
 
-	# The top essence can now have multiple render pieces (body + neck).
-	# Exclude all pieces belonging to that same essence from the subtraction;
-	# only genuinely lower colours should interrupt the pouring ribbon.
+	# The active essence is one continuous partition band. Subtract only
+	# lower colour regions; the top colour keeps its widened outlet corridor.
 	var first_top_essence_piece: int = top_band_index
 	while first_top_essence_piece > 0:
 		var previous_band: Dictionary = _cached_liquid_bands[first_top_essence_piece - 1]
