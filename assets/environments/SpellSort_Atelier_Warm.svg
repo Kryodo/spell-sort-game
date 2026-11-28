@@ -202,7 +202,6 @@
 
   <!-- A grounded wax candle in a small aged-brass holder on the workbench -->
   <g id="workbench-candle" transform="translate(-54 -28)">
-    <ellipse cx="570" cy="808" rx="25" ry="5.5" fill="#030705" opacity="0.48"/>
     <path d="M551 795C556 801 584 801 589 795L585 804C578 810 562 810 555 804Z"
           fill="url(#candleBrass)" stroke="#b99a61" stroke-opacity="0.48" stroke-width="1.5"/>
     <ellipse cx="570" cy="797" rx="15.5" ry="4.3" fill="#443725" stroke="#a88a55" stroke-opacity="0.62" stroke-width="1.3"/>
