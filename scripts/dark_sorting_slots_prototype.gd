@@ -1358,6 +1358,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 
 	source.call("trigger_slosh", 0.24)
 	target.call("trigger_slosh", 0.12)
+	if source.has_method("set_pour_outflow_active"):
+		source.call("set_pour_outflow_active", true, _pour_color)
 	_set_status("Pouring %s essence..." % essence.capitalize())
 
 	# Hide the receiver's far-base refraction while moving liquid is visible.
@@ -1378,6 +1380,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	await pour_tween.finished
 
 	_pour_stream_active = false
+	if source.has_method("set_pour_outflow_active"):
+		source.call("set_pour_outflow_active", false)
 	# Restore the optical reflection after the incoming stream has stopped.
 	target.call("set_pour_refraction_visible", true)
 	target.call("set_front_mouth_lip_active", false)
@@ -1509,6 +1513,12 @@ func _build_stream_layers() -> void:
 		return
 
 
+func _get_pour_stream_start(source: Control) -> Vector2:
+	if source.has_method("get_pour_outlet_position_in_parent"):
+		return source.call("get_pour_outlet_position_in_parent")
+	return source.call("get_mouth_position_in_parent", source.call("get_pose")) + Vector2(0.0, -4.0)
+
+
 func _update_stream() -> void:
 	if not _pour_stream_active or _pour_source < 0 or _pour_target < 0:
 		return
@@ -1520,7 +1530,7 @@ func _update_stream() -> void:
 	var target: Control = bottle_nodes[_pour_target]
 	# The stream begins just above the source lip. Its z-order is behind
 	# both vials, so the oblique mouth rims naturally occlude its ends.
-	var start: Vector2 = source.call("get_mouth_position_in_parent", source.call("get_pose")) + Vector2(0.0, -4.0)
+	var start: Vector2 = _get_pour_stream_start(source)
 	var finish: Vector2 = target.call("get_liquid_surface_position_in_parent")
 	var span: Vector2 = finish - start
 	if span.length() < 1.0:
@@ -1612,7 +1622,7 @@ func _update_bare_stream() -> void:
 	# are enabled, so this isolates whether moving geometry causes the flash.
 	var source: Control = bottle_nodes[_pour_source]
 	var target: Control = bottle_nodes[_pour_target]
-	var start: Vector2 = source.call("get_mouth_position_in_parent", source.call("get_pose")) + Vector2(0.0, -4.0)
+	var start: Vector2 = _get_pour_stream_start(source)
 	var finish: Vector2 = target.call("get_liquid_surface_position_in_parent")
 	var span: Vector2 = finish - start
 	if span.length() < 1.0:

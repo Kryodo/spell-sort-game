@@ -168,6 +168,8 @@ var _liquid_geometry_dirty: bool = true
 var _cached_chamber_polygon := PackedVector2Array()
 var _cached_liquid_floor_depth: float = 0.0
 var _cached_liquid_tilt: float = 999.0
+var _pour_outflow_active: bool = false
+var _pour_outflow_color: Color = Color.WHITE
 
 
 func _ready() -> void:
@@ -642,6 +644,38 @@ func get_mouth_hit_radius() -> Vector2:
 	)
 
 
+func set_pour_outflow_active(active: bool, color: Color = Color.WHITE) -> void:
+	_pour_outflow_active = active
+	_pour_outflow_color = color
+	queue_redraw()
+
+
+func _get_pour_outlet_local(rect: Rect2) -> Vector2:
+	var mouth_bounds: Vector2 = _window_bounds_at(_mouth_y_ratio)
+	var mouth_half_width: float = (
+		rect.size.x * (mouth_bounds.y - mouth_bounds.x) * 0.5
+	)
+	# Gravity selects the lower lip of the tilted opening: right when tilted
+	# clockwise, left when tilted counter-clockwise.
+	var lower_side: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
+	return Vector2(
+		rect.get_center().x + lower_side * mouth_half_width * 0.78,
+		rect.position.y + rect.size.y * _mouth_y_ratio + 1.0
+	)
+
+
+func get_pour_outlet_position_in_parent() -> Vector2:
+	var rect := _get_vessel_rect()
+	var frame: Dictionary = _get_liquid_gravity_frame(rect, _tilt)
+	var normal: Vector2 = frame["normal"]
+	var outlet_local: Vector2 = _get_pour_outlet_local(rect) + normal * 2.1
+	return position + get_point_local_for_pose(
+		outlet_local,
+		Vector2(_lift, _tilt),
+		_draw_scale
+	)
+
+
 func get_liquid_surface_position_in_parent() -> Vector2:
 	var rect := _get_vessel_rect()
 	if (
@@ -690,8 +724,107 @@ func _draw_liquid(_rect: Rect2) -> void:
 		if bool(band["is_surface"]):
 			_draw_cached_liquid_surface(band)
 
+	_draw_pour_outflow(rect)
 	_draw_window_bubbles(rect, visible_layers)
 	_draw_surface_bubble_activity(rect)
+
+
+func _draw_pour_outflow(rect: Rect2) -> void:
+	if (
+		not _pour_outflow_active
+		or absf(_tilt) < 0.55
+		or _cached_liquid_bands.is_empty()
+		or _cached_chamber_polygon.is_empty()
+	):
+		return
+
+	var top_band: Dictionary = _cached_liquid_bands[_cached_liquid_bands.size() - 1]
+	var centre: Vector2 = top_band["surface_center"]
+	var tangent: Vector2 = top_band["surface_tangent"]
+	var normal: Vector2 = top_band["surface_normal"]
+	var surface_offset: float = float(top_band["surface_boundary_offset"])
+	var curve_depth: float = float(top_band["surface_curve_depth"])
+	var gravity_frame: Dictionary = _get_liquid_gravity_frame(rect, _tilt)
+	var tangent_span: float = float(gravity_frame["tangent_span"])
+	var outlet: Vector2 = _get_pour_outlet_local(rect)
+
+	var outlet_distance: float = (outlet - rect.get_center()).dot(tangent)
+	var surface_radius: float = float(top_band["surface_radius_x"])
+	var surface_mid_distance: float = (centre - rect.get_center()).dot(tangent)
+	outlet_distance = clampf(
+		outlet_distance,
+		surface_mid_distance - surface_radius * 0.96,
+		surface_mid_distance + surface_radius * 0.96
+	)
+	var normalized_distance: float = outlet_distance / maxf(1.0, tangent_span)
+	var interface_curve: float = curve_depth * maxf(
+		0.0,
+		1.0 - normalized_distance * normalized_distance
+	)
+	var surface_wave: float = _get_liquid_surface_wave(normalized_distance) * 0.16
+	var surface_point: Vector2 = (
+		rect.get_center()
+		+ tangent * outlet_distance
+		+ normal * (surface_offset + interface_curve + surface_wave)
+	)
+
+	var flow_delta: Vector2 = outlet - surface_point
+	if flow_delta.length() < 1.4:
+		return
+
+	var flow_direction: Vector2 = flow_delta.normalized()
+	var flow_side := Vector2(-flow_direction.y, flow_direction.x)
+	var centreline := PackedVector2Array()
+	var left_edge := PackedVector2Array()
+	var right_edge := PackedVector2Array()
+	const FLOW_SAMPLES := 24
+
+	for sample_index in range(FLOW_SAMPLES):
+		var t: float = float(sample_index) / float(FLOW_SAMPLES - 1)
+		var eased_t: float = smoothstep(0.0, 1.0, t)
+		var lateral_motion: float = (
+			sin(PI * t) * (0.55 + _surface_activity * 0.55)
+			+ sin(_wave_time * 2.2 + t * 5.4) * sin(PI * t) * 0.28
+		)
+		var point: Vector2 = (
+			surface_point.lerp(outlet, eased_t)
+			+ flow_side * lateral_motion
+		)
+		centreline.append(point)
+		var half_width: float = lerpf(2.1, 3.35, t)
+		left_edge.append(point + flow_side * half_width)
+		right_edge.append(point - flow_side * half_width)
+
+	var flow_polygon := PackedVector2Array()
+	for point in left_edge:
+		flow_polygon.append(point)
+	for index in range(right_edge.size() - 1, -1, -1):
+		flow_polygon.append(right_edge[index])
+
+	# Keep the connector inside the glass chamber and neck, allowing the SVG
+	# artwork to provide the front-glass occlusion above it.
+	var clipped_flow: Array = Geometry2D.intersect_polygons(
+		flow_polygon,
+		_cached_chamber_polygon
+	)
+	var flow_color: Color = _pour_outflow_color.lerp(
+		_pour_outflow_color.lightened(0.15),
+		0.12
+	)
+	for flow_piece in clipped_flow:
+		var piece: PackedVector2Array = flow_piece
+		if piece.size() >= 3:
+			draw_colored_polygon(piece, flow_color)
+
+	var internal_glint := PackedVector2Array()
+	for sample_index in range(3, FLOW_SAMPLES - 3):
+		internal_glint.append(centreline[sample_index])
+	draw_polyline(
+		internal_glint,
+		Color(1.0, 1.0, 1.0, 0.13),
+		1.05,
+		true
+	)
 
 
 func _draw_surface_bubble_activity(rect: Rect2) -> void:
@@ -886,7 +1019,9 @@ func _build_liquid_chamber_polygon(rect: Rect2) -> PackedVector2Array:
 	var polygon := PackedVector2Array()
 	var left_wall := PackedVector2Array()
 	var right_wall := PackedVector2Array()
-	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
+	# The liquid domain continues through the neck to the inner mouth.
+	# Capacity is still calibrated against the original shoulder-level fill line.
+	var top_y: float = rect.position.y + rect.size.y * BOTTLE_BODY_TOP_RATIO
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
 	_cached_liquid_floor_depth = clampf(
 		rect.size.y * LIQUID_FLOOR_DEPTH_RATIO,
@@ -899,7 +1034,7 @@ func _build_liquid_chamber_polygon(rect: Rect2) -> PackedVector2Array:
 		var y: float = lerpf(top_y, bottom_y, t)
 		var y_ratio: float = clampf(
 			(y - rect.position.y) / rect.size.y,
-			_window_top_ratio,
+			BOTTLE_BODY_TOP_RATIO,
 			_window_bottom_ratio
 		)
 		var bounds: Vector2 = _window_bounds_at(y_ratio)
@@ -1034,9 +1169,6 @@ func _get_reference_liquid_area(
 ) -> float:
 	if fill_units <= 0.0:
 		return 0.0
-	if fill_units >= float(CAPACITY):
-		return _polygon_area(chamber_polygon)
-
 	var frame: Dictionary = _get_liquid_gravity_frame(rect, 0.0)
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
 	var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
@@ -1074,18 +1206,6 @@ func _get_gravity_boundary_offset(
 				(point - centre).dot(normal)
 			)
 		return lowest_projection + margin
-
-	if fill_units >= float(CAPACITY):
-		if absf(_tilt) < 0.0005:
-			var top_y: float = rect.position.y + rect.size.y * _window_top_ratio
-			return top_y - centre.y - curve_depth
-		var highest_projection: float = INF
-		for point in chamber_polygon:
-			highest_projection = minf(
-				highest_projection,
-				(point - centre).dot(normal)
-			)
-		return highest_projection - curve_depth
 
 	var target_area: float = _get_reference_liquid_area(
 		rect,
@@ -1288,6 +1408,8 @@ func _build_cached_liquid_band(
 		"surface_tangent": tangent,
 		"surface_normal": normal,
 		"surface_radius_x": surface_radius_x,
+		"surface_boundary_offset": top_offset,
+		"surface_curve_depth": top_curve_depth,
 		"surface_depth": clampf(rect.size.y * 0.032, 5.0, 10.0),
 		"is_surface": is_surface
 	}
