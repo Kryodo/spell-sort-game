@@ -11,6 +11,7 @@ const BASE_REFRACTION_ART: Texture2D = preload("res://assets/environments/SpellS
 const BOTTLE_BODY_WIDTH_RATIO := 0.70
 const BOTTLE_BODY_TOP_RATIO := 0.055
 const BOTTLE_BODY_HEIGHT_RATIO := 0.89
+const BOTTLE_NECK_BASE_PROFILE_RATIO := 0.19
 
 # Keep the animated meniscus separate from the static shaded liquid body.
 const SURFACE_CAP_DEPTH := 22.0
@@ -722,14 +723,9 @@ func _draw_liquid(_rect: Rect2) -> void:
 	for band in _cached_liquid_bands:
 		var polygon: PackedVector2Array = band["polygon"]
 		var vertex_colors: PackedColorArray = band["vertex_colors"]
-		# Intersections can leave repeated/collinear vertices at a moving
-		# layer boundary. Never send a polygon to CanvasItem unless its
-		# triangulation is valid.
-		if polygon.size() < 3 or vertex_colors.size() != polygon.size():
-			continue
-		if Geometry2D.triangulate_polygon(polygon).is_empty():
-			continue
-		draw_polygon(polygon, vertex_colors)
+		# Draw the cached triangulation as individual primitives. This avoids
+		# asking CanvasItem to re-triangulate a clipped concave contour.
+		_draw_triangulated_liquid_polygon(polygon, vertex_colors)
 		if bool(band["is_surface"]):
 			_draw_cached_liquid_surface(band)
 
@@ -801,7 +797,7 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 			+ flow_side * lateral_motion
 		)
 		centreline.append(point)
-		var half_width: float = lerpf(2.1, 3.35, t)
+		var half_width: float = lerpf(1.7, 2.4, t)
 		left_edge.append(point + flow_side * half_width)
 		right_edge.append(point - flow_side * half_width)
 
@@ -823,8 +819,7 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 	)
 	for flow_piece in clipped_flow:
 		var piece: PackedVector2Array = _sanitize_liquid_polygon(flow_piece)
-		if piece.size() >= 3 and not Geometry2D.triangulate_polygon(piece).is_empty():
-			draw_colored_polygon(piece, flow_color)
+		_draw_triangulated_solid_liquid_polygon(piece, flow_color)
 
 	# Keep the internal glint inside the exact same unobstructed corridor.
 	var glint_left := PackedVector2Array()
@@ -844,8 +839,7 @@ func _draw_pour_outflow(rect: Rect2) -> void:
 	)
 	for glint_piece in clipped_glint:
 		var piece: PackedVector2Array = _sanitize_liquid_polygon(glint_piece)
-		if piece.size() >= 3 and not Geometry2D.triangulate_polygon(piece).is_empty():
-			draw_colored_polygon(piece, Color(1.0, 1.0, 1.0, 0.13))
+		_draw_triangulated_solid_liquid_polygon(piece, Color(1.0, 1.0, 1.0, 0.13))
 
 
 func _clip_pour_shape_to_top_essence(
@@ -1008,9 +1002,13 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 		_cached_chamber_polygon = _build_liquid_chamber_polygon(rect)
 		# Lower essences are confined to the original body fill volume.
 		# Only the top essence gets the additional neck volume used by the pour.
+		var neck_base_ratio: float = (
+			BOTTLE_BODY_TOP_RATIO
+			+ BOTTLE_BODY_HEIGHT_RATIO * BOTTLE_NECK_BASE_PROFILE_RATIO
+		)
 		_cached_strata_chamber_polygon = _build_liquid_chamber_polygon(
 			rect,
-			_window_top_ratio
+			neck_base_ratio
 		)
 	if _cached_chamber_polygon.size() < 8 or _cached_strata_chamber_polygon.size() < 8:
 		_cached_liquid_rect = rect
@@ -1018,7 +1016,6 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 
 	_cached_liquid_rect = rect
 	var gravity_frame: Dictionary = _get_liquid_gravity_frame(rect, _tilt)
-	var full_boundary_offsets: Dictionary = {}
 	var body_boundary_offsets: Dictionary = {}
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
 	var layer_index: int = 0
@@ -1054,17 +1051,15 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 				visible_amount
 			)
 			var is_top_group: bool = group_end >= visible_layers
-			var band_chamber: PackedVector2Array = _cached_strata_chamber_polygon
-			var top_offset_cache: Dictionary = body_boundary_offsets
-			if is_top_group:
-				band_chamber = _cached_chamber_polygon
-				top_offset_cache = full_boundary_offsets
+			# Every colour keeps its complete body layer up to the neck root.
+			# The top essence enters the neck only through the separate,
+			# narrow outflow ribbon drawn during pouring.
 			var band: Dictionary = _build_cached_liquid_band(
 				rect,
-				band_chamber,
+				_cached_strata_chamber_polygon,
 				_cached_strata_chamber_polygon,
 				gravity_frame,
-				top_offset_cache,
+				body_boundary_offsets,
 				body_boundary_offsets,
 				bottom_units,
 				top_units,
@@ -1274,6 +1269,55 @@ func _sanitize_liquid_polygon(source_polygon: PackedVector2Array) -> PackedVecto
 	if cleaned.size() < 3 or _polygon_area(cleaned) <= 0.05:
 		return PackedVector2Array()
 	return cleaned
+
+
+func _draw_triangulated_liquid_polygon(
+	polygon: PackedVector2Array,
+	vertex_colors: PackedColorArray
+) -> void:
+	if polygon.size() < 3 or vertex_colors.size() != polygon.size():
+		return
+
+	var triangle_indices: PackedInt32Array = Geometry2D.triangulate_polygon(polygon)
+	if triangle_indices.is_empty() or triangle_indices.size() % 3 != 0:
+		return
+
+	for triangle_start in range(0, triangle_indices.size(), 3):
+		var triangle_points := PackedVector2Array()
+		var triangle_colors := PackedColorArray()
+		var triangle_is_valid: bool = true
+		for vertex_offset in range(3):
+			var source_index: int = triangle_indices[triangle_start + vertex_offset]
+			if source_index < 0 or source_index >= polygon.size():
+				triangle_is_valid = false
+				break
+			triangle_points.append(polygon[source_index])
+			triangle_colors.append(vertex_colors[source_index])
+
+		if not triangle_is_valid:
+			continue
+		if absf(
+			(triangle_points[1] - triangle_points[0]).cross(
+				triangle_points[2] - triangle_points[0]
+			)
+		) <= 0.001:
+			continue
+		draw_primitive(
+			triangle_points,
+			triangle_colors,
+			PackedVector2Array(),
+			null
+		)
+
+
+func _draw_triangulated_solid_liquid_polygon(
+	polygon: PackedVector2Array,
+	color: Color
+) -> void:
+	var vertex_colors := PackedColorArray()
+	for _point in polygon:
+		vertex_colors.append(color)
+	_draw_triangulated_liquid_polygon(polygon, vertex_colors)
 
 
 func _largest_polygon(polygons: Array) -> PackedVector2Array:
@@ -1632,7 +1676,7 @@ func _draw_cached_liquid_surface(band: Dictionary) -> void:
 				front_weight
 			)
 		)
-	draw_polygon(surface_polygon, surface_colours)
+	_draw_triangulated_liquid_polygon(surface_polygon, surface_colours)
 
 	var rear_edge := PackedVector2Array()
 	var front_edge := PackedVector2Array()
