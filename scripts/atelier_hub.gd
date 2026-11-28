@@ -1,20 +1,90 @@
 extends Control
 
-const ROOM_TEXTURE_PATH := "res://assets/environments/SpellSort_Atelier_Minimal.svg"
+const ROOM_TEXTURE_PATH := "res://assets/environments/SpellSort_Atelier_Warm.svg"
+const CANDLE_FLAME_PATH := "res://assets/environments/SpellSort_Atelier_Candle_Flame.svg"
+const CANDLE_GLOW_PATH := "res://assets/environments/SpellSort_Atelier_Candle_Glow.svg"
 const FIRST_LESSONS_SCENE := "res://scenes/atelier_first_lessons.tscn"
 const PROGRESS_PATH := "user://spell_sort_progress.cfg"
+
+class AtelierMoteLayer extends Control:
+	var _time := 0.0
+	var _motes: Array[Dictionary] = []
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_motes = [
+			{"origin": Vector2(184.0, 682.0), "speed": 5.2, "phase": 0.4, "size": 1.3},
+			{"origin": Vector2(256.0, 737.0), "speed": 4.0, "phase": 2.1, "size": 1.0},
+			{"origin": Vector2(478.0, 700.0), "speed": 4.7, "phase": 1.2, "size": 1.4},
+			{"origin": Vector2(532.0, 787.0), "speed": 3.6, "phase": 3.2, "size": 1.1},
+			{"origin": Vector2(142.0, 846.0), "speed": 3.2, "phase": 4.1, "size": 1.0},
+			{"origin": Vector2(612.0, 833.0), "speed": 4.4, "phase": 5.0, "size": 1.3},
+			{"origin": Vector2(330.0, 705.0), "speed": 2.8, "phase": 2.7, "size": 0.9}
+		]
+		set_process(true)
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		for mote in _motes:
+			var origin: Vector2 = mote["origin"]
+			var speed: float = float(mote["speed"])
+			var phase: float = float(mote["phase"])
+			var radius: float = float(mote["size"])
+			var cycle := _time * speed * 0.12 + phase
+			var position_value := origin + Vector2(
+				sin(cycle * 0.55) * 7.0,
+				-fposmod(_time * speed * 2.0 + phase * 13.0, 146.0)
+			)
+			var pulse := 0.5 + 0.5 * sin(cycle * 1.4)
+			var alpha := 0.035 + pulse * 0.026
+			draw_circle(
+				position_value,
+				radius * 2.7,
+				Color(0.88, 0.70, 0.43, alpha * 0.24)
+			)
+			draw_circle(
+				position_value,
+				radius,
+				Color(0.94, 0.82, 0.59, alpha)
+			)
+
 
 var _first_lessons_complete := false
 var _atlas_button: Button
 var _workbench_button: Button
 var _atlas_status: Label
 var _subtitle_label: Label
+var _candle_flame: TextureRect
+var _candle_glow: TextureRect
+var _ambience_time := 0.0
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_load_progress()
 	_build_room()
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	_ambience_time += delta
+	if not is_instance_valid(_candle_flame) or not is_instance_valid(_candle_glow):
+		return
+
+	_candle_flame.position = Vector2(
+		559.0 + sin(_ambience_time * 3.1) * 0.65,
+		641.0 + sin(_ambience_time * 5.3) * 0.45
+	)
+	_candle_flame.rotation = sin(_ambience_time * 4.7) * 0.026
+	_candle_flame.scale = Vector2(
+		1.0 + sin(_ambience_time * 7.3) * 0.018,
+		1.0 + sin(_ambience_time * 5.9) * 0.035
+	)
+	_candle_glow.modulate.a = 0.76 + sin(_ambience_time * 1.9) * 0.045 + sin(_ambience_time * 3.2) * 0.018
 
 
 func _load_progress() -> void:
@@ -46,10 +116,43 @@ func _build_room() -> void:
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(veil)
 
+	_build_atmosphere()
 	_build_header()
 	_build_atlas_hotspot()
 	_build_workbench_action()
 	_update_room_state()
+
+
+
+func _build_atmosphere() -> void:
+	_candle_glow = TextureRect.new()
+	_candle_glow.name = "CandleGlow"
+	_candle_glow.texture = load(CANDLE_GLOW_PATH) as Texture2D
+	_candle_glow.position = Vector2(444.0, 565.0)
+	_candle_glow.size = Vector2(256.0, 256.0)
+	_candle_glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_candle_glow.stretch_mode = TextureRect.STRETCH_SCALE
+	_candle_glow.modulate.a = 0.76
+	_candle_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_candle_glow.z_index = 2
+	add_child(_candle_glow)
+
+	_candle_flame = TextureRect.new()
+	_candle_flame.name = "CandleFlame"
+	_candle_flame.texture = load(CANDLE_FLAME_PATH) as Texture2D
+	_candle_flame.position = Vector2(559.0, 641.0)
+	_candle_flame.size = Vector2(28.0, 44.0)
+	_candle_flame.pivot_offset = Vector2(14.0, 40.0)
+	_candle_flame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_candle_flame.stretch_mode = TextureRect.STRETCH_SCALE
+	_candle_flame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_candle_flame.z_index = 3
+	add_child(_candle_flame)
+
+	var motes := AtelierMoteLayer.new()
+	motes.name = "AmbientMotes"
+	motes.z_index = 4
+	add_child(motes)
 
 
 func _build_header() -> void:
