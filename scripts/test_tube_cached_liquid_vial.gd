@@ -166,6 +166,7 @@ var _cached_liquid_bands: Array[Dictionary] = []
 var _cached_liquid_rect := Rect2()
 var _liquid_geometry_dirty: bool = true
 var _cached_chamber_polygon := PackedVector2Array()
+var _cached_strata_chamber_polygon := PackedVector2Array()
 var _cached_liquid_floor_depth: float = 0.0
 var _cached_liquid_tilt: float = 999.0
 var _pour_outflow_active: bool = false
@@ -293,6 +294,7 @@ func set_vial_art(texture: Texture2D) -> void:
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
 	_cached_chamber_polygon = PackedVector2Array()
+	_cached_strata_chamber_polygon = PackedVector2Array()
 
 	# Use the new bottle's hand-authored silhouette instead of scanning the
 	# SVG pixels. The profile is mapped into the same normalized full-art
@@ -720,6 +722,13 @@ func _draw_liquid(_rect: Rect2) -> void:
 	for band in _cached_liquid_bands:
 		var polygon: PackedVector2Array = band["polygon"]
 		var vertex_colors: PackedColorArray = band["vertex_colors"]
+		# Intersections can leave repeated/collinear vertices at a moving
+		# layer boundary. Never send a polygon to CanvasItem unless its
+		# triangulation is valid.
+		if polygon.size() < 3 or vertex_colors.size() != polygon.size():
+			continue
+		if Geometry2D.triangulate_polygon(polygon).is_empty():
+			continue
 		draw_polygon(polygon, vertex_colors)
 		if bool(band["is_surface"]):
 			_draw_cached_liquid_surface(band)
@@ -997,13 +1006,20 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 
 	if rect_changed or _cached_chamber_polygon.is_empty():
 		_cached_chamber_polygon = _build_liquid_chamber_polygon(rect)
-	if _cached_chamber_polygon.size() < 8:
+		# Lower essences are confined to the original body fill volume.
+		# Only the top essence gets the additional neck volume used by the pour.
+		_cached_strata_chamber_polygon = _build_liquid_chamber_polygon(
+			rect,
+			_window_top_ratio
+		)
+	if _cached_chamber_polygon.size() < 8 or _cached_strata_chamber_polygon.size() < 8:
 		_cached_liquid_rect = rect
 		return
 
 	_cached_liquid_rect = rect
 	var gravity_frame: Dictionary = _get_liquid_gravity_frame(rect, _tilt)
-	var boundary_offsets: Dictionary = {}
+	var full_boundary_offsets: Dictionary = {}
+	var body_boundary_offsets: Dictionary = {}
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
 	var layer_index: int = 0
 
@@ -1037,15 +1053,22 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 				LIQUID_APPEARANCE_FADE_LEVEL,
 				visible_amount
 			)
+			var is_top_group: bool = group_end >= visible_layers
+			var band_chamber: PackedVector2Array = _cached_strata_chamber_polygon
+			var top_offset_cache: Dictionary = body_boundary_offsets
+			if is_top_group:
+				band_chamber = _cached_chamber_polygon
+				top_offset_cache = full_boundary_offsets
 			var band: Dictionary = _build_cached_liquid_band(
 				rect,
-				_cached_chamber_polygon,
+				band_chamber,
 				gravity_frame,
-				boundary_offsets,
+				top_offset_cache,
+				body_boundary_offsets,
 				bottom_units,
 				top_units,
 				appearance_color,
-				top_units >= _liquid_level - 0.0001
+				is_top_group
 			)
 			if not band.is_empty():
 				_cached_liquid_bands.append(band)
@@ -1062,13 +1085,16 @@ func _same_liquid_colour(first: Color, second: Color) -> bool:
 	)
 
 
-func _build_liquid_chamber_polygon(rect: Rect2) -> PackedVector2Array:
+func _build_liquid_chamber_polygon(
+	rect: Rect2,
+	top_ratio: float = BOTTLE_BODY_TOP_RATIO
+) -> PackedVector2Array:
 	var polygon := PackedVector2Array()
 	var left_wall := PackedVector2Array()
 	var right_wall := PackedVector2Array()
-	# The liquid domain continues through the neck to the inner mouth.
-	# Capacity is still calibrated against the original shoulder-level fill line.
-	var top_y: float = rect.position.y + rect.size.y * BOTTLE_BODY_TOP_RATIO
+	# The full chamber reaches the mouth; the strata chamber starts at the
+	# original shoulder-level fill line so lower essences cannot enter the neck.
+	var top_y: float = rect.position.y + rect.size.y * top_ratio
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
 	_cached_liquid_floor_depth = clampf(
 		rect.size.y * LIQUID_FLOOR_DEPTH_RATIO,
@@ -1081,7 +1107,7 @@ func _build_liquid_chamber_polygon(rect: Rect2) -> PackedVector2Array:
 		var y: float = lerpf(top_y, bottom_y, t)
 		var y_ratio: float = clampf(
 			(y - rect.position.y) / rect.size.y,
-			BOTTLE_BODY_TOP_RATIO,
+			top_ratio,
 			_window_bottom_ratio
 		)
 		var bounds: Vector2 = _window_bounds_at(y_ratio)
@@ -1196,11 +1222,71 @@ func _polygons_area(polygons: Array) -> float:
 	return total_area
 
 
+func _sanitize_liquid_polygon(source_polygon: PackedVector2Array) -> PackedVector2Array:
+	var cleaned := PackedVector2Array()
+	const DUPLICATE_DISTANCE_SQUARED := 0.0004
+
+	for point in source_polygon:
+		if (
+			cleaned.is_empty()
+			or point.distance_squared_to(cleaned[cleaned.size() - 1])
+				> DUPLICATE_DISTANCE_SQUARED
+		):
+			cleaned.append(point)
+
+	if (
+		cleaned.size() > 2
+		and cleaned[0].distance_squared_to(cleaned[cleaned.size() - 1])
+			<= DUPLICATE_DISTANCE_SQUARED
+	):
+		cleaned.remove_at(cleaned.size() - 1)
+
+	# Remove zero-length and forward-collinear edges left by polygon clipping.
+	var changed: bool = true
+	var remaining_passes: int = cleaned.size() * 2
+	while changed and cleaned.size() >= 3 and remaining_passes > 0:
+		changed = false
+		remaining_passes -= 1
+		for index in range(cleaned.size()):
+			var previous: Vector2 = cleaned[(index - 1 + cleaned.size()) % cleaned.size()]
+			var current: Vector2 = cleaned[index]
+			var following: Vector2 = cleaned[(index + 1) % cleaned.size()]
+			var incoming: Vector2 = current - previous
+			var outgoing: Vector2 = following - current
+			if (
+				incoming.length_squared() <= DUPLICATE_DISTANCE_SQUARED
+				or outgoing.length_squared() <= DUPLICATE_DISTANCE_SQUARED
+			):
+				cleaned.remove_at(index)
+				changed = true
+				break
+			var cross_magnitude: float = absf(incoming.cross(outgoing))
+			var collinear_tolerance: float = maxf(
+				0.0001,
+				incoming.length() * outgoing.length() * 0.00001
+			)
+			if cross_magnitude <= collinear_tolerance and incoming.dot(outgoing) >= 0.0:
+				cleaned.remove_at(index)
+				changed = true
+				break
+
+	if cleaned.size() < 3 or _polygon_area(cleaned) <= 0.05:
+		return PackedVector2Array()
+	return cleaned
+
+
 func _largest_polygon(polygons: Array) -> PackedVector2Array:
 	var largest := PackedVector2Array()
 	var largest_area: float = 0.0
 	for item in polygons:
-		var polygon: PackedVector2Array = item
+		var source_polygon: PackedVector2Array = item
+		var polygon: PackedVector2Array = _sanitize_liquid_polygon(source_polygon)
+		if polygon.size() < 3:
+			continue
+		# Ear clipping is the same operation the canvas renderer needs. Reject
+		# malformed intersection contours before they reach draw_polygon().
+		if Geometry2D.triangulate_polygon(polygon).is_empty():
+			continue
 		var area: float = _polygon_area(polygon)
 		if area > largest_area:
 			largest_area = area
@@ -1333,7 +1419,8 @@ func _build_cached_liquid_band(
 	rect: Rect2,
 	chamber_polygon: PackedVector2Array,
 	frame: Dictionary,
-	offset_cache: Dictionary,
+	top_offset_cache: Dictionary,
+	bottom_offset_cache: Dictionary,
 	bottom_units: float,
 	top_units: float,
 	liquid_color: Color,
@@ -1346,7 +1433,7 @@ func _build_cached_liquid_band(
 		frame,
 		top_units,
 		top_curve_depth,
-		offset_cache
+		top_offset_cache
 	)
 	var top_half_plane := _build_gravity_half_plane(
 		rect,
@@ -1368,7 +1455,7 @@ func _build_cached_liquid_band(
 			frame,
 			bottom_units,
 			bottom_curve_depth,
-			offset_cache
+			bottom_offset_cache
 		)
 		var bottom_half_plane := _build_gravity_half_plane(
 			rect,
