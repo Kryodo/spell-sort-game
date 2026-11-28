@@ -11,7 +11,6 @@ const BASE_REFRACTION_ART: Texture2D = preload("res://assets/environments/SpellS
 const BOTTLE_BODY_WIDTH_RATIO := 0.70
 const BOTTLE_BODY_TOP_RATIO := 0.055
 const BOTTLE_BODY_HEIGHT_RATIO := 0.89
-const BOTTLE_NECK_BASE_PROFILE_RATIO := 0.11
 
 # Keep the animated meniscus separate from the static shaded liquid body.
 const SURFACE_CAP_DEPTH := 22.0
@@ -39,7 +38,9 @@ const LIQUID_CHAMBER_SIDE_SAMPLES := 112
 const LIQUID_FLOOR_SAMPLES := 32
 const LIQUID_FLOOR_DEPTH_RATIO := 0.021
 const LIQUID_INTERFACE_CURVE_DEPTH := 1.8
-const LIQUID_GRAVITY_SOLVE_STEPS := 12
+const POUR_CHANNEL_MAX_SHIFT_RATIO := 0.17
+const POUR_CHANNEL_SHOULDER_START := 0.40
+const POUR_CHANNEL_MOUTH_FULL := 0.84const LIQUID_GRAVITY_SOLVE_STEPS := 12
 const LIQUID_TILT_CACHE_EPSILON := 0.004
 const LIQUID_SURFACE_EXTENT_SAMPLES := 96
 
@@ -167,12 +168,11 @@ var _cached_liquid_bands: Array[Dictionary] = []
 var _cached_liquid_rect := Rect2()
 var _liquid_geometry_dirty: bool = true
 var _cached_chamber_polygon := PackedVector2Array()
-var _cached_strata_chamber_polygon := PackedVector2Array()
-var _cached_neck_chamber_polygon := PackedVector2Array()
 var _cached_liquid_floor_depth: float = 0.0
 var _cached_liquid_tilt: float = 999.0
 var _pour_outflow_active: bool = false
 var _pour_outflow_color: Color = Color.WHITE
+var _pour_visual_weight: float = 0.0
 
 
 func _ready() -> void:
@@ -278,6 +278,18 @@ func set_pour_refraction_visible(visible: bool) -> void:
 		_base_refraction_layer.queue_redraw()
 
 
+func get_pouring_visual_weight() -> float:
+	return _pour_visual_weight
+
+
+func set_pouring_visual_weight(weight: float) -> void:
+	var next_weight: float = clampf(weight, 0.0, 1.0)
+	if absf(next_weight - _pour_visual_weight) <= 0.001:
+		return
+	_pour_visual_weight = next_weight
+	_invalidate_liquid_geometry()
+
+
 func set_vial_art(texture: Texture2D) -> void:
 	if texture == null:
 		push_warning("Vial renderer: cannot assign a null illustration.")
@@ -296,8 +308,6 @@ func set_vial_art(texture: Texture2D) -> void:
 func _build_inner_window_profile() -> void:
 	_window_profile.clear()
 	_cached_chamber_polygon = PackedVector2Array()
-	_cached_strata_chamber_polygon = PackedVector2Array()
-	_cached_neck_chamber_polygon = PackedVector2Array()
 
 	# Use the new bottle's hand-authored silhouette instead of scanning the
 	# SVG pixels. The profile is mapped into the same normalized full-art
@@ -726,8 +736,8 @@ func _draw_liquid(_rect: Rect2) -> void:
 	for band in _cached_liquid_bands:
 		var polygon: PackedVector2Array = band["polygon"]
 		var vertex_colors: PackedColorArray = band["vertex_colors"]
-		# Draw every valid fragment. The top colour is stored as a body piece
-		# and a separate neck extension, meeting at the shared neck-root seam.
+		# Both states use the complete chamber. Pouring changes shared
+		# interface geometry, not the chamber mask or the stream artwork.
 		_draw_triangulated_liquid_polygon(polygon, vertex_colors)
 		if bool(band["is_surface"]):
 			surface_band = band
@@ -1014,37 +1024,18 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 
 	if rect_changed or _cached_chamber_polygon.is_empty():
 		_cached_chamber_polygon = _build_liquid_chamber_polygon(rect)
-		# The body mask ends at the actual neck root, not halfway down the
-		# shoulder. The separate neck polygon lets the top essence continue
-		# from the shoulder into the opening without shortening the body layers.
-		var neck_base_ratio: float = (
-			BOTTLE_BODY_TOP_RATIO
-			+ BOTTLE_BODY_HEIGHT_RATIO * BOTTLE_NECK_BASE_PROFILE_RATIO
-		)
-		_cached_strata_chamber_polygon = _build_liquid_chamber_polygon(
-			rect,
-			neck_base_ratio
-		)
-		_cached_neck_chamber_polygon = _build_liquid_neck_polygon(
-			rect,
-			neck_base_ratio
-		)
-	if (
-		_cached_chamber_polygon.size() < 8
-		or _cached_strata_chamber_polygon.size() < 8
-		or _cached_neck_chamber_polygon.size() < 8
-	):
+	if _cached_chamber_polygon.size() < 8:
 		_cached_liquid_rect = rect
 		return
 
 	_cached_liquid_rect = rect
 	var gravity_frame: Dictionary = _get_liquid_gravity_frame(rect, _tilt)
-	var body_boundary_offsets: Dictionary = {}
+	var boundary_offsets: Dictionary = {}
 	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
 	var layer_index: int = 0
 
-	# Neighbouring equal essences are one continuous body, not two separately
-	# shaded polygons. This prevents a false seam through a single liquid.
+	# Every unique adjacent essence is a band in one shared partition.
+	# Each interface is reused by both neighbouring colours.
 	while layer_index < visible_layers:
 		var group_start: int = layer_index
 		var essence: String = String(_visual_contents[group_start])
@@ -1074,17 +1065,13 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 				visible_amount
 			)
 			var is_top_group: bool = group_end >= visible_layers
-			# Solve every colour against the same full chamber so the stacked
-			# layers retain their original volumes and gravity alignment.
-			# The renderer then splits the top essence into body + neck pieces,
-			# while lower essences are clipped only from the straight neck.
 			var bands: Array[Dictionary] = _build_cached_liquid_band(
 				rect,
 				_cached_chamber_polygon,
 				_cached_chamber_polygon,
 				gravity_frame,
-				body_boundary_offsets,
-				body_boundary_offsets,
+				boundary_offsets,
+				boundary_offsets,
 				bottom_units,
 				top_units,
 				appearance_color,
@@ -1096,107 +1083,6 @@ func _rebuild_cached_liquid_geometry(rect: Rect2) -> void:
 		layer_index = group_end
 
 
-func run_pour_angle_sweep_diagnostic(direction: float = 1.0) -> Array[Dictionary]:
-	# Rebuild the existing gravity solver at discrete poses without changing
-	# the live bottle pose, preview level, contents or cached render geometry.
-	var results: Array[Dictionary] = []
-	if _visual_contents.is_empty() or _liquid_level <= 0.001:
-		return results
-
-	var rect: Rect2 = _get_vessel_rect()
-	var saved_tilt: float = _tilt
-	var saved_bands: Array[Dictionary] = _cached_liquid_bands.duplicate(true)
-	var saved_rect: Rect2 = _cached_liquid_rect
-	var saved_dirty: bool = _liquid_geometry_dirty
-	var saved_cached_tilt: float = _cached_liquid_tilt
-	var saved_floor_depth: float = _cached_liquid_floor_depth
-	var saved_chamber: PackedVector2Array = _cached_chamber_polygon
-	var saved_body_chamber: PackedVector2Array = _cached_strata_chamber_polygon
-	var saved_neck_chamber: PackedVector2Array = _cached_neck_chamber_polygon
-	var pour_direction: float = -1.0 if direction < 0.0 else 1.0
-	var top_layer_index: int = clampi(
-		int(ceil(_liquid_level - 0.0001)) - 1,
-		0,
-		_visual_contents.size() - 1
-	)
-
-	for angle_degrees in range(85, 116, 2):
-		_tilt = deg_to_rad(float(angle_degrees)) * pour_direction
-		_rebuild_cached_liquid_geometry(rect)
-
-		var contacted_layers: Array[int] = []
-		var top_wall_coverage: float = 0.0
-		for band in _cached_liquid_bands:
-			var first_layer: int = int(band.get("essence_start", -1))
-			var last_layer: int = int(band.get("essence_end", -1))
-			if first_layer < 0 or last_layer < first_layer:
-				continue
-			if bool(band.get("mouth_contact", false)):
-				for layer_index in range(first_layer, last_layer + 1):
-					if not contacted_layers.has(layer_index):
-						contacted_layers.append(layer_index)
-			if top_layer_index >= first_layer and top_layer_index <= last_layer:
-				top_wall_coverage = maxf(
-					top_wall_coverage,
-					float(band.get("neck_wall_coverage", 0.0))
-				)
-
-		contacted_layers.sort()
-		results.append({
-			"angle_degrees": angle_degrees,
-			"direction": pour_direction,
-			"contacted_layers": contacted_layers,
-			"top_layer_index": top_layer_index,
-			"top_at_mouth": contacted_layers.has(top_layer_index),
-			"top_neck_wall_coverage": top_wall_coverage
-		})
-
-	_tilt = saved_tilt
-	_cached_liquid_bands = saved_bands
-	_cached_liquid_rect = saved_rect
-	_liquid_geometry_dirty = saved_dirty
-	_cached_liquid_tilt = saved_cached_tilt
-	_cached_liquid_floor_depth = saved_floor_depth
-	_cached_chamber_polygon = saved_chamber
-	_cached_strata_chamber_polygon = saved_body_chamber
-	_cached_neck_chamber_polygon = saved_neck_chamber
-	return results
-
-
-func _get_neck_wall_path_coverage(
-	polygon: PackedVector2Array,
-	rect: Rect2
-) -> float:
-	if polygon.size() < 3:
-		return 0.0
-
-	var lower_side: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
-	var path_start: float = _mouth_y_ratio + 0.006
-	var path_end: float = (
-		BOTTLE_BODY_TOP_RATIO
-		+ BOTTLE_BODY_HEIGHT_RATIO * BOTTLE_NECK_BASE_PROFILE_RATIO
-		- 0.006
-	)
-	if path_end <= path_start:
-		return 0.0
-
-	const PATH_SAMPLES := 14
-	var covered_samples: int = 0
-	for sample_index in range(PATH_SAMPLES):
-		var t: float = (float(sample_index) + 0.5) / float(PATH_SAMPLES)
-		var y_ratio: float = lerpf(path_start, path_end, t)
-		var bounds: Vector2 = _window_bounds_at(y_ratio)
-		var wall_ratio: float = bounds.y if lower_side > 0.0 else bounds.x
-		var point := Vector2(
-			rect.position.x + rect.size.x * wall_ratio - lower_side * 2.4,
-			rect.position.y + rect.size.y * y_ratio
-		)
-		if Geometry2D.is_point_in_polygon(point, polygon):
-			covered_samples += 1
-
-	return float(covered_samples) / float(PATH_SAMPLES)
-
-
 func _same_liquid_colour(first: Color, second: Color) -> bool:
 	return (
 		absf(first.r - second.r) <= 0.002
@@ -1206,38 +1092,6 @@ func _same_liquid_colour(first: Color, second: Color) -> bool:
 	)
 
 
-func _build_liquid_neck_polygon(
-	rect: Rect2,
-	neck_base_ratio: float
-) -> PackedVector2Array:
-	# A dedicated upper-neck region shares its bottom edge with the body mask.
-	# Its sides follow the measured inner glass profile all the way to the mouth.
-	var left_wall := PackedVector2Array()
-	var right_wall := PackedVector2Array()
-	const NECK_PROFILE_SAMPLES := 36
-	var top_ratio: float = BOTTLE_BODY_TOP_RATIO
-	for sample_index in range(NECK_PROFILE_SAMPLES + 1):
-		var t: float = float(sample_index) / float(NECK_PROFILE_SAMPLES)
-		var y_ratio: float = lerpf(top_ratio, neck_base_ratio, t)
-		var bounds: Vector2 = _window_bounds_at(y_ratio)
-		var y: float = rect.position.y + rect.size.y * y_ratio
-		left_wall.append(Vector2(
-			rect.position.x + rect.size.x * bounds.x + LIQUID_WALL_INSET,
-			y
-		))
-		right_wall.append(Vector2(
-			rect.position.x + rect.size.x * bounds.y - LIQUID_WALL_INSET,
-			y
-		))
-
-	var polygon := PackedVector2Array()
-	for point in left_wall:
-		polygon.append(point)
-	for index in range(right_wall.size() - 1, -1, -1):
-		polygon.append(right_wall[index])
-	return _sanitize_liquid_polygon(polygon)
-
-
 func _build_liquid_chamber_polygon(
 	rect: Rect2,
 	top_ratio: float = BOTTLE_BODY_TOP_RATIO
@@ -1245,8 +1099,8 @@ func _build_liquid_chamber_polygon(
 	var polygon := PackedVector2Array()
 	var left_wall := PackedVector2Array()
 	var right_wall := PackedVector2Array()
-	# The full chamber starts at the mouth; the body mask can start at the
-	# neck root so lower essences retain the shoulder but stay out of the neck.
+	# One continuous chamber follows the actual inner glass from mouth to base.
+	# The coordinated layer partition, not a neck mask, controls colour placement.
 	var top_y: float = rect.position.y + rect.size.y * top_ratio
 	var bottom_y: float = rect.position.y + rect.size.y * _window_bottom_ratio
 	_cached_liquid_floor_depth = clampf(
@@ -1320,7 +1174,8 @@ func _build_gravity_half_plane(
 	frame: Dictionary,
 	offset: float,
 	keep_below: bool,
-	curve_depth: float
+	curve_depth: float,
+	pour_channel_shift: float = 0.0
 ) -> PackedVector2Array:
 	var centre: Vector2 = frame["centre"]
 	var tangent: Vector2 = frame["tangent"]
@@ -1329,16 +1184,23 @@ func _build_gravity_half_plane(
 	var margin: float = maxf(rect.size.length() * 2.5, 120.0)
 	var extended_span: float = tangent_span + margin
 	var boundary := PackedVector2Array()
+	var mouth_direction: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
 
 	for sample_index in range(LIQUID_BOUNDARY_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_BOUNDARY_SAMPLES)
 		var tangent_distance: float = lerpf(-extended_span, extended_span, t)
 		var u: float = tangent_distance / tangent_span
 		var curve: float = curve_depth * maxf(0.0, 1.0 - u * u)
+		var mouth_progress: float = smoothstep(
+			POUR_CHANNEL_SHOULDER_START,
+			POUR_CHANNEL_MOUTH_FULL,
+			tangent_distance * mouth_direction / tangent_span
+		)
+		var local_channel_shift: float = pour_channel_shift * mouth_progress
 		boundary.append(
 			centre
 			+ tangent * tangent_distance
-			+ normal * (offset + curve)
+			+ normal * (offset + curve + local_channel_shift)
 		)
 
 	var half_plane := PackedVector2Array()
@@ -1492,6 +1354,61 @@ func _valid_liquid_polygons(polygons: Array) -> Array[PackedVector2Array]:
 	return valid_polygons
 
 
+func _get_pouring_boundary_shift(rect: Rect2, fill_units: float) -> float:
+	if _pour_visual_weight <= 0.001 or absf(_tilt) < deg_to_rad(30.0):
+		return 0.0
+
+	var boundary_index: int = roundi(fill_units)
+	if absf(fill_units - float(boundary_index)) > 0.001:
+		return 0.0
+
+	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
+	if visible_layers < 2:
+		return 0.0
+
+	# Work from distinct adjacent colour groups, so merged matching essences
+	# still give the active top colour the strongest outlet priority.
+	var group_starts: Array[int] = []
+	var group_start: int = 0
+	while group_start < visible_layers:
+		group_starts.append(group_start)
+		var group_color: Color = _palette.get(
+			String(_visual_contents[group_start]),
+			Color(0.45, 0.78, 0.75, 1.0)
+		)
+		var group_end: int = group_start + 1
+		while group_end < visible_layers:
+			var next_color: Color = _palette.get(
+				String(_visual_contents[group_end]),
+				Color(0.45, 0.78, 0.75, 1.0)
+			)
+			if not _same_liquid_colour(group_color, next_color):
+				break
+			group_end += 1
+		group_start = group_end
+
+	if group_starts.size() < 2:
+		return 0.0
+
+	var boundary_rank: int = group_starts.find(boundary_index)
+	if boundary_rank <= 0:
+		return 0.0
+
+	var rank: float = float(boundary_rank) / float(group_starts.size() - 1)
+	var angle_weight: float = smoothstep(
+		deg_to_rad(30.0),
+		deg_to_rad(78.0),
+		absf(_tilt)
+	)
+	return (
+		rect.size.x
+		* POUR_CHANNEL_MAX_SHIFT_RATIO
+		* pow(rank, 1.25)
+		* angle_weight
+		* _pour_visual_weight
+	)
+
+
 func _get_reference_liquid_area(
 	rect: Rect2,
 	chamber_polygon: PackedVector2Array,
@@ -1523,7 +1440,8 @@ func _get_gravity_boundary_offset(
 	chamber_polygon: PackedVector2Array,
 	frame: Dictionary,
 	fill_units: float,
-	curve_depth: float
+	curve_depth: float,
+	pour_channel_shift: float = 0.0
 ) -> float:
 	var centre: Vector2 = frame["centre"]
 	var normal: Vector2 = frame["normal"]
@@ -1570,7 +1488,8 @@ func _get_gravity_boundary_offset(
 			frame,
 			middle,
 			true,
-			curve_depth
+			curve_depth,
+			pour_channel_shift
 		)
 		var area: float = _polygons_area(
 			Geometry2D.intersect_polygons(chamber_polygon, half_plane)
@@ -1599,7 +1518,8 @@ func _get_cached_boundary_offset(
 	curve_depth: float,
 	offset_cache: Dictionary
 ) -> float:
-	var key: float = snappedf(fill_units, 0.0001)
+	var pour_channel_shift: float = _get_pouring_boundary_shift(rect, fill_units)
+	var key: String = "%0.4f|%0.3f" % [fill_units, pour_channel_shift]
 	if offset_cache.has(key):
 		return float(offset_cache[key])
 	var offset: float = _get_gravity_boundary_offset(
@@ -1607,7 +1527,8 @@ func _get_cached_boundary_offset(
 		chamber_polygon,
 		frame,
 		fill_units,
-		curve_depth
+		curve_depth,
+		pour_channel_shift
 	)
 	offset_cache[key] = offset
 	return offset
@@ -1626,6 +1547,7 @@ func _build_cached_liquid_band(
 	is_surface: bool
 ) -> Array[Dictionary]:
 	var top_curve_depth: float = _get_liquid_boundary_curve_depth(top_units)
+	var top_channel_shift: float = _get_pouring_boundary_shift(rect, top_units)
 	var top_offset: float = _get_cached_boundary_offset(
 		rect,
 		chamber_polygon,
@@ -1639,7 +1561,8 @@ func _build_cached_liquid_band(
 		frame,
 		top_offset,
 		true,
-		top_curve_depth
+		top_curve_depth,
+		top_channel_shift
 	)
 	var clipped_polygons: Array = Geometry2D.intersect_polygons(
 		chamber_polygon,
@@ -1648,6 +1571,7 @@ func _build_cached_liquid_band(
 
 	if bottom_units > 0.0001 and not clipped_polygons.is_empty():
 		var bottom_curve_depth: float = _get_liquid_boundary_curve_depth(bottom_units)
+		var bottom_channel_shift: float = _get_pouring_boundary_shift(rect, bottom_units)
 		var bottom_offset: float = _get_cached_boundary_offset(
 			rect,
 			bottom_boundary_polygon,
@@ -1661,7 +1585,8 @@ func _build_cached_liquid_band(
 			frame,
 			bottom_offset,
 			false,
-			bottom_curve_depth
+			bottom_curve_depth,
+			bottom_channel_shift
 		)
 		var band_polygons: Array = []
 		for current_polygon in clipped_polygons:
@@ -1673,64 +1598,9 @@ func _build_cached_liquid_band(
 				band_polygons.append(output_polygon)
 		clipped_polygons = band_polygons
 
-	var full_band_polygons: Array[PackedVector2Array] = _valid_liquid_polygons(
+	var render_pieces: Array[PackedVector2Array] = _valid_liquid_polygons(
 		clipped_polygons
 	)
-	if full_band_polygons.is_empty():
-		return []
-
-	# Split the actual band only at the neck-root seam. Every lower essence
-	# keeps its full shoulder/body shape; the top essence also receives the
-	# matching neck fragment as a separate, connected render piece.
-	var render_pieces: Array[Dictionary] = []
-	var outlet_probe: Vector2 = _get_pour_outlet_local(rect)
-	var essence_start: int = int(floor(bottom_units + 0.0001))
-	var essence_end: int = maxi(essence_start, ceili(top_units - 0.0001) - 1)
-	for full_band_polygon in full_band_polygons:
-		# These measurements are taken before any rendering masks are applied.
-		# They describe which physical band reaches the actual lower inside lip
-		# and how much of the lower neck wall remains continuously wetted.
-		var mouth_contact: bool = Geometry2D.is_point_in_polygon(
-			outlet_probe,
-			full_band_polygon
-		)
-		var neck_wall_coverage: float = _get_neck_wall_path_coverage(
-			full_band_polygon,
-			rect
-		)
-		var body_pieces: Array[PackedVector2Array] = _valid_liquid_polygons(
-			Geometry2D.intersect_polygons(
-				full_band_polygon,
-				_cached_strata_chamber_polygon
-			)
-		)
-		for body_piece in body_pieces:
-			render_pieces.append({
-				"polygon": body_piece,
-				"is_neck_extension": false,
-				"mouth_contact": mouth_contact,
-				"neck_wall_coverage": neck_wall_coverage,
-				"essence_start": essence_start,
-				"essence_end": essence_end
-			})
-
-		if is_surface:
-			var neck_pieces: Array[PackedVector2Array] = _valid_liquid_polygons(
-				Geometry2D.intersect_polygons(
-					full_band_polygon,
-					_cached_neck_chamber_polygon
-				)
-			)
-			for neck_piece in neck_pieces:
-				render_pieces.append({
-					"polygon": neck_piece,
-					"is_neck_extension": true,
-					"mouth_contact": mouth_contact,
-					"neck_wall_coverage": neck_wall_coverage,
-					"essence_start": essence_start,
-					"essence_end": essence_end
-				})
-
 	if render_pieces.is_empty():
 		return []
 
@@ -1767,8 +1637,7 @@ func _build_cached_liquid_band(
 
 	var output_bands: Array[Dictionary] = []
 	for piece_index in range(render_pieces.size()):
-		var render_piece: Dictionary = render_pieces[piece_index]
-		var polygon: PackedVector2Array = render_piece["polygon"]
+		var polygon: PackedVector2Array = render_pieces[piece_index]
 		var min_y: float = INF
 		var max_y: float = -INF
 		for point in polygon:
@@ -1806,12 +1675,7 @@ func _build_cached_liquid_band(
 			"surface_curve_depth": top_curve_depth,
 			"surface_depth": clampf(rect.size.y * 0.032, 5.0, 10.0),
 			"is_surface": is_surface and piece_index == 0,
-			"is_top_essence": is_surface,
-			"is_neck_extension": bool(render_piece["is_neck_extension"]),
-			"mouth_contact": bool(render_piece["mouth_contact"]),
-			"neck_wall_coverage": float(render_piece["neck_wall_coverage"]),
-			"essence_start": int(render_piece["essence_start"]),
-			"essence_end": int(render_piece["essence_end"])
+			"is_top_essence": is_surface
 		})
 
 	return output_bands

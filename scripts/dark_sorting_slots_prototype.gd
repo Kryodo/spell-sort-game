@@ -1080,92 +1080,8 @@ func _gui_input(event: InputEvent) -> void:
 # The inherited global input handler is intentionally bypassed. The proven
 # main interaction scene handles the complete pointer lifecycle in _gui_input.
 # F8 runs a one-shot, non-visual gravity/contact sweep for every populated vial.
-func _input(event: InputEvent) -> void:
-	if not event is InputEventKey:
-		return
-	var key_event := event as InputEventKey
-	if not key_event.pressed or key_event.echo or key_event.keycode != KEY_F8:
-		return
-	if is_animating or is_dragging:
-		print("[LIQUID DIAGNOSTIC] Finish the current interaction before running the sweep.")
-	else:
-		_run_pour_angle_diagnostic()
-	get_viewport().set_input_as_handled()
-
-
-func _run_pour_angle_diagnostic() -> void:
-	print("")
-	print("========== LIQUID OUTLET CONTACT SWEEP ==========")
-	print("85° to 115° in 2° steps. Neck coverage samples the lower inner wall.")
-	var tested_vials: int = 0
-
-	for vial_index in range(bottle_nodes.size()):
-		var vial: Control = bottle_nodes[vial_index]
-		if not is_instance_valid(vial) or vial_index >= bottle_contents.size():
-			continue
-		var contents: Array = bottle_contents[vial_index]
-		if contents.is_empty() or not vial.has_method("run_pour_angle_sweep_diagnostic"):
-			continue
-
-		tested_vials += 1
-		var top_layer_index: int = contents.size() - 1
-		print("")
-		print(
-			"Vial %02d | fill %d/%d | bottom -> top: %s"
-			% [vial_index + 1, contents.size(), 4, str(contents)]
-		)
-
-		for direction in [-1.0, 1.0]:
-			var direction_label: String = "LEFT POUR" if direction < 0.0 else "RIGHT POUR"
-			var sweep: Array = vial.call(
-				"run_pour_angle_sweep_diagnostic",
-				float(direction)
-			)
-			var best_angle: int = -1
-			var best_coverage: float = -1.0
-
-			print("  " + direction_label)
-			for result_value in sweep:
-				var result: Dictionary = result_value
-				var contact_labels := PackedStringArray()
-				var contact_layers: Array = result["contacted_layers"]
-				for layer_value in contact_layers:
-					var layer_index: int = int(layer_value)
-					if layer_index >= 0 and layer_index < contents.size():
-						contact_labels.append(
-							"%d:%s" % [layer_index + 1, String(contents[layer_index])]
-						)
-				var contact_text: String = "none"
-				if not contact_labels.is_empty():
-					contact_text = ", ".join(contact_labels)
-
-				var top_contact: bool = bool(result["top_at_mouth"])
-				var coverage: float = float(result["top_neck_wall_coverage"])
-				if top_contact and coverage > best_coverage:
-					best_coverage = coverage
-					best_angle = int(result["angle_degrees"])
-
-				print(
-					"    %3d° | lip: %-22s | top reaches lip: %-3s | neck wall: %3.0f%%"
-					% [
-						int(result["angle_degrees"]),
-						contact_text,
-						"YES" if top_contact else "no",
-						coverage * 100.0
-					]
-				)
-
-			if best_angle >= 0:
-				print(
-					"    Best top-layer contact: %d° (%0.0f%% neck-wall coverage)"
-					% [best_angle, best_coverage * 100.0]
-				)
-			else:
-				print("    No tested angle places the top layer at the lower mouth lip.")
-
-	if tested_vials == 0:
-		print("No populated diagnostic vials are available.")
-	print("=================================================")
+func _input(_event: InputEvent) -> void:
+	pass
 
 
 func _begin_drag(pointer: Vector2) -> void:
@@ -1424,7 +1340,7 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	var desired_source_mouth: Vector2 = target_mouth + Vector2(-direction * 14.0, -14.0)
 	var staging_position: Vector2 = desired_source_mouth - source.call("get_mouth_local_for_pose", pour_pose, POUR_DRAW_SCALE)
 	var target_original_z: int = target.z_index
-	# Diagnostic: restore only the receiver z-order change; keep overlays and FX off.
+	# Keep the receiver above the moving stream while the source pours.
 	target.z_index = 7
 	target.call("set_front_mouth_lip_active", true)
 
@@ -1439,6 +1355,13 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	approach.tween_property(source, "position", staging_position, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	approach.tween_method(Callable(source, "set_pose"), source.call("get_pose"), pour_pose, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	approach.tween_method(Callable(source, "set_draw_scale"), source.call("get_draw_scale"), POUR_DRAW_SCALE, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if source.has_method("get_pouring_visual_weight") and source.has_method("set_pouring_visual_weight"):
+		approach.tween_method(
+			Callable(source, "set_pouring_visual_weight"),
+			float(source.call("get_pouring_visual_weight")),
+			1.0,
+			0.24
+		).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await approach.finished
 
 	source.call("trigger_slosh", 0.24)
@@ -1483,6 +1406,13 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	return_tween.tween_property(source, "position", slot_positions[source_index], 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	return_tween.tween_method(Callable(source, "set_pose"), pour_pose, Vector2.ZERO, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	return_tween.tween_method(Callable(source, "set_draw_scale"), POUR_DRAW_SCALE, 1.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	if source.has_method("get_pouring_visual_weight") and source.has_method("set_pouring_visual_weight"):
+		return_tween.tween_method(
+			Callable(source, "set_pouring_visual_weight"),
+			float(source.call("get_pouring_visual_weight")),
+			0.0,
+			0.25
+		).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	await return_tween.finished
 
 	var next_source: Array = bottle_contents[source_index].duplicate()
