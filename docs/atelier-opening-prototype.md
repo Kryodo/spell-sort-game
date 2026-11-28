@@ -31,3 +31,9 @@ The Atlas page currently reveals the next destination as a discovery. The Botani
 ## Validation
 
 The project files and scene references were checked statically. Godot 4.7 is not installed in the editing environment, so SVG import, GDScript parsing, the first-run flow, save persistence, animation timing and visual layout still need a local Godot 4.7 test. Review whether the warmer materials feel inviting without losing the negative space and silhouette depth that worked in approach 02.
+
+## Scene transitions
+
+- `scripts/scene_transition.gd` is registered as the persistent `SceneTransition` autoload. It covers the outgoing scene with a warm, etched radial aperture, swaps scenes only while fully covered, then opens around the destination focus.
+- The Atelier-to-board transition closes around the workbench and reveals the sorting board around its play area. Returning from the board reverses those focus points. The manager is designed to be reused by future environment and HUD navigation instead of adding individual fades to each scene.
+- The effect uses a short close/reveal animation and blocks input while the handoff is in progress. It does not change puzzle state or lesson progression.

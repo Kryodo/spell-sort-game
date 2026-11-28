@@ -373,9 +373,13 @@ func _open_atlas() -> void:
 
 
 func _change_scene(scene_path: String) -> void:
-	var error := get_tree().change_scene_to_file(scene_path)
-	if error != OK:
-		push_error("SpellSort could not open scene %s (error %d)." % [scene_path, error])
+	# The workbench is the visual origin; the sorting board opens around its
+	# central play area. SceneTransition owns the reusable screen-space effect.
+	SceneTransition.transition_to(
+		scene_path,
+		Vector2(0.50, 0.70),
+		Vector2(0.50, 0.52)
+	)
 
 
 func _make_label(
