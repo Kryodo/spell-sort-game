@@ -1535,73 +1535,6 @@ func _get_pouring_boundary_clearance(fill_units: float) -> float:
 	)
 
 
-func _get_pouring_layer_fade_range(
-	rect: Rect2,
-	frame: Dictionary,
-	bottom_units: float,
-	is_surface: bool
-) -> Vector2:
-	if (
-		is_surface
-		or _pour_visual_weight <= 0.001
-		or absf(_tilt) < deg_to_rad(30.0)
-	):
-		return Vector2(INF, INF)
-
-	var layer_index: int = roundi(bottom_units)
-	if absf(bottom_units - float(layer_index)) > 0.001:
-		return Vector2(INF, INF)
-
-	var visible_layers: int = mini(int(ceil(_liquid_level)), _visual_contents.size())
-	var group_starts: Array[int] = []
-	var group_start: int = 0
-	while group_start < visible_layers:
-		group_starts.append(group_start)
-		var group_color: Color = _palette.get(
-			String(_visual_contents[group_start]),
-			Color(0.45, 0.78, 0.75, 1.0)
-		)
-		var group_end: int = group_start + 1
-		while group_end < visible_layers:
-			var next_color: Color = _palette.get(
-				String(_visual_contents[group_end]),
-				Color(0.45, 0.78, 0.75, 1.0)
-			)
-			if not _same_liquid_colour(group_color, next_color):
-				break
-			group_end += 1
-		group_start = group_end
-
-	var group_rank: int = group_starts.find(layer_index)
-	var lower_group_count: int = group_starts.size() - 1
-	if group_rank < 0 or group_rank >= lower_group_count or lower_group_count <= 0:
-		return Vector2(INF, INF)
-
-	var centre: Vector2 = frame["centre"]
-	var tangent: Vector2 = frame["tangent"]
-	var tangent_span: float = float(frame["tangent_span"])
-	var mouth_direction: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
-	var mouth_center := Vector2(
-		rect.get_center().x,
-		rect.position.y + rect.size.y * _mouth_y_ratio
-	)
-	var mouth_distance: float = (mouth_center - centre).dot(tangent) * mouth_direction
-	var shoulder_distance: float = tangent_span * POUR_CHANNEL_SHOULDER_START
-	var fade_end: float = maxf(shoulder_distance + 8.0, mouth_distance - 5.0)
-	var rank_weight: float = (
-		float(group_rank) / float(maxi(1, lower_group_count - 1))
-	)
-	# Bottommost layers begin fading first. The layer directly below the
-	# active essence remains visible furthest into the narrowing neck.
-	var fade_start: float = lerpf(
-		shoulder_distance + 3.0,
-		fade_end - 12.0,
-		rank_weight
-	)
-	fade_start = minf(fade_start, fade_end - 4.0)
-	return Vector2(fade_start, fade_end)
-
-
 func _get_reference_liquid_area(
 	rect: Rect2,
 	chamber_polygon: PackedVector2Array,
@@ -1836,14 +1769,6 @@ func _build_cached_liquid_band(
 		+ tangent * ((tangent_range.x + tangent_range.y) * 0.5)
 		+ normal * (top_offset + top_curve_depth)
 	)
-	var fade_range: Vector2 = _get_pouring_layer_fade_range(
-		rect,
-		frame,
-		bottom_units,
-		is_surface
-	)
-	var mouth_direction: float = 1.0 if sin(_tilt) >= 0.0 else -1.0
-
 	var output_bands: Array[Dictionary] = []
 	for piece_index in range(render_pieces.size()):
 		var polygon: PackedVector2Array = render_pieces[piece_index]
@@ -1869,14 +1794,6 @@ func _build_cached_liquid_band(
 			)
 			var shaded_color: Color = edge_color.lerp(center_color, center_weight)
 			shaded_color = shaded_color.lerp(bottom_color, vertical_weight * 0.08)
-			if fade_range.x < INF:
-				var along_pour: float = (point - centre).dot(tangent) * mouth_direction
-				var fade_progress: float = smoothstep(
-					fade_range.x,
-					fade_range.y,
-					along_pour
-				)
-				shaded_color.a *= 1.0 - fade_progress * _pour_visual_weight
 			vertex_colors.append(shaded_color)
 
 		output_bands.append({
