@@ -165,7 +165,7 @@ func _update_candle_layout() -> void:
 	var scale_x := room_size.x / 720.0
 	var scale_y := room_size.y / 1280.0
 	var flame_size := Vector2(28.0 * scale_x, 44.0 * scale_y)
-	var wick_anchor := Vector2(570.0 * scale_x, 753.0 * scale_y)
+	var wick_anchor := Vector2(516.0 * scale_x, 733.0 * scale_y)
 	var flame_base := Vector2(14.39 * scale_x, 40.07 * scale_y)
 
 	_candle_flame.size = flame_size
@@ -174,7 +174,7 @@ func _update_candle_layout() -> void:
 
 	var glow_size := Vector2(256.0 * scale_x, 256.0 * scale_y)
 	_candle_glow.size = glow_size
-	_candle_glow.position = Vector2(570.0 * scale_x, 754.0 * scale_y) - glow_size * 0.5
+	_candle_glow.position = Vector2(516.0 * scale_x, 734.0 * scale_y) - glow_size * 0.5
 
 
 func _build_header() -> void:
