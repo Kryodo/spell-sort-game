@@ -76,8 +76,8 @@ func _process(delta: float) -> void:
 		return
 
 	_candle_flame.position = Vector2(
-		559.0 + sin(_ambience_time * 3.1) * 0.65,
-		641.0 + sin(_ambience_time * 5.3) * 0.45
+		556.4 + sin(_ambience_time * 3.1) * 0.35,
+		713.0 + sin(_ambience_time * 5.3) * 0.20
 	)
 	_candle_flame.rotation = sin(_ambience_time * 4.7) * 0.026
 	_candle_flame.scale = Vector2(
@@ -140,7 +140,7 @@ func _build_atmosphere() -> void:
 	_candle_flame = TextureRect.new()
 	_candle_flame.name = "CandleFlame"
 	_candle_flame.texture = load(CANDLE_FLAME_PATH) as Texture2D
-	_candle_flame.position = Vector2(556.4, 717.0)
+	_candle_flame.position = Vector2(556.4, 713.0)
 	_candle_flame.size = Vector2(28.0, 44.0)
 	_candle_flame.pivot_offset = Vector2(14.0, 40.0)
 	_candle_flame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
