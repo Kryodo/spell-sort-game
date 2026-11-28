@@ -922,8 +922,8 @@ func _build_liquid_chamber_polygon(rect: Rect2) -> PackedVector2Array:
 	for point in left_wall:
 		polygon.append(point)
 
-	var floor_left_x: float = left_wall.back().x
-	var floor_right_x: float = right_wall.back().x
+	var floor_left_x: float = left_wall[left_wall.size() - 1].x
+	var floor_right_x: float = right_wall[right_wall.size() - 1].x
 	for sample_index in range(1, LIQUID_FLOOR_SAMPLES + 1):
 		var t: float = float(sample_index) / float(LIQUID_FLOOR_SAMPLES)
 		var floor_y: float = bottom_y + sin(PI * t) * _cached_liquid_floor_depth
@@ -984,13 +984,13 @@ func _build_gravity_half_plane(
 	if keep_below:
 		for point in boundary:
 			half_plane.append(point)
-		half_plane.append(boundary.back() + normal * margin * 2.0)
+		half_plane.append(boundary[boundary.size() - 1] + normal * margin * 2.0)
 		half_plane.append(boundary[0] + normal * margin * 2.0)
 	else:
 		for index in range(boundary.size() - 1, -1, -1):
 			half_plane.append(boundary[index])
 		half_plane.append(boundary[0] - normal * margin * 2.0)
-		half_plane.append(boundary.back() - normal * margin * 2.0)
+		half_plane.append(boundary[boundary.size() - 1] - normal * margin * 2.0)
 
 	return half_plane
 
