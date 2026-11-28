@@ -77,6 +77,11 @@ func set_preview(contents: Array, level: float) -> void:
 	_liquid_level = clampf(level, 0.0, float(CAPACITY))
 	queue_redraw()
 
+func set_pour_refraction_visible(_visible: bool) -> void:
+	# Optional vessel-specific optical detail; standard vessels have none.
+	pass
+
+
 
 
 func set_feedback(selected: bool, targeted: bool, dragging: bool) -> void:

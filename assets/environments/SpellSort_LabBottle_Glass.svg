@@ -42,23 +42,12 @@
       <stop offset=".72" stop-color="#8edfff" stop-opacity=".28"/>
       <stop offset="1" stop-color="#315f91" stop-opacity=".05"/>
     </linearGradient>
-    <linearGradient id="innerBaseBloom" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#579dcc" stop-opacity="0"/>
-      <stop offset=".12" stop-color="#65b7e5" stop-opacity=".07"/>
-      <stop offset=".32" stop-color="#91d9f7" stop-opacity=".14"/>
-      <stop offset=".50" stop-color="#a8e8ff" stop-opacity=".18"/>
-      <stop offset=".68" stop-color="#91d9f7" stop-opacity=".14"/>
-      <stop offset=".88" stop-color="#65b7e5" stop-opacity=".07"/>
-      <stop offset="1" stop-color="#579dcc" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="innerBaseFresnel" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#69bce9" stop-opacity="0"/>
-      <stop offset=".14" stop-color="#86d5f7" stop-opacity=".15"/>
-      <stop offset=".34" stop-color="#b5efff" stop-opacity=".34"/>
-      <stop offset=".50" stop-color="#e0faff" stop-opacity=".48"/>
-      <stop offset=".66" stop-color="#b5efff" stop-opacity=".34"/>
-      <stop offset=".86" stop-color="#86d5f7" stop-opacity=".15"/>
-      <stop offset="1" stop-color="#69bce9" stop-opacity="0"/>
+    <linearGradient id="neckFrontGlint" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a8eaff" stop-opacity="0"/>
+      <stop offset=".24" stop-color="#c5f3ff" stop-opacity=".045"/>
+      <stop offset=".50" stop-color="#e0faff" stop-opacity=".095"/>
+      <stop offset=".76" stop-color="#c5f3ff" stop-opacity=".045"/>
+      <stop offset="1" stop-color="#a8eaff" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="rimGlass" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#92e2ff" stop-opacity=".88"/>
@@ -150,6 +139,13 @@
       C58 79 54 87 47 94
       C39 101 35 108 34 122 Z"
       fill="url(#shoulderReflection)"/>
+    <!-- Extremely faint front catchlight where the straight neck rolls into the shoulder. -->
+    <path d="M59 55
+      C65 62 72 65 80 66
+      C88 65 95 62 101 55
+      C97 65 90 70 80 71
+      C70 70 63 65 59 55 Z"
+      fill="url(#neckFrontGlint)"/>
 
     <path d="M31 118 C31 152 30 190 31 231"
       fill="none" stroke="#a3eaff" stroke-opacity=".22"
@@ -171,20 +167,6 @@
       C117 330 102 342 80 345
       C58 342 43 330 38 308 Z"
       fill="url(#baseReflection)" opacity=".94"/>
-    <!-- Far inner edge of the rounded base: a soft Fresnel crescent,
-         broad and transparent rather than a hard contour line. -->
-    <path d="M39 330
-      C50 313 64 305 80 304
-      C96 305 110 313 121 330
-      C109 322 96 318 80 318
-      C64 318 51 322 39 330 Z"
-      fill="url(#innerBaseBloom)"/>
-    <path d="M50 321
-      C59 312 69 308 80 308
-      C91 308 101 312 110 321
-      C101 316 91 313 80 313
-      C69 313 59 316 50 321 Z"
-      fill="url(#innerBaseFresnel)"/>
   </g>
 
   <!-- Main contour: layered glow below a restrained crisp glass edge. -->

@@ -5,7 +5,10 @@ extends "res://scripts/fantasy_alchemy_bottle.gd"
 # gradient-rich vector overlay so reflections read as glass, not drawn stripes.
 
 const GLASS_ART: Texture2D = preload("res://assets/environments/SpellSort_LabBottle_Glass.svg")
+const BASE_REFRACTION_ART: Texture2D = preload("res://assets/environments/SpellSort_LabBottle_BaseRefraction.svg")
 const BOTTLE_BODY_WIDTH_RATIO := 0.70
+
+var _pour_refraction_visible := true
 const BOTTLE_BODY_TOP_RATIO := 0.055
 const BOTTLE_BODY_HEIGHT_RATIO := 0.89
 
@@ -46,6 +49,13 @@ func set_front_mouth_lip_active(_active: bool) -> void:
 	# is needed when a pouring stream crosses the opening.
 	pass
 
+func set_pour_refraction_visible(visible: bool) -> void:
+	if _pour_refraction_visible == visible:
+		return
+	_pour_refraction_visible = visible
+	queue_redraw()
+
+
 
 func _draw_glass_back(rect: Rect2) -> void:
 	# Keep the established translucent body shading underneath the live liquid.
@@ -53,6 +63,10 @@ func _draw_glass_back(rect: Rect2) -> void:
 
 
 func _draw_glass_overlay() -> void:
-	# The vector overlay supplies the outer contour, layered reflections,
-	# rounded base depth and rolled mouth in one coherent glass-lighting pass.
+	# The main vector overlay supplies the bottle contour, wall reflections,
+	# shoulder light, rounded base and rolled mouth.
 	draw_texture_rect(GLASS_ART, Rect2(Vector2.ZERO, size), false, Color.WHITE)
+	# The far-base refraction is a separate pass so it can disappear while
+	# incoming liquid is moving through the receiver.
+	if _pour_refraction_visible:
+		draw_texture_rect(BASE_REFRACTION_ART, Rect2(Vector2.ZERO, size), false, Color.WHITE)

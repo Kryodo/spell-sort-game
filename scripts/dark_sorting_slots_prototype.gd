@@ -1360,6 +1360,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	target.call("trigger_slosh", 0.12)
 	_set_status("Pouring %s essence..." % essence.capitalize())
 
+	# Hide the receiver's far-base refraction while moving liquid is visible.
+	target.call("set_pour_refraction_visible", false)
 	_pour_stream_active = true
 	_stream_shape.color = Color(_pour_color.r, _pour_color.g, _pour_color.b, 1.0)
 	_stream_shape.visible = true
@@ -1376,6 +1378,8 @@ func _perform_pour(source_index: int, target_index: int) -> void:
 	await pour_tween.finished
 
 	_pour_stream_active = false
+	# Restore the optical reflection after the incoming stream has stopped.
+	target.call("set_pour_refraction_visible", true)
 	target.call("set_front_mouth_lip_active", false)
 	target.z_index = target_original_z
 	_stream_shape.visible = false

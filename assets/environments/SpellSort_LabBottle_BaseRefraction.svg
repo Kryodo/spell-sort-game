@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="365" viewBox="0 0 160 365">
+  <defs>
+    <linearGradient id="leftCrescent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#70c8f2" stop-opacity="0"/>
+      <stop offset=".18" stop-color="#8bd8fa" stop-opacity=".10"/>
+      <stop offset=".55" stop-color="#c1efff" stop-opacity=".22"/>
+      <stop offset=".82" stop-color="#8dd9f7" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#5ca9d5" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rightCrescent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5ca9d5" stop-opacity="0"/>
+      <stop offset=".25" stop-color="#8bd8fa" stop-opacity=".08"/>
+      <stop offset=".62" stop-color="#b8edff" stop-opacity=".15"/>
+      <stop offset="1" stop-color="#70c8f2" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="leftEdgeGlint" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#83d8ff" stop-opacity="0"/>
+      <stop offset=".45" stop-color="#d5f7ff" stop-opacity=".30"/>
+      <stop offset="1" stop-color="#83d8ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Stronger left-side caustic, fading away before the middle. -->
+  <path d="M36 327
+    C43 315 54 307 69 305
+    C64 311 57 318 51 326
+    C46 329 40 329 36 327 Z"
+    fill="url(#leftCrescent)" opacity=".72"/>
+  <path d="M42 323
+    C49 314 58 309 67 307
+    C61 312 55 318 50 324 Z"
+    fill="url(#leftEdgeGlint)" opacity=".32"/>
+
+  <!-- A deliberate dark gap through the centre keeps it from reading as a line. -->
+
+  <!-- Much fainter reflected touch on the right. -->
+  <path d="M94 305
+    C108 307 119 315 124 327
+    C120 329 114 329 109 326
+    C104 318 99 311 94 305 Z"
+    fill="url(#rightCrescent)" opacity=".58"/>
+</svg>

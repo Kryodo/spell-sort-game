@@ -43,3 +43,5 @@ The project files and scene references were checked statically. Godot 4.7 is not
 - Open `scenes/test_tube_sorting_board.tscn` and run it as the current scene to compare the laboratory test-tube study against the existing Qwen vessel board.
 - `scripts/test_tube_vial.gd` reuses the established liquid, slosh, selection and pour behaviour, but draws a reference-matched bottle silhouette with a short narrow neck, rounded shoulders, broad body and curved glass foot; the glass overlay uses layered blue gradients, asymmetric reflection planes, a shoulder catchlight and a dimensional rolled mouth entirely in Godot.
 - `scripts/test_tube_sorting_board.gd` swaps only the vial renderer and contact-shadow marker proportions. The puzzle rules, levels and board layout remain shared with the existing sorting board.
+
+- The laboratory bottle's far-base Fresnel glints live in a separate overlay texture. The receiving vial hides that pass during active pouring and restores it when the stream stops; the faint lower-neck catchlight remains part of the static glass artwork.
