@@ -724,13 +724,6 @@ func _window_bounds_at(y_ratio: float) -> Vector2:
 	)
 
 
-func _profile_points() -> Array[Vector2]:
-	var points: Array[Vector2] = []
-	for bounds in _window_profile:
-		points.append(Vector2(bounds.x, (bounds.z - bounds.y) * 0.5))
-	return points
-
-
 func _get_vessel_rect() -> Rect2:
 	if vial_art == null:
 		return super._get_vessel_rect()
