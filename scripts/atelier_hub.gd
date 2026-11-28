@@ -75,10 +75,9 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(_candle_flame) or not is_instance_valid(_candle_glow):
 		return
 
-	_candle_flame.position = Vector2(
-		556.4 + sin(_ambience_time * 3.1) * 0.35,
-		713.0 + sin(_ambience_time * 5.3) * 0.20
-	)
+	_update_candle_layout()
+	# The flame pivots around its bottom-centre wick anchor. Only its upper
+	# silhouette flickers; its base never drifts away from the candle.
 	_candle_flame.rotation = sin(_ambience_time * 4.7) * 0.026
 	_candle_flame.scale = Vector2(
 		1.0 + sin(_ambience_time * 7.3) * 0.018,
@@ -140,19 +139,42 @@ func _build_atmosphere() -> void:
 	_candle_flame = TextureRect.new()
 	_candle_flame.name = "CandleFlame"
 	_candle_flame.texture = load(CANDLE_FLAME_PATH) as Texture2D
-	_candle_flame.position = Vector2(556.4, 713.0)
 	_candle_flame.size = Vector2(28.0, 44.0)
-	_candle_flame.pivot_offset = Vector2(14.0, 40.0)
+	_candle_flame.pivot_offset = Vector2(14.39, 40.07)
 	_candle_flame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_candle_flame.stretch_mode = TextureRect.STRETCH_SCALE
 	_candle_flame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_candle_flame.z_index = 0
 	add_child(_candle_flame)
+	_update_candle_layout()
 
 	var motes := AtelierMoteLayer.new()
 	motes.name = "AmbientMotes"
 	motes.z_index = 0
 	add_child(motes)
+
+
+func _update_candle_layout() -> void:
+	# The room artwork is a 720x1280 composition stretched to the Control.
+	# Derive the overlay geometry from the same live rect so it stays aligned
+	# at every window size/aspect ratio.
+	var room_size := get_rect().size
+	if room_size.x <= 0.0 or room_size.y <= 0.0:
+		return
+
+	var scale_x := room_size.x / 720.0
+	var scale_y := room_size.y / 1280.0
+	var flame_size := Vector2(28.0 * scale_x, 44.0 * scale_y)
+	var wick_anchor := Vector2(570.0 * scale_x, 753.0 * scale_y)
+	var flame_base := Vector2(14.39 * scale_x, 40.07 * scale_y)
+
+	_candle_flame.size = flame_size
+	_candle_flame.pivot_offset = flame_base
+	_candle_flame.position = wick_anchor - flame_base
+
+	var glow_size := Vector2(256.0 * scale_x, 256.0 * scale_y)
+	_candle_glow.size = glow_size
+	_candle_glow.position = Vector2(570.0 * scale_x, 754.0 * scale_y) - glow_size * 0.5
 
 
 func _build_header() -> void:
