@@ -20,26 +20,26 @@
     </linearGradient>
   </defs>
 
-  <!-- A broad, shallow left caustic follows the width of the rounded foot. -->
-  <path d="M28 326
-    C37 318 51 314 66 315
-    C76 316 84 319 90 323
-    C81 321 73 320 64 320
-    C50 320 38 325 31 331
-    C29 330 28 328 28 326 Z"
+  <!-- The stronger left Fresnel arc sits inboard from the glass wall and sweeps upward. -->
+  <path d="M42 313
+    C52 306 64 303 76 304
+    C83 304 88 306 92 309
+    C84 307 78 306 70 307
+    C59 308 50 311 44 316
+    C43 316 42 315 42 313 Z"
     fill="url(#leftCrescent)" opacity=".72"/>
-  <path d="M34 325
-    C45 319 57 317 69 318
-    C58 318 46 322 36 328 Z"
+  <path d="M48 312
+    C57 307 67 305 77 306
+    C68 306 58 309 50 314 Z"
     fill="url(#leftEdgeGlint)" opacity=".32"/>
 
-  <!-- A small dark break keeps the reflection from becoming a continuous base line. -->
+  <!-- The clear middle gap keeps the two reflected areas optically separate. -->
 
-  <!-- The right-side return is wider and flatter, but remains much fainter. -->
-  <path d="M96 323
-    C105 318 116 317 124 322
-    C129 325 131 328 132 330
-    C127 331 122 329 117 326
-    C110 323 103 322 96 323 Z"
+  <!-- A shorter, softer return on the right, also inset from the bottle edge. -->
+  <path d="M101 309
+    C108 306 115 307 120 311
+    C122 313 123 315 123 316
+    C119 314 116 312 112 311
+    C108 310 104 310 101 311 Z"
     fill="url(#rightCrescent)" opacity=".58"/>
 </svg>

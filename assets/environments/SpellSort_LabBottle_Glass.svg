@@ -140,11 +140,11 @@
       C39 101 35 108 34 122 Z"
       fill="url(#shoulderReflection)"/>
     <!-- Extremely faint front catchlight where the straight neck rolls into the shoulder. -->
-    <path d="M59 65
-      C65 72 72 75 80 76
-      C88 75 95 72 101 65
-      C97 75 90 80 80 81
-      C70 80 63 75 59 65 Z"
+    <path d="M59 55
+      C65 62 72 65 80 66
+      C88 65 95 62 101 55
+      C97 65 90 70 80 71
+      C70 70 63 65 59 55 Z"
       fill="url(#neckFrontGlint)"/>
 
     <path d="M31 118 C31 152 30 190 31 231"
